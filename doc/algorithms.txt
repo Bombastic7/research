@@ -1,0 +1,17 @@
+
+Example algorithm class:
+
+template<typename D>
+struct ExampleAlg {
+
+	ExampleAlg(Json const& jConfig);
+
+	// Calling this function is considered as running the problem instance. //
+	void execute(Solution<typename D::template Domain<0>> & pSol); 
+	
+	// Must be called after each call to execute, if more than one search is taking place. //
+	void reset();
+	
+	// All interesting data, both static and of the search performed by the last call to execute. //
+	Json report();
+};

@@ -1,0 +1,62 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"title": "tiles problem instance",
+	"description": "Information regarding a problem instance and its solutions",
+	"type": "object",
+	
+	"properties": {
+		"created at": {
+			"description": "Human-readable timestamp.",
+			"type:": "string"
+		},
+		"height": {
+			"description": "Board height",
+			"type": "integer",
+			"minimum": 2
+		},
+		"width": {
+			"description": "Board height",
+			"type": "integer",
+			"minimum": 2
+		},
+		"format": {
+			"description": "Interpretation of tile values. Either Tile at position = ARRAY[position] (pos_ind) or Position of tile = ARRAY[TILE] (val_ind).",
+			"type": "string"
+		},
+		"init": {
+			"description": "Initial board state. Must be height*width in size and contain numbers 0 to height*width.",
+			"type": "array",
+			"items": {
+				"type": "integer"
+			}
+		},
+		"goal": {
+			"description": "Goal board state. Must be in same format as format/init.",
+			"type": "array",
+			"items": {
+				"type": "integer"
+			}
+		},
+		"solutions": {
+			"description": "Solutions for initital state",
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"info": {
+						"description": "Information about the solution. Optimal, etc.",
+						"type": "string"
+					},
+					"operators": {
+						"description": "Sequence of operators. These are positions the blank tile moves to.",
+						"type": "array",
+						"items": {
+							"type": "integer"
+						}
+					}
+				}
+			}
+		}
+	},
+	"required": ["height", "width", "format", "init", "goal"]
+}

@@ -1,0 +1,70 @@
+
+
+// Set up //
+
+A conceptual domain:
+	Set of problem instances.
+	Set of abstraction mappings.
+	Set of h/d heuristics.
+	
+
+A conceptual algorithm:
+	Set of configurations (e.g. wf/wt, caching, top abstraction level)
+
+
+
+// Results //
+
+General behaviour stats:
+	Expd, gend, dups, reopnd
+	Total expd of all abt levels
+	open, closed lists
+	
+	
+Specific behaviour stats:
+	cache contents
+	Resorts
+
+
+Solution stats:
+	Length
+	Cost
+
+
+Results stats:
+	Time
+	Cost
+	Utility
+
+
+Resources:
+	Memory
+	Time (cpu/wall)
+	
+
+
+
+// Problems of interest //
+
+	Domains:
+		Tiles = Normal tiles, weighted tiles
+		Pancakes = normal pancakes, weight pancakes?
+		gridnav
+	
+	
+	Uninformed Tiles, pancakes, ..
+	
+	Astar Tiles, pancakes, .. /  MD heuristic, PDB
+
+	Speedy 
+	
+	Bugsy / wf wt
+
+	
+	Hastar Tiles, pancakes /  single/all abt levels
+	UGSAv2 / wf wt
+	
+
+
+
+For abt algorithms, pre-run to populate cache - effectively simple search with pdb heuristic.

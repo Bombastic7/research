@@ -1,0 +1,17 @@
+
+--- Required configuration ---
+
+Bugsy
+wf, wt
+
+HAstar_StatsSearch
+stats file prefix
+
+UGSAv1
+wf, wt
+
+UGSAv2_Stats*
+wf, wt
+
+UGSAv2_StatsSearch
+stats file prefix

@@ -23,6 +23,7 @@ namespace mjon661 { namespace gridnav {
 		coord_t x, y;
 	};	
 	
+	/*
 	template<unsigned H, unsigned W>
 	struct CellArray : public std::array<cell_t, H*W> {
 		
@@ -69,5 +70,5 @@ namespace mjon661 { namespace gridnav {
 			CellArray<H, W>::read(ins, {0, 1});
 		}
 	};
-
+	*/
 }}

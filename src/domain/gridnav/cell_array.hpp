@@ -6,6 +6,11 @@
 #include <string>
 #include <vector>
 
+#include "domain/gridnav/defs.hpp"
+
+#include "util/debug.hpp"
+#include "util/math.hpp"
+
 
 namespace mjon661 { namespace gridnav {
 	
@@ -16,9 +21,9 @@ namespace mjon661 { namespace gridnav {
 			
 			for(unsigned i=0; i<mSize; i++) {
 
-				out << (mCells[i] + '0') << " ";
+				out << std::to_string(mCells[i]) << " ";
 				
-				if((i+1) % W == 0) {
+				if((i+1) % pWidth == 0) {
 					out << "\n";
 					std::cout << "\n";
 				}
@@ -66,17 +71,17 @@ namespace mjon661 { namespace gridnav {
 		}
 		
 
-		cell_t operator[](idx_t pIdx) {
+		cell_t operator[](idx_t pIdx) const {
 			slow_assert(pIdx >= 0 && pIdx < mSize);
 			slow_assert(mIsInit);
 			return mCells[pIdx];
 		}
 
-		cell_t* data() {
+		cell_t* data() const {
 			return mCells;
 		}
 		
-		unsigned getSize() {
+		unsigned getSize() const {
 			return mSize;
 		}
 		
@@ -91,6 +96,8 @@ namespace mjon661 { namespace gridnav {
 		~CellArray() {
 			delete[] mCells;
 		}
+		
+		CellArray(CellArray const&) = delete;
 
 		
 		protected:
@@ -115,16 +122,20 @@ namespace mjon661 { namespace gridnav {
 			CellArray::read(ins, {0, 1});
 		}
 		
-		template<InputIt>
+		template<typename InputIt>
 		void read(InputIt first, InputIt last) {
 			CellArray::read(first, last, {0,1});
 		}
 		
-		unsigned getHeight() {
+		void write(std::ostream& out) const {
+			CellArray::write(out, mWidth);
+		}
+		
+		unsigned getHeight() const {
 			return mHeight;
 		}
 		
-		unsigned getWidth() {
+		unsigned getWidth() const {
 			return mWidth;
 		}
 
@@ -172,29 +183,33 @@ namespace mjon661 { namespace gridnav {
 			fast_assert(mMaps.empty());
 			
 			mMaps.push_back(new Lvl_t(mBaseHeight, mBaseWidth));
-			mMaps.back().read(ins, {0,1});
+			mMaps.back()->read(ins);
+	
 			
-			unsigned cW = mBaseWidth, cH = mBaseHeight;
 			
 			while(true) {
 				
 				Lvl_t* prev = mMaps.back();
-				unsigned prevW = prev.getWidth();
-				unsigned prevH = prev.getHeight();
+				unsigned prevW = prev->getWidth();
+				unsigned prevH = prev->getHeight();
 				
 				unsigned selfHeight = prevH / mHeightFactor, selfWidth = prevW / mWidthFactor;
 				
 				if(mMaps.size() == mMaxLevels || selfHeight == 0 || selfWidth == 0)
 					break;
+						
+				std::vector<unsigned> blockedCounts(selfHeight * selfWidth, 0);
+
 				
-				std::vector<unsigned> blockedCounts(selfHeight * selfWidth);
-				
-				
-				for(unsigned i=0; i<prev.getSize(); i++) {
+				for(unsigned i=0; i<prev->getSize(); i++) {
 					
 					unsigned x = (i % prevW) / mWidthFactor, y = (i / prevW) / mHeightFactor;
 					
-					blockedCounts.at(y * selfWidth + selfHeight)++;
+					if(x >= selfWidth || y >= selfHeight)
+						continue;
+					
+					if((*prev)[i] == 1)
+						blockedCounts.at(y * selfWidth + x)++;
 				}
 				
 				
@@ -203,28 +218,31 @@ namespace mjon661 { namespace gridnav {
 					blockedCounts[i] = blockedCounts[i] >= mFillFactor ? 1 : 0;
 				
 				Lvl_t* selfLvl = new Lvl_t(selfHeight, selfWidth);
-				selfLvl.read(blockedCounts.begin(), blockedCounts.end(), {0,1});
+				selfLvl->read(blockedCounts.begin(), blockedCounts.end());
 				
 				mMaps.push_back(selfLvl);
+				
+		
+				
 			}
 			
 			mNLevels = mMaps.size();
 		}
 		
-		Lvl_t const& getLevel(unsigned pLvl) {
-			return mMaps.at(pLvl);
+		Lvl_t const& getLevel(unsigned pLvl) const {
+			return *mMaps.at(pLvl);
 		}
 				
-		unsigned getNLevels() {
+		unsigned getNLevels() const {
 			return mNLevels;
 		}
 		
-		unsigned getBaseHeight() {
-			return mHeight;
+		unsigned getBaseHeight() const {
+			return mBaseHeight;
 		}
 		
-		unsigned getBaseWidth() {
-			return mWidth;
+		unsigned getBaseWidth() const {
+			return mBaseWidth;
 		}
 		
 		

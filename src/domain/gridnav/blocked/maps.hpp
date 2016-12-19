@@ -57,7 +57,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	
 	/*
-	Creates and manages a stack of GridNavMap_OpOrBl. The value of each cell in levels greater than 0 (base level)
+	Creates and manages a stack of GridNav_Map's. The value of each cell in levels greater than 0 (base level)
 	 are determined by:
 		
 	cellValue(x, y, lvl):

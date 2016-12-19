@@ -8,7 +8,8 @@
 #include <cstdlib>
 
 #include "domain/gridnav/defs.hpp"
-#include "domain/gridnav/flat_domain.hpp"
+#include "domain/gridnav/blocked/domain.hpp"
+#include "domain/gridnav/blocked/maps.hpp"
 
 #include "util/json.hpp"
 #include "util/exception.hpp"
@@ -20,7 +21,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 
 	template<unsigned Height, unsigned Width, template<unsigned, unsigned> typename DB>
-	struct GridNav_Stack_single {
+	struct GridNav_DomainStack_single {
 		
 		using selfStack_t = GridNav_Stack_single<Height, Width, DB>;
 		
@@ -37,7 +38,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		
 		
-		GridNav_Stack_single(Json const& jConfig) :
+		GridNav_DomainStack_single(Json const& jConfig) :
 			mInitPos(readCoord(jConfig, "init")),
 			mGoalPos(readCoord(jConfig, "goal")),
 			mMap(Height, Width)
@@ -84,35 +85,42 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 	template<	unsigned Height,
 				unsigned Width, 
-				unsigned Abt_Lvls, 
+				bool Use_EightWay, 
+				bool Use_LifeCost,
+				unsigned Max_Abt_Lvls, 
 				unsigned Merge_Height_Factor,
 				unsigned Merge_Width_Factor,
-				unsigned Merge_Fill_Factor,
-				bool Use_EightWay, 
-				bool Use_LifeCost>
-	struct GridNav_Stack {
+				unsigned Merge_Fill_Factor
+			>
+
+	struct GridNav_DomainStack_MergeAbt {
 		
-		using selfStack_t = GridNav_Stack<Height, Width, Abt_Lvls, Use, EightWay, Use_LifeCost>;
+		using selfStack_t = GridNav_DomainStack_MergeAbt<Height, Width, Max_Abt_Lvls, Use_EightWay, Use_LifeCost>;
 		
 		template<unsigned H, unsigned W>
 		using DomBase = typename GridNavBase<Use_EightWay, Use_LifeCost, false>::type;
 		
 		
-		static const unsigned Top_Abstract_Level = Abt_Lvls;
-		static_assert(heightAtAbtLevel(Top_Abstract_Level, 0, Height) != 0, "");
-		static_assert(widthAtAbtLevel(Top_Abstract_Level, 0, width) != 0, "");
 		
+		static const unsigned Top_Abstract_Level = min(Max_Abt_Lvls, maxPossibleAbtLevel());
+
 		
-		static constexpr heightAtAbtLevel(unsigned L, unsigned n, unsigned s) {
+		static constexpr unsigned heightAtAbtLevel(unsigned L, unsigned n = 0, unsigned s = Height) {
 			return L == n ? s : heightAtAbtLevel(L, n+1, s/Merge_Height_Factor);
 		}
 		
-		static constexpr widthAtAbtLevel(unsigned L, unsigned n, unsigned s) {
-			return L == n ? s : heightAtAbtLevel(L, n+1, s/Merge_Width_Factor);
+		static constexpr unsigned widthAtAbtLevel(unsigned L, unsigned n = 0, unsigned s = Width) {
+			return L == n ? s : widthAtAbtLevel(L, n+1, s/Merge_Width_Factor);
+		}
+		
+		static constexpr unsigned maxPossibleAbtLevel(unsigned tryLvl = 0) {
+			return heightAtAbtLevel(tryLvl+1, 0, Height) == 0 || widthAtAbtLevel(tryLvl+1, 0, Width) == 0 ?
+					tryLvl :
+					maxPossibleAbtLevel(tryLvl+1);
 		}
 		
 		template<unsigned L>
-		struct Domain : GridNav_Dom<heightAtAbtLevel(L, 0, Height), widthAtAbtLevel(L, 0, Width), DomBase> {
+		struct Domain : GridNav_Dom<heightAtAbtLevel(L), widthAtAbtLevel(L), DomBase> {
 
 			Domain(selfStack_t& pStack) :
 				GridNav_Dom<Height, Width, DomBase>(pStack.mMapStack.getLevel(L), pStack.mInitPos, pStack.mGoalPos)
@@ -131,7 +139,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				AbtState abtSt();
 				
 				abtSt.pos = pState.pos;
-				//Heuristics aren't used with abstraction, so don't need to set abtState.h and .d .
+				//Heuristics aren't used with abstraction, so don't need to deal with abtState.set_h() / set_d().
 				
 				return abtSt;
 			}
@@ -139,7 +147,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		
 		
-		GridNav_Stack(Json const& jConfig) :
+		GridNav_DomainStack_MergeAbt(Json const& jConfig) :
 			mInitPos(readCoord(jConfig, "init")),
 			mGoalPos(readCoord(jConfig, "goal")),
 			mMapStack(Height, Width)

@@ -8,6 +8,8 @@
 #include <cstdlib>
 
 #include "domain/gridnav/defs.hpp"
+#include "domain/gridnav/blocked/maps.hpp"
+
 #include "util/json.hpp"
 #include "util/exception.hpp"
 #include "util/debug.hpp"
@@ -599,9 +601,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			GetHeurisitics::getHeuristicValues(pPacked, pState);
 		}
 		
-		Edge createEdge(State const& pState, Operator op) const {
-			Cost old_h = pState.h, old_d = pState.d;
-			
+		Edge createEdge(State const& pState, Operator op) const {			
 			State edgeState;
 			edgeState.pos = applyMove<Height, Width>(pState.pos, op);
 			

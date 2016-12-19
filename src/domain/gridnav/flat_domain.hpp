@@ -404,7 +404,7 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 	 * 
 	 * Currently works upon cell types 0 (passable) and 1 (impassable). Other cells types are invalid.
 	 */
-	template<unsigned Height, unsigned Width, typename DB>
+	template<unsigned Height, unsigned Width, template<unsigned, unsigned> class DB>
 	struct GridNav_OpOrBl_Dom : public DB<Height, Width> {
 		
 		using DomBase = DB<Height, Width>;

@@ -16,7 +16,34 @@
 
 
 
-namespace mjon661 { namespace gridnav { namespace flatlayout {
+namespace mjon661 { namespace gridnav { namespace blocked {
+
+
+	template<unsigned Height, unsigned Width, template<unsigned, unsigned> typename DB>
+	struct GridNav_Stack_single {
+		
+		using selfStack_t = GridNav_Stack_single<Height, Width, DB>;
+		
+		
+		template<unsigned L>
+		struct Domain : GridNav_Dom<Height, Width, DB> {
+			
+			static_assert(L == 0, "");
+			
+			Domain(selfStack_t& pStack) :
+				GridNav_Dom<Height, Width, DB>(
+			
+			
+		};
+		
+		
+		
+		
+		
+		
+	};
+
+
 
 	template<typename DomBase>
 	struct GridNav_FlatStack {

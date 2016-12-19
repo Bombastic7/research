@@ -119,34 +119,34 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 	template<typename = void>
 	const char* prettyPrintDir(MoveDir pDir) {
 		if(pDir == MoveDir::N)
-			return "(North)";
+			return "(North) ";
 		
 		else if(pDir == MoveDir::S)
-			return "(South)";
+			return "(South) ";
 			
 		else if(pDir == MoveDir::W)
-			return "(West)";
+			return "(West) ";
 		
 		else if(pDir == MoveDir::E)
-			return "(East)";
+			return "(East) ";
 		
 		else if(pDir == MoveDir::NE)
-			return "(North East)";
+			return "(North East) ";
 
 		else if(pDir == MoveDir::SE)
-			return "(South East)";
+			return "(South East) ";
 		
 		else if(pDir == MoveDir::NW)
-			return "(North West)";
+			return "(North West) ";
 			
 		else if(pDir == MoveDir::SW)
-			return "(South West)";
+			return "(South West) ";
 		
 		fast_assert(false);
 		return nullptr;
 	}
 	
-	
+	/*
 	template<unsigned H, unsigned W>
 	void drawFlatCellArray( CellArray<H,W> const& 			pCells,
 							std::vector<const char*> const& pSymbols, 
@@ -167,12 +167,12 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 				out << "\n";
 		}
 	}
-
+	*/
 
 
 	template<unsigned H, unsigned W>
 	struct FourWayMoves {
-			
+		
 		FourWayMoves(idx_t pPos) :
 			mMoves{},
 			mN(0)
@@ -198,7 +198,7 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 	
 	template<unsigned H, unsigned W>
 	struct EightWayMoves {
-		
+
 		EightWayMoves(idx_t pPos) :
 			mMoves{},
 			mN(0)
@@ -228,27 +228,7 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 	
 
 	
-	/* returns  sum of contiguous rows from pY to {mGoaly-1 / mGoaly+1} if {pY < mGoalY / pY > mGoalY} */
-	template<typename = void>
-	int verticalPathFactor(int pY, int goaly) {
-		int d = std::abs(goaly - pY);
-
-		if(d == 0)
-			return 0;
-
-		int s = (d * (d-1)) / 2;
-		
-		s += 	pY < goaly ? 
-					 pY * d :
-			 (goaly+1) * d;
-
-		return s;
-	}
 	
-	/**
-	 * Use_LC ? Unit cost : life cost
-	 * Use_H ?  Manhattan distance based heuristics : none
-	 */
 	
 	template<unsigned H, unsigned W, bool Use_LC, bool Use_H>
 	struct FourWayBase {
@@ -388,6 +368,22 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 	
 	
 	
+	template<bool Use_EightWay, bool Use_LifeCost, bool Use_H>
+	struct GridNavBase {
+		
+		template<unsigned H, unsigned W>
+		using type = FourWayBase<H, W, Use_LifeCost, Use_H>;
+	};
+	
+	
+	template<bool Use_LifeCost, bool Use_H>
+	struct GridNavBase<true, Use_LifeCost, Use_H> {
+		
+		template<unsigned H, unsigned W>
+		using type = EightWayBase<H, W, Use_LifeCost, Use_H>;
+	};
+	
+	
 	
 	/*
 	 * DomBase provides:
@@ -408,15 +404,14 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 	 * 
 	 * Currently works upon cell types 0 (passable) and 1 (impassable). Other cells types are invalid.
 	 */
-	template<typename DomBase>
-	struct GridNav_Dom : public DomBase {
+	template<unsigned Height, unsigned Width, typename DB>
+	struct GridNav_OpOrBl_Dom : public DB<Height, Width> {
 		
+		using DomBase = DB<Height, Width>;
 		using PackedState = idx_t;
 		using Cost = typename DomBase::cost_t;
 		using Operator = MoveDir;
 
-		using DomBase::Height;
-		using DomBase::Width;
 
 		static const size_t Hash_Range = Height * Width;
 		
@@ -436,12 +431,12 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 				return this->mN;
 			}
 			
-			Operator& operator[](unsigned i) {
+			Operator operator[](unsigned i) {
 				return this->mMoves[i];
 			}
 			
-			OperatorSet(CellArray<Height,Width> const& pCells, idx_t pState) :
-				DomBase::OpSetBase(pState),
+			OperatorSet(GridNavMap_OpOrBl<Height,Width> const& pCells, idx_t pState) :
+				GetMoves(pState),
 				mTestCopy(*this)//...........
 			{
 				int canMove = 0;
@@ -463,7 +458,7 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 			}
 			
 			private:
-			bool assertCheck(CellArray<Height,Width> const& pCells, idx_t pState) {
+			bool assertCheck(GridNavMap_OpOrBl<Height,Width> const& pCells, idx_t pState) {
 				for(int i=0; i<mTestCopy.mN; i++) {
 					
 					cell_t c = pCells[applyMove<Height, Width>(pState, mTestCopy.mMoves[i])];
@@ -528,7 +523,7 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 			
 		
 			
-		GridNav_Dom(CellArray<Height,Width> const& pCells, idx_t pInitPos, idx_t pGoalPos) :
+		GridNav_OpOrBl_Dom(GridNavMap_OpOrBl<Height,Width> const& pCells, idx_t pInitPos, idx_t pGoalPos) :
 			DomBase(pGoalPos),
 			noOp(MoveDir::NoOp),
 			mCells(pCells),
@@ -537,12 +532,14 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 		{
 			fast_assert(mInitPos >= 0 && mInitPos < Height * Width);
 			fast_assert(mGoalPos >= 0 && mGoalPos < Height * Width);
+			fast_assert(pCells.getHeight() == Height);
+			fast_assert(pCells.getWidth() == Width);
 		}
 		
 		State createState() const {
 			State s;
 			s.pos = mInitPos;
-			DomBase::getHeuristicValues(mInitPos, s.h, s.d);
+			this->getHeuristicValues(mInitPos, s.h, s.d);
 			
 			return s;
 		}
@@ -555,7 +552,7 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 		void unpackState(State& pState, PackedState const& pPacked) const {
 			pState.pos = pPacked;
 			slow_assert(pState.pos >= 0 && pState.pos < Height*Width);
-			DomBase::getHeuristicValues(pPacked, pState.h, pState.d);
+			GetHeurisitics::getHeuristicValues(pPacked, pState.h, pState.d);
 		}
 		
 		Edge createEdge(State const& pState, Operator op) const {
@@ -612,7 +609,7 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 		
 
 		private:
-		CellArray<Height,Width> const& mCells;
+		GridNavMap_OpOrBl<Height,Width> const& mCells;
 		const idx_t mInitPos, mGoalPos;
 
 	};

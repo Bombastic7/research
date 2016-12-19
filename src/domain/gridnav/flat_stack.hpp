@@ -35,7 +35,6 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 			Domain(GridNav_FlatStack<DomBase>& pStack) :
 				base_t(*pStack.mCells, pStack.mInitPos, pStack.mGoalPos)
 			{}
-						
 		};
 		
 		

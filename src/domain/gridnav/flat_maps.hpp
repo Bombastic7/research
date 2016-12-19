@@ -7,106 +7,13 @@
 #include <vector>
 
 #include "domain/gridnav/defs.hpp"
+#include "domain/gridnav/cell_array.hpp"
 
 #include "util/debug.hpp"
 #include "util/math.hpp"
 
 
-namespace mjon661 { namespace gridnav {
-	
-
-	//Encapsulates an array of cell_t.
-	struct CellArray {
-		
-		void write(std::ostream& out, unsigned pWidth = -1) const {
-			
-			for(unsigned i=0; i<mSize; i++) {
-
-				out << std::to_string(mCells[i]) << " ";
-				
-				if((i+1) % pWidth == 0) {
-					out << "\n";
-					std::cout << "\n";
-				}
-			}
-		}
-		
-		void read(std::istream& ins, std::vector<cell_t> const& pAllowedTypes = std::vector<cell_t>()) {
-			
-			for(unsigned i=0; i<mSize; i++) {
-				if(!ins)
-					throw std::runtime_error("CellArray::read: unexpected EOF");
-				
-				cell_t c;
-				
-				ins >> c;
-				
-				c -= '0';
-				
-				if(!pAllowedTypes.empty() && !contains(pAllowedTypes, c))
-					throw std::runtime_error(std::string("CellArray::read: bad cell: ") + c);
-				
-				mCells[i] = c;
-			}
-			
-			mIsInit = true;
-		}
-		
-		
-		template<typename InputIt>
-		void read(InputIt first, InputIt last, std::vector<cell_t> const& pAllowedTypes = std::vector<cell_t>()) {
-			
-			for(unsigned i=0; i<mSize; i++, ++first) {
-				if(first == last)
-					throw std::runtime_error("CellArray::read: bad iterator");
-				
-				cell_t c = *first;
-				
-				if(!pAllowedTypes.empty() && !contains(pAllowedTypes, c))
-					throw std::runtime_error(std::string("CellArray::read: iterator, bad cell: ") + c);
-				
-				mCells[i] = c;
-			}
-			
-			mIsInit = true;
-		}
-		
-
-		cell_t operator[](idx_t pIdx) const {
-			slow_assert(pIdx >= 0 && pIdx < mSize);
-			slow_assert(mIsInit);
-			return mCells[pIdx];
-		}
-
-		cell_t* data() const {
-			return mCells;
-		}
-		
-		unsigned getSize() const {
-			return mSize;
-		}
-		
-		CellArray(unsigned pSize) :
-			mCells(nullptr),
-			mSize(pSize),
-			mIsInit(false)
-		{
-			mCells = new cell_t[pSize];
-		}
-		
-		~CellArray() {
-			delete[] mCells;
-		}
-		
-		CellArray(CellArray const&) = delete;
-
-		
-		protected:
-		cell_t* mCells;
-		const unsigned mSize;
-		bool mIsInit;
-	};
-	
+namespace mjon661 { namespace gridnav { namespace flatlayout {
 	
 	
 	//Represents a board where cells are either blocked or unblocked.
@@ -281,4 +188,4 @@ namespace mjon661 { namespace gridnav {
 		std::vector<GridNavMap_OpOrBl*> mMaps;
 	};
 
-}}
+}}}

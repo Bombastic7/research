@@ -119,28 +119,28 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 	template<typename = void>
 	const char* prettyPrintDir(MoveDir pDir) {
 		if(pDir == MoveDir::N)
-			return "North";
+			return "(North)";
 		
 		else if(pDir == MoveDir::S)
-			return "South";
+			return "(South)";
 			
 		else if(pDir == MoveDir::W)
-			return "West";
+			return "(West)";
 		
 		else if(pDir == MoveDir::E)
-			return "East";
+			return "(East)";
 		
 		else if(pDir == MoveDir::NE)
-			return "North East";
+			return "(North East)";
 
 		else if(pDir == MoveDir::SE)
-			return "South East";
+			return "(South East)";
 		
 		else if(pDir == MoveDir::NW)
-			return "North West";
+			return "(North West)";
 			
 		else if(pDir == MoveDir::SW)
-			return "South West";
+			return "(South West)";
 		
 		fast_assert(false);
 		return nullptr;
@@ -390,13 +390,14 @@ namespace mjon661 { namespace gridnav { namespace flatlayout {
 	
 	
 	/*
-	 * DomBase accepts parameters H (height) and W (width), and provides:
+	 * DomBase provides:
+	 * 
 	 * 	type cost_t
 	 * 	
 	 * 	const Height, Width
 	 *  
 	 * 	struct OpSetBase {
-	 * 		OpSetBase(idx_t pos);  //populates mMoves for position
+	 * 		OpSetBase(idx_t pos);  //populates mMoves for position, assuming all neighbouring tiles can be moved to.
 	 * 		MoveDir mMoves[]
 	 * 		unsigned mN      //Number of moves
 	 * 	}

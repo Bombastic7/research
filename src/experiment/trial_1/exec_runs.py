@@ -6,7 +6,7 @@ import json
 import sys
 import copy
 import subprocess
-from multiprocessing import Pool, cpu_count
+import multiprocessing
 
 
 RUNS_FILE = "run_set.json"
@@ -14,7 +14,7 @@ RUNS_FILE = "run_set.json"
 RESULTS_FILE = "results_set.json"
 
 
-N_WORKERS = cpu_count()
+N_WORKERS = multiprocessing.cpu_count()
 
 
 
@@ -54,23 +54,26 @@ def getChunks(listsz, chunksz):
 
 
 
-with open(RUNS_FILE) as f:
-	global RUN_KEYS
-	global RUNS
+
+
+
+if __name__ == "__main__":
 	
-	RUNS = json.load(f)
-	RUN_KEYS = [ i for i in RUNS.iterkeys() ]
+	
+	with open(RUNS_FILE) as f:
+		RUNS = json.load(f)
+		RUN_KEYS = [ i for i in RUNS.iterkeys() ]
+	
+	workerPool = multiprocessing.Pool(N_WORKERS)
+	
+	RESULTS = []
+	
+	multiprocessing.Queue(len(
 
+print "Using", N_WORKERS, "workers"
 
-
-workerPool = Pool(N_WORKERS)
-
-
-
-RESULTS = []
-
-for (st, ed) in getChunks(len(RUN_KEYS), 1):
-	print "Starting", (st, ed), " KEYS: ", RUN_KEYS[st], RUN_KEYS[ed-1]
+for (st, ed) in getChunks(len(RUN_KEYS), N_WORKERS*4):
+	#print "Starting", (st, ed), " KEYS: ", RUN_KEYS[st], RUN_KEYS[ed-1]
 	RESULTS.append(workerPool.map(execSearchRun, RUN_KEYS[st:ed]))
 	print "Done", (st, ed), " KEYS: ", RUN_KEYS[st], RUN_KEYS[ed-1]
 

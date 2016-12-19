@@ -61,7 +61,8 @@ namespace mjon661 { namespace algorithm {
 				roundCount++;
 			}
 			
-			prepareSolution(sol);
+			if(goalFound)
+				prepareSolution(sol);
 		}
 		
 		bool doSearch(State& pState,

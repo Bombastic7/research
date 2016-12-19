@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 
 namespace mjon661 { namespace gridnav {
@@ -27,17 +28,17 @@ namespace mjon661 { namespace gridnav {
 		
 		void write(std::ostream& out) const {
 			for(unsigned i=0; i<H*W; i++) {
-				if(i % W == 0) {
+
+				out << ((*this)[i] + '0') << " ";
+				
+				if((i+1) % W == 0) {
 					out << "\n";
 					std::cout << "\n";
 				}
-				
-				std::cout << std::to_string((*this)[i]) << " ";
-				out << std::to_string((*this)[i]) << " ";
 			}
 		}
 		
-		void read(std::istream& ins) {
+		void read(std::istream& ins, std::vector<cell_t> const& pAllowedTypes = std::vector<cell_t>()) {
 			
 			for(unsigned i=0; i<H*W; i++) {
 				if(!ins)
@@ -47,19 +48,25 @@ namespace mjon661 { namespace gridnav {
 				
 				ins >> c;
 				
-				if(c == '0')
-					(*this)[i] = 0;
-				else if(c == '1')
-					(*this)[i] = 1;
-				else
-					throw std::runtime_error(std::string("CellArray::read: bad cell: ") + c);
-			}
-			
-			for(unsigned i=0; i<H*W; i++) {
-				slow_assert((*this)[i] == 0 || (*this)[i] == 1);
+				c -= '0';
 				
+				if(!pAllowedTypes.empty() && !contains(pAllowedTypes, c))
+					throw std::runtime_error(std::string("CellArray::read: bad cell: ") + c);
+				
+				(*this)[i] = c;
 			}
 			
+		}
+	};
+	
+	template<unsigned H, unsigned W>
+	struct CellArray_OpenOrBlocked : CellArray<H, W> {
+		
+		static const cell_t Open_Cell = 0, Blocked_Cell = 1;
+		
+		
+		void read(std::istream& ins) {
+			CellArray<H, W>::read(ins, {0, 1});
 		}
 	};
 

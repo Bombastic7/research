@@ -229,7 +229,25 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	
 	
-	template<bool H, typename = void>
+	/* returns  sum of contiguous rows from pY to {mGoaly-1 / mGoaly+1} if {pY < mGoalY / pY > mGoalY} */
+	template<typename = void>
+	int verticalPathFactor(int pY, int goaly) {
+		int d = std::abs(goaly - pY);
+
+		if(d == 0)
+			return 0;
+
+		int s = (d * (d-1)) / 2;
+		
+		s += pY < goaly ? 
+				 pY * d :
+			(goaly+1) * d;
+
+		return s;
+	}
+	
+	
+	template<bool H, typename Cost>
 	struct StateImpl {
 		idx_t pos;
 		Cost h, d;
@@ -239,8 +257,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		Cost get_d() {return d;}
 	};
 	
-	template<typename Ign>
-	struct StateImpl<false, Ign> {
+	template<typename Cost>
+	struct StateImpl<false, Cost> {
 		idx_t pos;
 		void set_h(Cost) {}
 		void set_d(Cost) {}
@@ -256,7 +274,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		using cost_t = int;
 		using OpSetBase = FourWayMoves<H,W>;
-		using state_t = StateImpl<Use_H>;
+		using state_t = StateImpl<Use_H, cost_t>;
 		
 		static const unsigned Height = H, Width = W;
 		
@@ -275,7 +293,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				return;
 			
 			else if(!Use_LC) {
-				Cost c = manhat(pPos)
+				cost_t c = manhat(pPos);
 				pState.set_h(c);
 				pState.set_d(c);
 			}
@@ -333,7 +351,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		using cost_t = float;
 		using OpSetBase = EightWayMoves<H,W>;
-		using state_t = StateImpl<Use_H>;
+		using state_t = StateImpl<Use_H, cost_t>;
 		
 		static const unsigned Height = H, Width = W;
 		
@@ -480,7 +498,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 			
 			OperatorSet(GridNav_Map const& pMap, idx_t pState) :
-				GetMoves(pState)
+				DomBase::OpSetBase(pState)
 				//mTestCopy(*this)//...........
 			{
 				int canMove = 0;
@@ -489,7 +507,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					
 					idx_t dest = applyMove<Height, Width>(pState, this->mMoves[i]);
 					
-					if(pCells[dest] != 0)
+					if(pMap[dest] != 0)
 						continue;
 				
 					this->mMoves[pos] = this->mMoves[i];
@@ -598,7 +616,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		void unpackState(State& pState, PackedState const& pPacked) const {
 			pState.pos = pPacked;
 			slow_assert(pState.pos >= 0 && pState.pos < Height*Width);
-			GetHeurisitics::getHeuristicValues(pPacked, pState);
+			this->getHeuristicValues(pPacked, pState);
 		}
 		
 		Edge createEdge(State const& pState, Operator op) const {			
@@ -616,7 +634,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		OperatorSet createOperatorSet(State const& pState) const {
-			return OperatorSet(mCells, pState.pos);
+			return OperatorSet(mMap, pState.pos);
 		}
 		
 		size_t hash(PackedState const& pPacked) const {

@@ -80,7 +80,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	*/
 	struct GridNav_MapStack_MergeAbt {
 		
-		using Lvl_t = GridNavMap_OpOrBl;
+		using Lvl_t = GridNav_Map;
 		
 		
 		GridNav_MapStack_MergeAbt(

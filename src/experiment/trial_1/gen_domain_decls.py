@@ -1,6 +1,8 @@
 #!/bin/python
 
 
+def _boolStr(b):
+	return "true" if b else "false"
 
 
 def gridnav_blocked(height, width, mv8, cstLC, hr, name = None):
@@ -8,16 +10,15 @@ def gridnav_blocked(height, width, mv8, cstLC, hr, name = None):
 	costTag = "LC" if cstLC else "Unit"
 	hTag = "H" if hr else "NoH"
 	
-	defaultDeclName = "GridNav_h{0}w{1}_{2}_{3}_{4}".format(height, width, mvTag, costTag, hTag)
+	#defaultDeclName = "GridNav_h{0}w{1}_{2}_{3}_{4}".format(height, width, mvTag, costTag, hTag)
 	
 	
 	
-	if not name:
-		name = defaultDeclName
+	#if not name:
+	#	name = defaultDeclName
 	
-	declStr = "gridnav::blocked::GridNav_DomainStack_single<{0}, {1}, \
-	typename gridnav::blocked::GridNavBase<{2}, {3}, {4}>::type >;"\
-	.format(height, width, mvTag, costTag, hTag)
+	declStr = "gridnav::blocked::GridNav_DomainStack_single<{0}, {1}, gridnav::blocked::GridNavBase<{2}, {3}, {4}>::type>"\
+	.format(height, width, _boolStr(mv8), _boolStr(cstLC), _boolStr(hr))
 	
 	return declStr
 	
@@ -36,7 +37,7 @@ def gridnav_blocked_stack_merge(height, width, mv8, cstLC, hr, hfact, wfact, fil
 		name = defaultDeclName
 	
 	
-	declStr = "gridnav::blocked::GridNav_DomainStack_MergeAbt<{0},{1},{2},{3},{mxL},{4},{5},{6}>;"\
+	declStr = "gridnav::blocked::GridNav_DomainStack_MergeAbt<{0},{1},{2},{3},{mxL},{4},{5},{6}>"\
 	.format(height, width, mv8, cstLC, hfact, wfact, fillfact, mxL=MaxAbtLvl);
 	
 	return declStr
@@ -52,7 +53,7 @@ def pancake_stack_single(Ncakes, gapH, name = None):
 	if not name:
 		name = defaultDeclName
 	
-	declStr = "pancake::Pancake_DomainStack_single<{0},{1}>;".format(Ncakes, hTag);
+	declStr = "pancake::Pancake_DomainStack_single<{0},{1}>".format(Ncakes, hTag);
 
 	return declStr
 	

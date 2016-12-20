@@ -23,7 +23,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	template<unsigned Height, unsigned Width, template<unsigned, unsigned> typename DB>
 	struct GridNav_DomainStack_single {
 		
-		using selfStack_t = GridNav_Stack_single<Height, Width, DB>;
+		using selfStack_t = GridNav_DomainStack_single<Height, Width, DB>;
 		
 		
 		template<unsigned L>
@@ -43,12 +43,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mGoalPos(readCoord(jConfig, "goal")),
 			mMap(Height, Width)
 		{
-			std::ifstream ifs(jConfig.at("map"));
+			std::ifstream ifs(jConfig.at("map").get<std::string>());
 			
 			if(!ifs)
 				throw ConfigException("Could not open map file");
 			
-			mMap->read(ifs);
+			mMap.read(ifs);
 		}
 		
 		
@@ -95,14 +95,17 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 	struct GridNav_DomainStack_MergeAbt {
 		
-		using selfStack_t = GridNav_DomainStack_MergeAbt<Height, Width, Max_Abt_Lvls, Use_EightWay, Use_LifeCost>;
+		using selfStack_t = GridNav_DomainStack_MergeAbt<	Height, 
+															Width,
+															Use_EightWay, 
+															Use_LifeCost, 
+															Max_Abt_Lvls, 
+															Merge_Height_Factor, 
+															Merge_Width_Factor, 
+															Merge_Fill_Factor>;
 		
 		template<unsigned H, unsigned W>
 		using DomBase = typename GridNavBase<Use_EightWay, Use_LifeCost, false>::type;
-		
-		
-		
-		static const unsigned Top_Abstract_Level = min(Max_Abt_Lvls, maxPossibleAbtLevel());
 
 		
 		static constexpr unsigned heightAtAbtLevel(unsigned L, unsigned n = 0, unsigned s = Height) {
@@ -118,6 +121,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					tryLvl :
 					maxPossibleAbtLevel(tryLvl+1);
 		}
+		
+		
+		static const unsigned Top_Abstract_Level = min(Max_Abt_Lvls, maxPossibleAbtLevel());
+		
+		
 		
 		template<unsigned L>
 		struct Domain : GridNav_Dom<heightAtAbtLevel(L), widthAtAbtLevel(L), DomBase> {
@@ -152,12 +160,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mGoalPos(readCoord(jConfig, "goal")),
 			mMapStack(Height, Width)
 		{
-			std::ifstream ifs(jConfig.at("map"));
+			std::ifstream ifs(jConfig.at("map").get<std::string>());
 			
 			if(!ifs)
 				throw ConfigException("Could not open map file");
 			
-			mMapStack->read(ifs);
+			mMapStack.read(ifs);
 		}
 		
 		

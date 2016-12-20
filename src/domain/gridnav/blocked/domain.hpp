@@ -253,8 +253,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		Cost h, d;
 		void set_h(Cost ph) {h=ph;}
 		void set_d(Cost pd) {d=pd;}
-		Cost get_h() {return h;}
-		Cost get_d() {return d;}
+		Cost get_h() const {return h;}
+		Cost get_d() const {return d;}
 	};
 	
 	template<typename Cost>
@@ -262,8 +262,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		idx_t pos;
 		void set_h(Cost) {}
 		void set_d(Cost) {}
-		Cost get_h() {return 0;}
-		Cost get_d() {return 0;}
+		Cost get_h() const {return 0;}
+		Cost get_d() const {return 0;}
 	};
 
 	
@@ -619,7 +619,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			this->getHeuristicValues(pPacked, pState);
 		}
 		
-		Edge createEdge(State const& pState, Operator op) const {			
+		Edge createEdge(State& pState, Operator op) const {			
 			State edgeState;
 			edgeState.pos = applyMove<Height, Width>(pState.pos, op);
 			

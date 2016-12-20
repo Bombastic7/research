@@ -4,60 +4,12 @@
 import sys
 import os
 import json
+import multiprocessing
+import subprocess
 
 import gen_domain_decls
-
-
-
-"""
-
-Parameters:
-
-Alg-Dom concrete classes
-	algs, params
-	doms, params
-	how to pair
-	
-	create alg_dom_decls.hpp
-
-	create searcher.cc
-	
-
-gen_problems.py
-	doms -> probspec
-	
-	for each probspec
-		nprobs
-	
-	create gen_problems.py
-
-
-
-gen_runs.py
-	location of problems
-
-	get alg-dom classes
-	
-	other params
-	
-	create gen_runs.py
-
-
-exec_runs.py
-	run_set file
-	results out file
-	
-	create exec_runs.py
-
-"""
-
-
-
-def problemFilePath(cls, fname):
-	return "./problems/" + cls + "/" + fname
-
-
-
+import gen_searcher
+import gen_problems
 
 
 
@@ -69,7 +21,7 @@ ALG_DOM = [
 GEN_PROB_FILES = [ 
 		
 		{ "class" : "gridnav10_10", "fname" : "mapA", "gen" : "map", "blockedprob" : 0.35 },
-		{ "class" : "gridnav10_10", "fname" : "probsA.json", "gen" : "probs", "num" : 10, "mindistance" : 0.5, "map" : "mapA" }
+		{ "class" : "gridnav10_10", "fname" : "probsA.json", "gen" : "problems", "num" : 10, "mindistance" : 0.5, "map" : "mapA" }
 		
 		]
 
@@ -106,7 +58,7 @@ def executeProblem(execDesc):
 			res["error_what"] = searcherOut
 			return res
 	
-		else
+		else:
 			res = {"result" : "bad return code"}
 			res["error_what"] = searcherOut
 			return res
@@ -120,7 +72,7 @@ def executeProblem(execDesc):
 def executeAllProblems():
 	
 	def doExec(ex):
-		return (ex[0], executeProblem(ex[1])
+		return (ex[0], executeProblem(ex[1]))
 
 	workerPool = multiprocessing.Pool()
 	
@@ -128,17 +80,18 @@ def executeAllProblems():
 		
 		probcls = algdom[2]
 		
-		for probfile in os.listdir("./problems/" + probcls):
+		for probfile in EXEC_PROB_FILES[probcls]:
 			
 			with open(probfile) as f:
 				probset = json.load(f)
 			
-			execDescList = [(*p, *w) for p in probset for w in WEIGHT_SCHEDULE]
+			execDescList = [(k, d, wf, wt) for (k,d) in probset for (wf,wt) in WEIGHT_SCHEDULE]
 			
 			
 			def doExec((key, desc, wf, wt)):
 				
-				execDesc = {	"domain conf" : desc,
+				execDesc = {	"algdom" : algdom[3],
+								"domain conf" : desc,
 								"domain" : algdom[1],
 								"algorithm" : algdom[0], 
 								"algorithm conf" : {},
@@ -158,7 +111,7 @@ def executeAllProblems():
 			for (key, res) in resList:
 				results[key] = res
 			
-			resFile = probfile + "_" + algdom[0] + "_" + algdom[1] + "_results.json"
+			resFile = probfile + "_" + algdom[3] + "_results.json"
 			with open(resFile) as f:
 				
 				json.dump(results, f, indent=4, sort_keys=True)
@@ -200,16 +153,16 @@ if __name__ == "__main__":
 	if func == "searcher":
 		gencode = gen_searcher.searcher_code(ALG_DOM)
 	
-		with open("searcher_auto.cc", "w") as f:
+		with open(os.path.dirname(os.path.abspath(__file__)) + "/searcher_auto.cc", "w") as f:
 			f.write(gencode)
 	
 	elif func == "problems":
 		gen_problems.generateFiles(GEN_PROB_FILES)
 		
 	elif func == "exec":
-		generateExecScript()
+		executeAllProblems()
 	
-	else
+	else:
 		raise RuntimeError()
 	
 	

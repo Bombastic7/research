@@ -7,7 +7,7 @@ import csv
 import math
 
 
-def getRandomPerm(sz):
+def _getRandomPerm(sz):
 	perm = range(0, sz)
 	
 	random.shuffle(perm)
@@ -18,7 +18,7 @@ def getRandomPerm(sz):
 
 
 
-def getTilesParity(perm, w, h):
+def _getTilesParity(perm, w, h):
 	inversions = 0
 	for i in range(0, len(perm)):
 		for j in range(i, len(perm)):
@@ -28,7 +28,7 @@ def getTilesParity(perm, w, h):
 	return inversions % 2
 
 
-def getTilesSolvability(perm, goal, w, h):
+def _getTilesSolvability(perm, goal, w, h):
 	
 	if w % 2 == 1:
 		return getTilesParity(perm, w, h) == getTilesParity(goal, w, h)
@@ -42,7 +42,7 @@ def getTilesSolvability(perm, goal, w, h):
 
 
 
-def getTilesInitState(w, h, goal):
+def _getTilesInitState(w, h, goal):
 	perm = getRandomPerm(h*w)
 	
 	if getTilesSolvability(perm, goal, w, h):
@@ -55,7 +55,7 @@ def getTilesInitState(w, h, goal):
 
 
 		
-def genTilesProblemSet(w, h, nprob, fname):
+def _genTilesProblemSet(w, h, nprob, fname):
 	probs = {}
 
 	goalState = tuple(range(0, h*w))
@@ -72,7 +72,7 @@ def genTilesProblemSet(w, h, nprob, fname):
 
 
 
-def genPancakeProblemSet(sz, nprob, fname):
+def _genPancakeProblemSet(sz, nprob, fname):
 	probs = {}
 	
 	for i in range(0, nprob):
@@ -84,7 +84,7 @@ def genPancakeProblemSet(sz, nprob, fname):
 
 
 
-def genGridNavMap(h, w, block, fname):
+def _genGridNavMap(h, w, block, fname):
 	
 	with open(fname, "w") as f:
 		for i in range(0, h*w):
@@ -100,7 +100,7 @@ def genGridNavMap(h, w, block, fname):
 
 
 
-def genGridNavProblemSet(fname, fmapname, h, w, nprobs):
+def _genGridNavProblemSet(fname, fmapname, h, w, nprobs, mindist):
 	
 	cellsRows = []
 	with open(fmapname, "rb") as f:
@@ -115,7 +115,7 @@ def genGridNavProblemSet(fname, fmapname, h, w, nprobs):
 	probs = {}
 	
 	def startGoalCond(startpos, endpos):
-		if abs(math.hypot(*startpos) - math.hypot(*goalpos)) < griddiag * 0.2:
+		if abs(math.hypot(*startpos) - math.hypot(*goalpos)) < griddiag * mindist:
 			return False
 		
 		if cellsRows[startpos[1]][startpos[0]] == 1 or cellsRows[goalpos[1]][goalpos[0]] == 1:
@@ -138,6 +138,26 @@ def genGridNavProblemSet(fname, fmapname, h, w, nprobs):
 	with open(fname, "w") as f:
 		json.dump(probs, f, indent=4, sort_keys=True)
 		
+
+
+
+def generateFiles(probFiles):
+	
+	for p in probFiles:
+		
+		if p["class"] == "gridnav10_10":
+			if p["gen"] == "map":
+				_genGridNavProblemSet(10, 10, p["blockedprob"], p["fname"])
+			
+			elif p["gen"] == "problems":
+				_genGridNavProblemSet(p["fname"], p["map"],  10, 10, p["num"], p["mindistance"])
+		
+		else:
+			pass
+	
+	
+		
+
 
 
 """

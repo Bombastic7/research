@@ -6,6 +6,7 @@
 #include "util/json.hpp"
 #include "util/math.hpp"
 #include "util/debug.hpp"
+#include "util/exception.hpp"
 
 #include "domain/tiles/defs.hpp"
 #include "domain/tiles/domain.hpp"

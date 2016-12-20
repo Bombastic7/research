@@ -39,7 +39,6 @@ def searcher_code(algdom):
 #include "search/ugsa/v1/ugsa_v1.hpp"
 #include "search/ugsa/v2/ugsa_v2.hpp"
 
-#include "experiment/trial_1/alg_dom_decls.hpp"
 """
 
 
@@ -132,18 +131,17 @@ namespace mjon661 {
 
 	codeStr += """
 void selectAll(Json const& jExecDesc) {
-	std::string pDom = jExecDesc["domain"];
-	std::string pAlg = jExecDesc["algorithm"];
+	std::string pAlgDom = jExecDesc["algdom"];
 	
-	if(pDom == "")
+	if(pAlgDom == "")
 		throw std::runtime_error("Bad domain");
 """
 
 	for i in algdom:
 		codeStr += """
-	else if(pDom == "{0}" && pAlg == "{1}")
-		mjon661::execRoutine<{0}, {1}>(jExecDesc);
-	""".format(i[0], i[1])
+	else if(pAlgDom == "{0}")
+		mjon661::execRoutine<{1}, {2}>(jExecDesc);
+	""".format(i[3], i[1], i[0])
 
 
 	codeStr += """
@@ -156,10 +154,23 @@ void selectAll(Json const& jExecDesc) {
 
 
 	codeStr += """
-void run_trial1(mjon661::Json const& jExecDescSet, std::string const& key) {
+void run_prob_from_set(mjon661::Json const& jExecDescSet, std::string const& key) {
 	
 	mjon661::selectAll(jExecDescSet.at(key));
 	
+}
+"""
+
+	codeStr += """
+int main(int argc, const char* argv[]) {
+
+	if(argc > 1 && std::string(argv[1]) == "-s") {
+		mjon661::Json j;
+		std::cin >> j;
+		mjon661::selectAll(j);
+	}
+	else
+		return 2;
 }
 """
 

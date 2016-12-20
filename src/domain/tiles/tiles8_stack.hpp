@@ -10,22 +10,17 @@
 
 namespace mjon661 { namespace tiles { 
 	
-	namespace eight_impl {
 
-	
-
-	}
-	
-	
-	
-	template<bool Use_Weight, bool Use_H, unsigned Abt1Sz>
-	struct Tiles8_DomainStack {
+	template<unsigned Height, unsigned Width, bool Use_Weight, bool Use_H, unsigned Abt1Sz>
+	struct TilesGeneric_DomainStack {
+		
+		static_assert(Abt1Sz < Height*Width, "");
+		static_assert(Height > 1 && Width > 1, "");
 		
 		using domStack_t = Tiles8_DomainStack_single<Use_Weight,Use_H>;
 		
 		
 		static const unsigned Top_Abstract_Level = Abt1Sz;
-		static const unsigned Height = 3, Width = 3;
 		
 		
 		static constexpr unsigned tilesPerLevel(unsigned L) {
@@ -66,8 +61,6 @@ namespace mjon661 { namespace tiles {
 			std::array<idx_t, Sz> mTrns;
 			
 			
-			IndexMap<Height*Width> const& m
-			
 		};
 		
 		
@@ -85,11 +78,55 @@ namespace mjon661 { namespace tiles {
 				return abtState;
 			}
 			
-			IndexMap<Height*Width, tilesPerLevel(1);
+			IndexMap<Height*Width, tilesPerLevel(1)> mAbt1Map;
 		};
 		
 		
 		
+		
+		template<unsigned L>
+		IndexMap<Height*Width, tilesPerLevel(L)> getIndexMap() {
+			
+			std::array<tile_t, Height*Width> tmp{};
+			
+			if(L > 0)
+				for(unsigned i=0; i<tilesPerLevel(L); i++)
+					tmp[i] = mAbt1Kept[i];
+			
+			return IndexMap<Height*Width, tilesPerLevel(L)>(tmp.begin(), tmp.begin() + tilesPerLevel(L));
+		}
+		
+		
+		
+		TilesGeneric_DomainStack(Json const& jConfig) :
+			mAbt1Kept{},
+			mInitState(jConfig.at("init")),
+			mGoalState(jConfig.at("goal"))
+		{
+			if(!mInitState.valid())
+				throw ConfigException("Bad init");
+			
+			if(!mGoalState.valid())
+				throw ConfigException("Bad goal");
+				
+			if(jConfig.count("kept")) {
+				std::vector<tile_t> v = jConfig.at("kept");
+				
+				if(!contains(v, 0) || !withinInclusive(v, 0, Height*Width-1) || !unique(v))
+					throw ConfigException("Bad kept tiles");
+				
+				for(unsigned i=0; i<Abt1Sz; i++)
+					mAbtKept[i] = v[i];
+			}
+			else
+				for(unsigned i=0; i<Abt1Sz; i++)
+					mAbtKept[i] = i;
+		}
+		
+		std::array<tile_t, Abt1Sz> mAbt1Kept;
+		BoardStateV<Height*Width> mInitState, mGoalState;
+		
+	};
 		
 	
 		

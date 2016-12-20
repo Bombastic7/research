@@ -196,16 +196,4 @@ namespace mjon661 { namespace tiles {
 		}
 	};
 
-
-
-
-
-
-
-
-
-
-
-
-
 }}

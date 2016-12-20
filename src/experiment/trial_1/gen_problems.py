@@ -140,6 +140,7 @@ def genGridNavProblemSet(fname, fmapname, h, w, nprobs):
 		
 
 
+"""
 genTilesProblemSet(3,3,10,"problems/tiles8.json")
 
 genPancakeProblemSet(10, 10, "problems/pancake10.json")
@@ -148,4 +149,4 @@ genGridNavMap(10, 10, 0.35, "problems/gridnav10_10_mapA")
 
 genGridNavProblemSet("problems/gridnav10_10_mapA_problems.json", "problems/gridnav10_10_mapA", 10, 10, 10)
 
-
+"""

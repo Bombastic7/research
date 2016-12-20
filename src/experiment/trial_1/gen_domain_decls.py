@@ -1,8 +1,9 @@
+#!/bin/python
 
 
 
 
-def gridnav_blocked(name = None, height, width, mv8, cstLC, hr):
+def gridnav_blocked(height, width, mv8, cstLC, hr, name = None):
 	mvTag = "8" if mv8 else "4"
 	costTag = "LC" if cstLC else "Unit"
 	hTag = "H" if hr else "NoH"
@@ -14,7 +15,7 @@ def gridnav_blocked(name = None, height, width, mv8, cstLC, hr):
 	if not name:
 		name = defaultDeclName
 	
-	declStr = "using " + name + " = gridnav::blocked::GridNav_DomainStack_single<{0}, {1}, \
+	declStr = "gridnav::blocked::GridNav_DomainStack_single<{0}, {1}, \
 	typename gridnav::blocked::GridNavBase<{2}, {3}, {4}>::type >;"\
 	.format(height, width, mvTag, costTag, hTag)
 	
@@ -24,7 +25,7 @@ def gridnav_blocked(name = None, height, width, mv8, cstLC, hr):
 	
 
 
-def gridnav_blocked_stack_merge(name = None, height, width, mv8, cstLC, hr, hfact, wfact, fillfact, maxAbtLvl = 1000):
+def gridnav_blocked_stack_merge(height, width, mv8, cstLC, hr, hfact, wfact, fillfact, maxAbtLvl = 1000, name = None):
 	mvTag = "8" if params[2] else "4"
 	costTag = "LC" if params[3] else "Unit"
 	
@@ -35,14 +36,14 @@ def gridnav_blocked_stack_merge(name = None, height, width, mv8, cstLC, hr, hfac
 		name = defaultDeclName
 	
 	
-	declStr = "using " + name + " = gridnav::blocked::GridNav_DomainStack_MergeAbt<{0},{1},{2},{3},{mxL},{4},{5},{6}>;"\
+	declStr = "gridnav::blocked::GridNav_DomainStack_MergeAbt<{0},{1},{2},{3},{mxL},{4},{5},{6}>;"\
 	.format(height, width, mv8, cstLC, hfact, wfact, fillfact, mxL=MaxAbtLvl);
 	
 	return declStr
 
 
 
-def pancake_stack_single(name = None, Ncakes, gapH):
+def pancake_stack_single(Ncakes, gapH, name = None):
 	
 	hTag = "H" if gapH else "NoH"
 	
@@ -51,22 +52,36 @@ def pancake_stack_single(name = None, Ncakes, gapH):
 	if not name:
 		name = defaultDeclName
 	
-	declStr = "using " + name + " = pancake::Pancake_DomainStack_single<{0},{1}>;".format(Ncakes, hTag);
+	declStr = "pancake::Pancake_DomainStack_single<{0},{1}>;".format(Ncakes, hTag);
 
 	return declStr
 	
 
 
-def pancake_stack_ignore(name = None, Ncakes, Abt1Sz, AbtStep):
+def pancake_stack_ignore(Ncakes, Abt1Sz, AbtStep, name = None):
 	
 	defaultDeclName = "Pancake_{0}_Abt_{1}_{2}".format(Ncakes, Abt1Sz, AbtStep);
 
 	if not name:
 		name = defaultDeclName
 	
-	declStr = "using " + name + " = pancake::Pancake_DomainStack_IgnoreAbt<{0},{1},{2}>;".format(Ncakes, Abt1Sz, AbtStep);
+	declStr = "pancake::Pancake_DomainStack_IgnoreAbt<{0},{1},{2}>".format(Ncakes, Abt1Sz, AbtStep);
 
 	return declStr
 
 
 
+
+def tiles_stack(height, width, weighted, useH, Abt1Sz, name = None):
+	
+	wTag = "W" if weighted else "NoW"
+	hTag = "H" if useH else "NoH"
+	
+	defaultDeclName = "Tiles_{0}_{1}_{2}_Abt_{3}".format(height*width-1, wTag, hTag, Abt1Sz)
+	
+	if not name:
+		name = defaultDeclName
+	
+	declStr = "tiles::TilesGeneric_DomainStack<{0}, {1}, {2}, {3}, {4}>".format(height, width, wTag, hTag, Abt1Sz)
+	
+	return declStr

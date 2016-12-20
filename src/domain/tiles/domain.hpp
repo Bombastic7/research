@@ -215,13 +215,13 @@ namespace mjon661 { namespace tiles {
 	
 	
 	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight, bool Use_H>
-	struct TilesDomainBase<H, W, Sz, Use_Weight, Use_H, true> : public SubsetTilesBase<H, W, Sz, Use_Weight, Use_H> {
+	struct TilesDomainBase<H, W, Sz, Use_Weight, Use_H, true> : public SubsetTilesBase<H, W, Sz, Use_Weight> {
 
 		TilesDomainBase(BoardStateV<H,W> const& pInitState, 
 						BoardStateV<H,W> const& pGoalState,
 						IndexMap<H*W, Sz> const& pMap) :
 						
-			SubsetTilesBase<H, W, Sz, Use_Weight, Use_H>(pGoalState, pMap)
+			SubsetTilesBase<H, W, Sz, Use_Weight>(pGoalState, pMap)
 		{}
 	
 	};

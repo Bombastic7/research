@@ -1,25 +1,21 @@
 #!/bin/python
 
 
-from alg_dom_defs import *
-
-
-def goodPair(dom, alg):
-	return (not(alg[1]) or dom[2]) and (not(alg[2]) or dom[3])
-		
-
-
-print"""
+def searcher_code(algdom):
+	
+	codeStr = ""
+	
+	codeStr += """
 /*
 	Automatically generated file.
 	
 	There are {0} domain/algorithm pairs implemented.
 	
-*/""".format(len([() for a in ALGS for d in DOMS if goodPair(d, a)]))
+*/""".format(len(algdom))
 
 
 
-print """
+	codeStr += """
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -43,11 +39,11 @@ print """
 #include "search/ugsa/v1/ugsa_v1.hpp"
 #include "search/ugsa/v2/ugsa_v2.hpp"
 
-
+#include "experiment/trial_1/alg_dom_decls.hpp"
 """
 
 
-print """
+	codeStr += """
 namespace mjon661 {	
 	template<typename D, template<typename> typename Alg>
 	void execRoutine(Json const& jExecDesc) {
@@ -134,7 +130,7 @@ namespace mjon661 {
 """
 
 
-print """
+	codeStr += """
 void selectAll(Json const& jExecDesc) {
 	std::string pDom = jExecDesc["domain"];
 	std::string pAlg = jExecDesc["algorithm"];
@@ -143,14 +139,14 @@ void selectAll(Json const& jExecDesc) {
 		throw std::runtime_error("Bad domain");
 """
 
-for (alg, dom) in [(a[0], d[0]) for a in ALGS for d in DOMS if goodPair(d, a)]:
-	print """
+	for i in algdom:
+		codeStr += """
 	else if(pDom == "{0}" && pAlg == "{1}")
 		mjon661::execRoutine<{0}, {1}>(jExecDesc);
-	""".format(dom, alg)
+	""".format(i[0], i[1])
 
 
-print """
+	codeStr += """
 	else
 		throw std::runtime_error("Bad domain or algorithm");
 }
@@ -159,11 +155,12 @@ print """
 
 
 
-
-print """
+	codeStr += """
 void run_trial1(mjon661::Json const& jExecDescSet, std::string const& key) {
 	
 	mjon661::selectAll(jExecDescSet.at(key));
 	
 }
 """
+
+	return codeStr

@@ -24,7 +24,7 @@ include src/util/Make.inc
 include src/search/Make.inc
 include src/experiment/Make.inc
 
-include src/domain/gridnav/Make_test.inc
+include src/test/Make.inc
 
 
 everything: $(BINS) $(TESTBINS)

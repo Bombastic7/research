@@ -17,6 +17,7 @@
 namespace mjon661 { namespace pancake {
 
 
+	//A permutation of 0..N-1 with some useful members.
 	template<int N>
 	struct PancakeStack : public Permutation<N, N> {
 		static_assert(N > 0, "");
@@ -70,13 +71,14 @@ namespace mjon661 { namespace pancake {
 	};
 	
 	
+	
+	//A 0..N-1 permutation with N-Sz cakes having their value (but not position) ignored.
 	template<int N, int Sz>
 	struct PartialPancakeStack {
 		
 		static const cake_t Null_Cake = N;
-		static const unsigned M = N-Sz;
 		
-		Perm_t = Permutation<N, Sz>;
+		using Perm_t = Permutation<N, Sz>;
 		
 		
 		struct packed_t {
@@ -90,8 +92,8 @@ namespace mjon661 { namespace pancake {
 		PartialPancakeStack() = default;
 		
 		void fromFullStack(PancakeStack<N> const& pBaseState, std::array<bool, N> const& pKeptTable) {
-			slow_assert(pBaseState.valid());
 			
+			slow_assert(pBaseState.valid());
 			
 			for(int i=0; i<N; i++)
 				if(pKeptTable[pBaseState[i]])
@@ -101,8 +103,21 @@ namespace mjon661 { namespace pancake {
 					mAllCakes[i] = Null_Cake;
 		}
 		
+		template<int BaseSz>
+		void fromPartialStack(PartialPancakeStack<N, BaseSz> const& pBaseState, std::array<bool, N> const& pKeptTable) {
+			
+			static_assert(BaseSz >= Sz, "");
+			
+			for(int i=0; i<N; i++)
+				if(pBaseState[i] != Null_Cake && pKeptTable[pBaseState[i]])
+					mAllCakes[i] = pBaseState[i];
+				
+				else
+					mAllCakes[i] = Null_Cake;
+		}
 		
-		packed_t getPacked() {
+		
+		packed_t getPacked() const {
 			
 			packed_t pkd;
 			
@@ -136,7 +151,8 @@ namespace mjon661 { namespace pancake {
 
 			slow_assert(cakePerm.valid() && posPerm.valid());
 			
-			mAllCakes.fill(Null_Cake);
+			const cake_t NC = Null_Cake;
+			mAllCakes.fill(NC);
 			
 			for(int i=0; i<Sz; i++) {
 				
@@ -147,7 +163,7 @@ namespace mjon661 { namespace pancake {
 			}
 		}
 		
-		bool isSorted() {
+		bool isSorted() const {
 			
 			Permutation<N, Sz> cakePerm;
 			
@@ -181,16 +197,29 @@ namespace mjon661 { namespace pancake {
 		}
 		
 		void prettyPrint(std::ostream& out) const {
-			out << "[ ";
 			
-			for(int i=0; i<N; i++)
+			out << "[";
+			
+			for(int i=0; i<N; i++) {
 				
 				if(mAllCakes[i] == Null_Cake)
-					out << ". ";
+					out << ".";
 				else
-					out << mAllCakes[i] << " ";
+					out << mAllCakes[i];;
 
+				if(i != N-1)
+					out << " ";
+			}
+			
 			out << "]";
+		}
+		
+		bool operator==(PartialPancakeStack<N,Sz> const& o) const {
+			return mAllCakes == o.mAllCakes;
+		}
+		
+		cake_t operator[](unsigned i) const {
+			return mAllCakes[i];
 		}
 		
 		std::array<cake_t, N> mAllCakes;

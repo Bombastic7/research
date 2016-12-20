@@ -87,7 +87,7 @@ namespace mjon661 {
 
 		void setRank(Rank_t r) {
 			for(int i=Sz-1; i>=0; i--) {
-				(*this)[i] = r % (N-i);
+				(*this)[i] = (int)(r % (N-i));
 				r /= N-i;
 			}
 			
@@ -97,7 +97,7 @@ namespace mjon661 {
 						(*this)[j]++;
 		}
 		
-		bool valid() {
+		bool valid() const {
 			return valid(this->begin(), this->end());
 		}
 		
@@ -131,7 +131,7 @@ namespace mjon661 {
 		
 		private:
 		
-		void testCond(bool b, std::string const& pStr) {
+		void testCond(bool b, std::string const& pStr) const {
 			if(!b)
 				throw std::invalid_argument(pStr);
 		}

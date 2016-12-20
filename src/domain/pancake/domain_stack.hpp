@@ -51,6 +51,7 @@ namespace mjon661 { namespace pancake {
 	 template<unsigned N, bool Use_H>
 	 struct Pancake_DomainStack_single {
 		 
+		 using domStack_t = Pancake_DomainStack_single<N, Use_H>;
 		 
 		 template<unsigned L>
 		 struct Domain : Pancake_Domain<N, Use_H> {
@@ -60,15 +61,58 @@ namespace mjon661 { namespace pancake {
 				Pancake_Domain<N, Use_H>(pStack.mInitState)
 			{}
 		 
+		};
 		 
-		 
-		 DomainStack(Json const& jConfig) :
-			mInitState(jConfig.at("init").get<std::vector<cake_t>>()),
-			mL1Kept(prepL1Kept(jConfig))
+		 Pancake_DomainStack_single(Json const& jConfig) :
+			mInitState(jConfig.at("init").get<std::vector<cake_t>>())
 		{}
 		
 		
-		std::array<cake_t, Abt1Sz> prepL1Kept(Json const& jConfig) {
+		
+		
+		const PancakeStack<N> mInitState;
+	 };
+	 
+	 
+	 template<unsigned N, unsigned Abt1Sz, unsigned AbtStep>
+	 struct Pancake_DomainStack_IgnoreAbt : Pancake_DomainStack_single<N, false> {
+		 
+		 using domStack_t = Pancake_DomainStack_IgnoreAbt<N, Abt1Sz, AbtStep>;
+		 
+		 
+		 static constexpr cakesPerLevel(unsigned L) {
+			 return L == 0 ? N : Abt1Sz - AbtStep * (L == 0 ? 0 : L - 1);
+		 }
+		 
+		 
+		 template<unsigned L typename = void>
+		 struct Domain : public Pancake_Domain<cakesPerLevel(L), false> {
+			 
+			Domain(domStack_t& pStack) :
+				Pancake_Domain<cakesPerLevel(L), false>()
+			{}			 
+		 };
+		 
+		 template<typename Ign>
+		 struct Domain<0, Ign> : Pancake_DomainStack_single<N, false>::template Domain<0> {};
+		 
+		 
+		 
+		 
+		 
+		 template<unsigned L>
+		 struct Abstractor : public IgnoreCakesAbt<N, cakesPerLevel(L)> {
+			 
+			 Abstractor(domStack_t& pStack) :
+				IgnoreCakesAbt<N, Abt1Sz-L+1>
+			 
+			 
+		 };
+		 
+		 
+		 
+		 
+		 std::array<cake_t, Abt1Sz> prepL1Kept(Json const& jConfig) {
 			std::array<cake_t, Abt1Sz> retArray;
 			
 			if(jConfig.count("kept")) {
@@ -86,12 +130,16 @@ namespace mjon661 { namespace pancake {
 			return retArray;
 		}
 		
-		const PancakeStack<N> mInitState;
+		
+		
+		 Pancake_DomainStack_IgnoreAbt(Json const& jConfig) :
+			Pancake_DomainStack_single<N, false>(jConfig),
+			mAbt1Kept(prepL1Kept(jConfig)
+		{}
 		 
-		 
+		 const std::array<cake_t, Abt1Sz> mAbt1Kept;
 		 
 	 };
-	 
 	 
 	 
 	 

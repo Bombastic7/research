@@ -23,8 +23,6 @@
 
 
 namespace mjon661 { namespace tiles {
-	
-
 
 	
 	template<unsigned H, unsigned W, bool Use_Weight, bool Use_H>
@@ -64,8 +62,6 @@ namespace mjon661 { namespace tiles {
 		using packed_t = typename state_t::packed_t;
 		
 		static const size_t Max_Packed = state_t::Max_Packed;
-		static const unsigned Height = H;
-		static const unsigned Width = W;
 		
 		
 		CompleteTilesBase(BoardStateV<H,W> const& pInitState, BoardStateV<H,W> const& pGoalState) :
@@ -107,13 +103,13 @@ namespace mjon661 { namespace tiles {
 
 		
 		cost_t getVal_h(state_t const& pState) const {
-			if(~Use_H)
+			if(!Use_H)
 				return 0;
 			
 			return pState.getHval();
 		}
 		
-		cost_t getVal_d(state_t const& pState) const {			
+		cost_t getVal_d(state_t const& pState) const {
 			return getVal_h(pState);
 		}
 		
@@ -138,9 +134,7 @@ namespace mjon661 { namespace tiles {
 		using packed_t = typename state_t::packed_t;
 		
 		static const size_t Max_Packed = state_t::Max_Packed;
-		static const unsigned Height = H;
-		static const unsigned Width = W;
-		
+
 		
 		SubsetTilesBase(BoardStateV<H,W> const& pGoalStateV, IndexMap<H*W, Sz> const& pMap) :
 			mGoalState(prepGoalState(pGoalStateV, pMap)),
@@ -202,24 +196,57 @@ namespace mjon661 { namespace tiles {
 		const state_t mGoalState;
 		const IndexMap<H*W, Sz> mMap;
 	};
+	
+	
+	
+
+	
+	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight, bool Use_H, bool Is_Subset>
+	struct TilesDomainBase : public CompleteTilesBase<H, W, Use_Weight, Use_H> {
+	
+		TilesDomainBase(BoardStateV<H,W> const& pInitState, 
+						BoardStateV<H,W> const& pGoalState,
+						IndexMap<H*W, Sz> const& pMap) :
+		
+			CompleteTilesBase<H, W, Use_Weight, Use_H>(pInitState, pGoalState)
+		{}
+	
+	};
+	
+	
+	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight, bool Use_H>
+	struct TilesDomainBase<H, W, Sz, Use_Weight, Use_H, true> : public SubsetTilesBase<H, W, Sz, Use_Weight, Use_H> {
+
+		TilesDomainBase(BoardStateV<H,W> const& pInitState, 
+						BoardStateV<H,W> const& pGoalState,
+						IndexMap<H*W, Sz> const& pMap) :
+						
+			SubsetTilesBase<H, W, Sz, Use_Weight, Use_H>(pGoalState, pMap)
+		{}
+	
+	};
+	
 
 
 
-	template<typename DomBase>
-	class TilesDomain : public DomBase {
+
+
+
+	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight, bool Use_H>
+	class TilesDomain : public TilesDomainBase<H, W, Sz, Use_Weight, Use_H, (Sz < H*W)> {
 		
 		public:
 
-		using State = typename DomBase::state_t;
-		using PackedState = typename DomBase::packed_t;
+		using base_t = TilesDomainBase<H, W, Sz, Use_Weight, Use_H, (Sz < H*W)>;
+
+		using State = typename base_t::state_t;
+		using PackedState = typename base_t::packed_t;
 		using Operator = idx_t;
 		using Cost = cost_t;
+
 		
-		using DomBase::Height;
-		using DomBase::Width;
-		
-		static const size_t Hash_Range = DomBase::Max_Packed+1;
-		static const unsigned Board_Size = Height*Width;
+		static const size_t Hash_Range = base_t::Max_Packed+1;
+		static const unsigned Board_Size = H*W;
 		
 
 		struct OperatorSet {
@@ -268,15 +295,18 @@ namespace mjon661 { namespace tiles {
 
 		const idx_t noOp;
 		
-		TilesDomain(DomBase const& pBase) :
-			DomBase(pBase),
+		TilesDomain(BoardStateV<H,W> const& pInitState, 
+					BoardStateV<H,W> const& pGoalState,
+					IndexMap<H*W, Sz> const& pMap) :
+			
+			base_t(pInitState, pGoalState, pMap),
 			noOp		(-1),
 			mOpLookup	()
 		{}
 		
 		
 		State createState() const {
-			return DomBase::doCreateState();
+			return base_t::doCreateState();
 		}
 		
 		void packState(State const& pState, PackedState& pPacked) const {
@@ -284,19 +314,19 @@ namespace mjon661 { namespace tiles {
 		}
 		
 		void unpackState(State& pState, PackedState const& pPacked) const {
-			DomBase::doUnpackState(pState, pPacked);
+			base_t::doUnpackState(pState, pPacked);
 		}
 		
 		Edge createEdge(State& pState, idx_t op) const {
 			idx_t parentOp = pState.getBlankPos();
 			
-			DomBase::performMove(pState, op);
+			base_t::performMove(pState, op);
 			
-			return Edge(pState, DomBase::getMoveCost(op), parentOp);
+			return Edge(pState, base_t::getMoveCost(op), parentOp);
 		}
 		
 		void destroyEdge(Edge& pEdge) const {
-			DomBase::performMove(pEdge.state(), pEdge.parentOp());
+			base_t::performMove(pEdge.state(), pEdge.parentOp());
 		}
 		
 		OperatorSet createOperatorSet(State const& pState) const {
@@ -304,19 +334,19 @@ namespace mjon661 { namespace tiles {
 		}
 		
 		size_t hash(PackedState pPacked) const {
-			return DomBase::doHash(pPacked);
+			return base_t::doHash(pPacked);
 		}
 		
 		Cost heuristicValue(State const& pState) const {
-			return DomBase::getVal_h(pState);
+			return base_t::getVal_h(pState);
 		}
 		
 		Cost distanceValue(State const& pState) const {
-			return DomBase::getVal_d(pState);
+			return base_t::getVal_d(pState);
 		}
 		
 		bool checkGoal(State const& pState) const {
-			return DomBase::doCheckGoal(pState);
+			return base_t::doCheckGoal(pState);
 		}
 
 		bool compare(State const& a, State const& b) const {
@@ -328,7 +358,7 @@ namespace mjon661 { namespace tiles {
 		}
 		
 		void prettyPrint(State const& s, std::ostream& out) const {
-			DomBase::prettyPrint(s, out);
+			base_t::prettyPrint(s, out);
 		}
 		
 		void prettyPrint(Operator const& op, std::ostream &out) const {
@@ -338,7 +368,7 @@ namespace mjon661 { namespace tiles {
 		
 		private:
 		
-		const MoveLookup<Height,Width> mOpLookup;
+		const MoveLookup<H,W> mOpLookup;
 
 	};
 

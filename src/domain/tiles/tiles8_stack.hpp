@@ -18,73 +18,80 @@ namespace mjon661 { namespace tiles {
 	
 	
 	
-	template<bool Use_Weight, bool Use_H>
-	struct TilesEightStack {
+	template<bool Use_Weight, bool Use_H, unsigned Abt1Sz>
+	struct Tiles8_DomainStack {
 		
-		using this_t = TilesEightStack<Use_Weight,Use_H>;
-		using DomBase0 = CompleteTilesBase<3,3,Use_Weight,Use_H>;
+		using domStack_t = Tiles8_DomainStack_single<Use_Weight,Use_H>;
 		
-		template<unsigned Sz>
-		using DomBaseAbt = SubsetTilesBase<3, 3, Sz, Use_Weight>;
 		
+		static const unsigned Top_Abstract_Level = Abt1Sz;
 		static const unsigned Height = 3, Width = 3;
 		
 		
-		static const unsigned Top_Abstract_Level = 5;
+		static constexpr unsigned tilesPerLevel(unsigned L) {
+			return L == 0 ? Height*Width : Abt1Sz-L+1;
+		}
+		
+		
+		template<unsigned L>
+		struct Domain : TilesDomain<Height, Width, tilesPerLevel(L), Use_Weight, Use_H> {
+			
+			Domain(domStack_t& pStack) :
+				TilesDomain<Height, Width, tilesPerLevel(L), Use_Weight, Use_H>(
+						pStack.mInitState, pStack.mGoalState, pStack.getIndexMap<L>())
+				{}
+		};
 		
 		
 		template<unsigned L, typename = void>
-		struct Domain;
-		
-		
-		
-		template<typename Ign>
-		struct Domain<0, Ign> : public TilesDomain<DomBase0> {
+		struct Abstractor {
 			
-			using base_t = TilesDomain<DomBase0>;
+			static const Sz = tilesPerLevel(L);
 			
-			Domain(this_t& pStack) :
-				base_t(pStack.mDomBase0)
+			
+			Abstractor(domStack_t& pStack) :
+				mTrns(pStack.getIndexMap<L+1>().translateIndices(pStack.getIndexMap<L>()))
 			{}
+			
+			
+			BoardStateP<Height, Width, Sz-1> operator()(BoardStateP<Height, Width, Sz> const& pState) {
+				BoardStateP<Height, Width, Sz> abtState;
+				
+				for(unsigned i=0; i<abtState.size(); i++)
+					abtState[i] = pState[mTrns[i]];
+					
+				return abtState;
+			}
+			
+			std::array<idx_t, Sz> mTrns;
+			
+			
+			IndexMap<Height*Width> const& m
+			
 		};
 		
 		
 		template<typename Ign>
-		struct Domain<1, Ign> : public TilesDomain<DomBaseAbt<5>> {
-			Domain(this_t& pStack) :
-				TilesDomain<DomBaseAbt<5>>(DomBaseAbt<5>(pStack.mGoalState, pStack.mIM1))
+		struct Abstractor<0, Ign> {
+
+			Abstractor(this_t& pStack) :
+				mAbt1Map(pStack.getIndexMap<1>())
 			{}
-		};
-		
-		template<typename Ign>
-		struct Domain<2, Ign> : public TilesDomain<DomBaseAbt<4>> {
-			Domain(this_t& pStack) :
-				TilesDomain<DomBaseAbt<4>>(DomBaseAbt<4>(pStack.mGoalState, pStack.mIM2))
-			{}
-		};
-		
-		template<typename Ign>
-		struct Domain<3, Ign> : public TilesDomain<DomBaseAbt<3>> {
-			Domain(this_t& pStack) :
-				TilesDomain<DomBaseAbt<3>>(DomBaseAbt<3>(pStack.mGoalState, pStack.mIM3))
-			{}
-		};
-		
-		template<typename Ign>
-		struct Domain<4, Ign> : public TilesDomain<DomBaseAbt<2>> {
-			Domain(this_t& pStack) :
-				TilesDomain<DomBaseAbt<2>>(DomBaseAbt<2>(pStack.mGoalState, pStack.mIM4))
-			{}
-		};
-		
-		template<typename Ign>
-		struct Domain<5, Ign> : public TilesDomain<DomBaseAbt<1>> {
-			Domain(this_t& pStack) :
-				TilesDomain<DomBaseAbt<1>>(DomBaseAbt<1>(pStack.mGoalState, pStack.mIM5))
-			{}
+
+			BoardStateP<Height, Width, tilesPerLevel(1)> operator()(BoardStateV<Height, Width> const& pState) {				
+				
+				BoardStateP<Height, Width, tilesPerLevel(1)> abtState(pState, mIM1);
+
+				return abtState;
+			}
+			
+			IndexMap<Height*Width, tilesPerLevel(1);
 		};
 		
 		
+		
+		
+	
 		
 		template<unsigned L, typename = void>
 		struct Abstractor;

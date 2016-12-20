@@ -45,6 +45,56 @@ namespace mjon661 { namespace pancake {
 	 * 
 	 * \endverbatim
 	 */
+	 
+	 
+	 
+	 template<unsigned N, bool Use_H>
+	 struct Pancake_DomainStack_single {
+		 
+		 
+		 template<unsigned L>
+		 struct Domain : Pancake_Domain<N, Use_H> {
+			 static_assert(L == 0, "");
+			 
+			 Domain(domStack_t& pStack) :
+				Pancake_Domain<N, Use_H>(pStack.mInitState)
+			{}
+		 
+		 
+		 
+		 DomainStack(Json const& jConfig) :
+			mInitState(jConfig.at("init").get<std::vector<cake_t>>()),
+			mL1Kept(prepL1Kept(jConfig))
+		{}
+		
+		
+		std::array<cake_t, Abt1Sz> prepL1Kept(Json const& jConfig) {
+			std::array<cake_t, Abt1Sz> retArray;
+			
+			if(jConfig.count("kept")) {
+				std::vector<cake_t> v = jConfig.at("kept");
+				
+				if(v.size() != (unsigned)Abt1Sz || !withinInclusive(v, 0u, N-1) || !uniqueElements(v))
+					throw ConfigException("Bad kept cakes");
+	
+				for(unsigned i=0; i<Abt1Sz; i++)
+					retArray[i] = v[i];
+			} else
+				for(unsigned i=0; i<Abt1Sz; i++)
+					retArray[i] = i;
+			
+			return retArray;
+		}
+		
+		const PancakeStack<N> mInitState;
+		 
+		 
+		 
+	 };
+	 
+	 
+	 
+	 
 	template<unsigned N, unsigned Abt1Sz, template<unsigned> typename DomImpl>
 	struct DomainStack {
 		static_assert(N > 1 && Abt1Sz > 1 && Abt1Sz < N, "");

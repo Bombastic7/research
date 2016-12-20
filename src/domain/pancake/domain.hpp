@@ -275,5 +275,13 @@ namespace mjon661 { namespace pancake {
 		
 		
 	};
+	
+	
+	template<unsigned N, bool Use_H>
+	struct Pancake_Domain : public Domain_NoH<N> {};
+	
+	template<unsigned N>
+	struct Pancake_Domain<N, true> : public Domain_GapH<N> {};
+	
 		
 }}

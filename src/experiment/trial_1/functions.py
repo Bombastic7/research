@@ -13,6 +13,7 @@ import gen_problems
 
 
 
+
 ALG_DOM = [
 		("algorithm::Astar", gen_domain_decls.gridnav_blocked(10, 10, True, False, True), "gridnav10_10", "Astar_gridnav")
 		]
@@ -34,6 +35,14 @@ WEIGHT_SCHEDULE = [(1,0)]
 
 
 
+for i in GEN_PROB_FILES:
+	i["fname"] = "./problems/" + i["fname"]
+
+
+for i in EXEC_PROB_FILES.itervalues():
+	for j in range(0, len(i)):
+		i[j] = "./problems/" + i[j]
+		
 
 
 
@@ -67,13 +76,33 @@ def executeProblem(execDesc):
 		return json.loads("{ \"result\" : \"exception\", \"error_what\" : " + e + "\"}")
 		
 
+def _doExec(params):
+	
+	algdom = params["algdom"]
+	key = params["key_desc"][0]
+	desc = params["key_desc"][1]
+	wf = params["weights"][0]
+	wt = params["weights"][1]
+				
+	
+	execDesc = {	"algdom" : algdom[3],
+					"domain conf" : desc,
+					"domain" : algdom[1],
+					"algorithm" : algdom[0], 
+					"algorithm conf" : {},
+					"wf" : wf,
+					"wt" : wt,
+					"algorithm conf" : {"wf" : wf, "wt" : wt},
+					"time limit" : 60,
+					"memory limit" : 2000
+			}
+				
+	return (key, executeProblem(execDesc))
+
 
 
 def executeAllProblems():
-	
-	def doExec(ex):
-		return (ex[0], executeProblem(ex[1]))
-
+	#import pdb; pdb.set_trace()
 	workerPool = multiprocessing.Pool()
 	
 	for algdom in ALG_DOM:
@@ -85,64 +114,28 @@ def executeAllProblems():
 			with open(probfile) as f:
 				probset = json.load(f)
 			
-			execDescList = [(k, d, wf, wt) for (k,d) in probset for (wf,wt) in WEIGHT_SCHEDULE]
 			
 			
-			def doExec((key, desc, wf, wt)):
-				
-				execDesc = {	"algdom" : algdom[3],
-								"domain conf" : desc,
-								"domain" : algdom[1],
-								"algorithm" : algdom[0], 
-								"algorithm conf" : {},
-								"wf" : wf,
-								"wt" : wt,
-								"algorithm conf" : {"wf" : wf, "wt" : wt},
-								"time limit" : 60,
-								"memory limit" : 2000
-						}
-				
-				return (key, executeProblem(execDesc))
-			
+			execDescList = [{"algdom" : algdom,
+							 "key_desc" : key_desc,
+							 "weights" : weights} for key_desc in probset.iteritems() for weights in WEIGHT_SCHEDULE]
 	
 	
-			resList = workerPool.map(doExec, execDescList)
+			resList = workerPool.map(_doExec, execDescList)
+			results = {}
 			
 			for (key, res) in resList:
 				results[key] = res
 			
-			resFile = probfile + "_" + algdom[3] + "_results.json"
-			with open(resFile) as f:
+			resFile = os.path.dirname(probfile) + "/"
+			resFile += os.path.basename(probfile).split(".")[0] + "_" + algdom[3] + "_results.json"
+			
+			with open(resFile, "w") as f:
 				
 				json.dump(results, f, indent=4, sort_keys=True)
 				print resFile
 	
 	
-			
-			
-			
-				
-	
-
-	try:
-		ret = (key, json.loads(str(subprocess.check_output(["./searcher", RUNS_FILE, key]))))
-	except subprocess.CalledProcessError as e:
-		if e.returncode == 10:
-			ret = (key, {"result" : "time limit"})
-		elif e.returncode == 11:
-			ret = (key, {"result" : "memory limit"})
-		else:
-			print "Unknown return code. Failed key:", key
-			ret = (key, {"result" : "error", "error what" : str(e.returncode)})
-
-	except:
-		print "Unhandled exception. Failed key:", key
-		ret = (key, { "result" : "error", "error what" : sys.exc_info()[0]})
-	
-	return ret
-
-
-
 
 
 
@@ -157,9 +150,15 @@ if __name__ == "__main__":
 			f.write(gencode)
 	
 	elif func == "problems":
+		if not os.path.exists("./problems"):
+			os.makedirs("./problems")
+		
 		gen_problems.generateFiles(GEN_PROB_FILES)
 		
 	elif func == "exec":
+		if not os.path.exists("./problems"):
+			os.makedirs("./problems")
+		
 		executeAllProblems()
 	
 	else:

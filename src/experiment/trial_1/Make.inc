@@ -37,7 +37,7 @@ BINS+=$(BUILDDIR)/trial_1/searcher
 
 
 
-TRIAL_1_FILES:=$(addprefix $(EXPDIR)/trial_1/, functions.py gen_problems.py trial_1.txt searcher)
+TRIAL_1_FILES:=$(addprefix $(EXPDIR)/trial_1/, functions.py gen_problems.py gen_domain_decls.py gen_searcher.py trial_1.txt searcher)
 
 
 $(EXPDIR)/trial_1/%: $(SRCDIR)/experiment/trial_1/%

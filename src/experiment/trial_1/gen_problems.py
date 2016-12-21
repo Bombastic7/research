@@ -147,7 +147,7 @@ def generateFiles(probFiles):
 		
 		if p["class"] == "gridnav10_10":
 			if p["gen"] == "map":
-				_genGridNavProblemSet(10, 10, p["blockedprob"], p["fname"])
+				_genGridNavMap(10, 10, p["blockedprob"], p["fname"])
 			
 			elif p["gen"] == "problems":
 				_genGridNavProblemSet(p["fname"], p["map"],  10, 10, p["num"], p["mindistance"])

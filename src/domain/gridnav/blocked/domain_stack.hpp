@@ -20,19 +20,26 @@
 namespace mjon661 { namespace gridnav { namespace blocked {
 
 
-	template<unsigned Height, unsigned Width, template<unsigned, unsigned> typename DB>
+	template<unsigned Height, unsigned Width, bool Use_EightWay, bool Use_LifeCost, bool Use_H>
 	struct GridNav_DomainStack_single {
 		
-		using selfStack_t = GridNav_DomainStack_single<Height, Width, DB>;
+		using selfStack_t = GridNav_DomainStack_single<Height, Width, Use_EightWay, Use_LifeCost, Use_H>;
 		
+
+		using domain_base = GridNav_Dom<Height, 
+										Width,
+										Use_EightWay,
+										Use_LifeCost,
+										Use_H,
+										false>;
 		
 		template<unsigned L>
-		struct Domain : GridNav_Dom<Height, Width, DB> {
+		struct Domain : domain_base {
 			
 			static_assert(L == 0, "");
 			
 			Domain(selfStack_t& pStack) :
-				GridNav_Dom<Height, Width, DB>(pStack.mMap, pStack.mInitPos, pStack.mGoalPos)
+				domain_base(pStack.mMap, pStack.mInitPos, pStack.mGoalPos, 0)
 			{}
 		};
 		
@@ -104,10 +111,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 															Merge_Width_Factor, 
 															Merge_Fill_Factor>;
 		
-		template<unsigned H, unsigned W>
-		using DomBase = typename GridNavBase<Use_EightWay, Use_LifeCost, false>::type;
-
 		
+
 		static constexpr unsigned heightAtAbtLevel(unsigned L, unsigned n = 0, unsigned s = Height) {
 			return L == n ? s : heightAtAbtLevel(L, n+1, s/Merge_Height_Factor);
 		}
@@ -123,15 +128,49 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		
+
+		static constexpr unsigned compressX(unsigned i, unsigned L, unsigned n = 0) {
+			return L == n ? i : compressX( min(i/Merge_Width_Factor, widthAtAbtLevel(n+1)-1), L, n+1);
+		}
+		
+		static constexpr unsigned compressY(unsigned i, unsigned L, unsigned n = 0) {
+			return L == n ? i : compressY( min(i/Merge_Height_Factor, heightAtAbtLevel(n+1)-1), L, n+1);
+		}
+		
+		static constexpr unsigned basePosAtLevel(idx_t pos, unsigned L) {
+			return compressX(pos%Width, L) + widthAtAbtLevel(L) * compressY(pos/Width, L);
+		}
+		
+		static constexpr unsigned posUpOneLevel(idx_t pos, unsigned L) {
+			return min( (pos%widthAtAbtLevel(L)) / Merge_Width_Factor , widthAtAbtLevel(L+1)-1 ) +
+					min( (pos/widthAtAbtLevel(L)) / Merge_Height_Factor , heightAtAbtLevel(L+1)-1 ) * widthAtAbtLevel(L+1);
+		}
+		
+		
+		
 		static const unsigned Top_Abstract_Level = min(Max_Abt_Lvls, maxPossibleAbtLevel());
 		
 		
 		
 		template<unsigned L>
-		struct Domain : GridNav_Dom<heightAtAbtLevel(L), widthAtAbtLevel(L), DomBase> {
+		using domain_base = GridNav_Dom<selfStack_t::heightAtAbtLevel(L), 
+										selfStack_t::widthAtAbtLevel(L),
+										Use_EightWay,
+										Use_LifeCost,
+										false,
+										(L > 0)>;
+		
+		
+		
+		template<unsigned L>
+		struct Domain : public domain_base<L> {
 
 			Domain(selfStack_t& pStack) :
-				GridNav_Dom<Height, Width, DomBase>(pStack.mMapStack.getLevel(L), pStack.mInitPos, pStack.mGoalPos)
+				domain_base<L>(
+					pStack.mMapStack.getLevel(L), 
+					basePosAtLevel(pStack.mInitPos, L), 
+					basePosAtLevel(pStack.mGoalPos, L),
+					pStack.relaxedCostAtLevel(L))
 			{}
 		};
 		
@@ -144,10 +183,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			Abstractor(selfStack_t& pStack) {}
 			
 			AbtState operator()(SelfState const& pState) {
-				AbtState abtSt();
+				AbtState abtSt;
 				
-				abtSt.pos = pState.pos;
-				//Heuristics aren't used with abstraction, so don't need to deal with abtState.set_h() / set_d().
+				abtSt.pos = posUpOneLevel(pState.pos, L);
 				
 				return abtSt;
 			}
@@ -158,7 +196,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		GridNav_DomainStack_MergeAbt(Json const& jConfig) :
 			mInitPos(readCoord(jConfig, "init")),
 			mGoalPos(readCoord(jConfig, "goal")),
-			mMapStack(Height, Width)
+			mMapStack(Height, Width, Max_Abt_Lvls, Merge_Height_Factor, Merge_Width_Factor, Merge_Fill_Factor)
 		{
 			std::ifstream ifs(jConfig.at("map").get<std::string>());
 			
@@ -190,6 +228,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				throw ConfigException("Coords out of range");
 			
 			return ret;
+		}
+		
+		
+		unsigned relaxedCostAtLevel(unsigned L) {
+			return 10;
 		}
 		
 		const idx_t mInitPos, mGoalPos;

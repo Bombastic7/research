@@ -420,20 +420,21 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	
 	
-	template<bool Use_EightWay, bool Use_LifeCost, bool Use_H>
-	struct GridNavBase {
-		
-		template<unsigned H, unsigned W>
-		using type = FourWayBase<H, W, Use_LifeCost, Use_H>;
+	
+	
+	template<unsigned Height, unsigned Width, bool Use_EightWay, bool Use_LifeCost, bool Use_H>
+	struct GridNavBase : public FourWayBase<Height, Width, Use_LifeCost, Use_H> {
+		using FourWayBase<Height, Width, Use_LifeCost, Use_H>::FourWayBase;
+
 	};
 	
 	
-	template<bool Use_LifeCost, bool Use_H>
-	struct GridNavBase<true, Use_LifeCost, Use_H> {
-		
-		template<unsigned H, unsigned W>
-		using type = EightWayBase<H, W, Use_LifeCost, Use_H>;
+	template<unsigned Height, unsigned Width, bool Use_LifeCost, bool Use_H>
+	struct GridNavBase<Height, Width, true, Use_LifeCost, Use_H> : public EightWayBase<Height, Width, Use_LifeCost, Use_H> {
+		using EightWayBase<Height, Width, Use_LifeCost, Use_H>::EightWayBase;
 	};
+	
+	
 	
 	
 	
@@ -469,10 +470,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	 * 
 	 * 	DomBase(idx_t pGoalState);
 	 */
-	template<unsigned Height, unsigned Width, template<unsigned, unsigned> class DB>
-	struct GridNav_Dom : public DB<Height, Width> {
+	template<unsigned Height, unsigned Width, bool Use_EightWay, bool Use_LifeCost, bool Use_H, bool Use_Relax>
+	struct GridNav_Dom : public GridNavBase<Height, Width, Use_EightWay, Use_LifeCost, Use_H> {
 		
-		using DomBase = DB<Height, Width>;
+		using DomBase = GridNavBase<Height, Width, Use_EightWay, Use_LifeCost, Use_H>;
 		using PackedState = idx_t;
 		using Cost = typename DomBase::cost_t;
 		using Operator = MoveDir;
@@ -501,6 +502,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				DomBase::OpSetBase(pState)
 				//mTestCopy(*this)//...........
 			{
+				if(Use_Relax)
+					return;
+				
 				int canMove = 0;
 				
 				for(int pos=0, i=0; i<this->mN; i++) {
@@ -587,20 +591,22 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 		
 			
-		GridNav_Dom(GridNav_Map const& pMap, idx_t pInitPos, idx_t pGoalPos) :
+		GridNav_Dom(GridNav_Map const& pMap, idx_t pInitPos, idx_t pGoalPos, unsigned pRelaxedCost) :
 			DomBase(pGoalPos),
 			noOp(MoveDir::NoOp),
 			mMap(pMap),
 			mInitPos(pInitPos),
-			mGoalPos(pGoalPos)
+			mGoalPos(pGoalPos),
+			mRelaxedCost(pRelaxedCost)
 		{
-			fast_assert(mInitPos >= 0 && mInitPos < Height * Width);
-			fast_assert(mGoalPos >= 0 && mGoalPos < Height * Width);
+			fast_assert(mInitPos >= 0 && mInitPos < Height * Width, "init %u", mInitPos);
+			fast_assert(mGoalPos >= 0 && mGoalPos < Height * Width, "goal %u", mGoalPos);
 			fast_assert(pMap.getHeight() == Height);
 			fast_assert(pMap.getWidth() == Width);
 		}
 		
 		State createState() const {
+			
 			State s;
 			s.pos = mInitPos;
 			this->getHeuristicValues(mInitPos, s);
@@ -610,7 +616,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 		void packState(State const& pState, PackedState& pPacked) const {
 			pPacked = pState.pos;
-			slow_assert(pPacked >= 0 && pPacked < Height*Width);
+			slow_assert(pPacked >= 0 && pPacked < Height*Width, "packed %u", pState.pos);
 		}
 		
 		void unpackState(State& pState, PackedState const& pPacked) const {
@@ -626,6 +632,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			this->getHeuristicValues(pState.pos, pState);
 			
 			Cost edgeCost = this->getMoveCost(pState.pos, op);
+			
+			if(Use_Relax)
+				if(mMap[pState.pos] == 1)
+					edgeCost *= mRelaxedCost;
 			
 			return Edge(edgeState, edgeCost, oppositeDir(op));
 		}
@@ -673,6 +683,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		private:
 		GridNav_Map const& mMap;
 		const idx_t mInitPos, mGoalPos;
+		unsigned mRelaxedCost;
 
 	};
+
 }}}

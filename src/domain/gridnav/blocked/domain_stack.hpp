@@ -39,7 +39,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			static_assert(L == 0, "");
 			
 			Domain(selfStack_t& pStack) :
-				domain_base(pStack.mMap, pStack.mInitPos, pStack.mGoalPos, 0)
+				domain_base(pStack.mMap, pStack.mInitPos, pStack.mGoalPos, -1)
 			{}
 		};
 		

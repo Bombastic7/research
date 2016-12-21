@@ -16,6 +16,7 @@ $(BUILDDIR)/trial_1/searcher:\
 	$(OBJDIR)/experiment/trial_1/searcher_auto.o\
 	$(BUILDDIR)/libs/app.a\
 	$(BUILDDIR)/libs/search.a\
+	$(BUILDDIR)/libs/domain.a\
 	$(BUILDDIR)/libs/util.a
 	@echo $@
 	@mkdir -p $(@D)
@@ -24,6 +25,7 @@ $(BUILDDIR)/trial_1/searcher:\
 		$(OBJDIR)/experiment/trial_1/searcher_auto.o\
 		$(BUILDDIR)/libs/app.a\
 		$(BUILDDIR)/libs/search.a\
+		$(BUILDDIR)/libs/domain.a\
 		$(BUILDDIR)/libs/util.a\
 		-Wl,--end-group
 		

@@ -22,6 +22,7 @@ include src/app/Make.inc
 include src/structs/Make.inc
 include src/util/Make.inc
 include src/search/Make.inc
+include src/domain/Make.inc
 include src/experiment/Make.inc
 
 include src/test/Make.inc

@@ -57,7 +57,7 @@ namespace mjon661 {
 		template<typename InputIt>
 		void setValues(InputIt first, InputIt last) {
 			for(int i=0; i<Sz; i++) {
-				testCond(first != last, "Input too short");
+				testCond(first != last, std::string("Input too short : ") + std::to_string(i) + " : " + std::to_string(N) + " : " + std::to_string(Sz));
 				
 				(*this)[i] = *first;
 				

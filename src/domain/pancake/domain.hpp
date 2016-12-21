@@ -19,7 +19,7 @@ namespace mjon661 { namespace pancake {
 	
 	
 	//Pancake domain, No heuristics
-	
+
 	template<unsigned N>
 	class Domain_NoH {
 		
@@ -29,11 +29,12 @@ namespace mjon661 { namespace pancake {
 		using Operator = int;
 		
 		using State = PancakeStack<N>;
-		using PackedState = typename PancakeStack<N>::packed_t;
+		using PackedState = typename State::packed_t;
 		
 		
 		static const unsigned Npancakes = N;
-		static const size_t Hash_Range = PancakeStack<N>::Hash_Range;
+		
+		static const size_t Hash_Range = State::Hash_Range;
 		
 
 		
@@ -112,7 +113,7 @@ namespace mjon661 { namespace pancake {
 		}
 		
 		size_t hash(PackedState const& pPacked) const {
-			return pPacked;
+			return State::doHash(pPacked);
 		}
 		
 		
@@ -151,9 +152,12 @@ namespace mjon661 { namespace pancake {
 
 		const bool mHasInitState;
 		PancakeStack<N> mInitState;
-
-
 	};
+	
+	
+
+	
+
 	
 	
 	//Pancake domain, gap heuristic
@@ -277,11 +281,136 @@ namespace mjon661 { namespace pancake {
 	};
 	
 	
+	
+	
 	template<unsigned N, bool Use_H>
-	struct Pancake_Domain : public Domain_NoH<N> {};
+	struct Pancake_Domain : public Domain_NoH<N> {
+		using Domain_NoH<N>::Domain_NoH;
+	};
 	
 	template<unsigned N>
-	struct Pancake_Domain<N, true> : public Domain_GapH<N> {};
+	struct Pancake_Domain<N, true> : public Domain_GapH<N> {
+		using Domain_GapH<N>::Domain_GapH;
+	};
 	
+	
+	
+	
+	
+	
+	template<unsigned N, unsigned Sz>
+	struct Domain_NoH_Relaxed {
 		
+		public:
+		
+		using Cost = cost_t;
+		using Operator = int;
+		
+		using State = PartialPancakeStack<N, Sz>;
+		using PackedState = typename State::packed_t;
+		
+		
+		static const unsigned Npancakes = N, NKeptPancakes = Sz;
+		
+		static const size_t Hash_Range = State::Hash_Range;
+		
+
+		
+		struct OperatorSet {
+		
+			unsigned size() const {
+				return N-1;
+			}
+		
+			Operator operator[](unsigned i) const {
+				return i+1;
+			}
+		};
+	
+		struct Edge {
+			Edge(Cost pCost, State& pState, Operator pParentOp) :
+				mCost(pCost), mState(pState), mParentOp(pParentOp) {}
+				
+			State& state() {
+				return mState;
+			}
+			
+			Cost cost() {
+				return mCost;
+			}
+			
+			Operator parentOp() {
+				return mParentOp;
+			}
+			
+			Cost mCost;
+			State& mState;
+			Operator mParentOp;
+		};
+		
+		
+		Domain_NoH_Relaxed() :
+			noOp(0)
+		{}
+
+			
+		void packState(State const& pState, PackedState& pPacked) const {
+			pPacked = pState.getPacked();
+		}
+		
+		void unpackState(State& pState, PackedState const& pPacked) const {
+			pState.fromPacked(pPacked);
+		}
+		
+		
+		Edge createEdge(State& pState, Operator op) const {
+			pState.flip(op);
+			return Edge(1, pState, op);
+		}
+		
+		void destroyEdge(Edge& pEdge) const {
+			pEdge.mState.flip(pEdge.mParentOp);
+		}
+		
+		
+		OperatorSet createOperatorSet(State const&) const {
+			return OperatorSet();
+		}
+		
+		size_t hash(PackedState const& pPacked) const {
+			return State::doHash(pPacked);
+		}
+		
+		
+		Cost heuristicValue(State const& pState) const {
+			return 0;
+		}
+		
+		Cost distanceValue(State const& pState) const {
+			return heuristicValue(pState);
+		}
+		
+		
+		bool checkGoal(State const& pState) const {
+			return pState.isSorted();
+		}
+
+		bool compare(State const& a, State const& b) const {
+			return a == b;
+		}
+		
+		bool compare(PackedState const& a, PackedState const& b) const {
+			return a == b;
+		}
+		
+		void prettyPrint(State const& s, std::ostream& out) const {
+			s.prettyPrint(out);
+		}
+		
+		void prettyPrint(Operator const& op, std::ostream &out) const {
+			out << op << "\n";
+		}
+
+		const Operator noOp;
+	};
 }}

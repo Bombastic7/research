@@ -6,10 +6,12 @@
 #include <iostream>
 #include <limits>
 #include <vector>
+#include <limits>
 
 #include "util/debug.hpp"
 #include "util/permutation.hpp"
 #include "util/hash.hpp"
+#include "util/math.hpp"
 
 #include "domain/pancake/defs.hpp"
 
@@ -68,6 +70,10 @@ namespace mjon661 { namespace pancake {
 		bool isSorted() const {
 			return std::is_sorted(this->begin(), this->end());
 		}
+		
+		static size_t doHash(packed_t const& pkd) {
+			return (size_t)pkd;
+		}
 	};
 	
 	
@@ -81,10 +87,14 @@ namespace mjon661 { namespace pancake {
 		using Perm_t = Permutation<N, Sz>;
 		
 		
+		static const size_t Hash_Range = Sz > 12 ? std::numeric_limits<size_t>::max() : 
+											(Perm_t::maxRankTrunc()+1) * (Perm_t::maxRankTrunc()+1);
+		
+		
 		struct packed_t {
 			typename Perm_t::Rank_t cakes, positions;
 			
-			bool operator==(packed_t const& o) {
+			bool operator==(packed_t const& o) const {
 				return cakes == o.cakes && positions == o.positions;
 			}
 		};
@@ -174,9 +184,13 @@ namespace mjon661 { namespace pancake {
 				if(c == Null_Cake)
 					continue;
 				
-				cakePerm[j] = c;
+				cakePerm[j++] = c;
+				
+				if(j == Sz)
+					break;
 			}
 			
+
 			slow_assert(cakePerm.valid());
 			
 			for(unsigned i=0; i<Sz-1; i++)
@@ -222,9 +236,13 @@ namespace mjon661 { namespace pancake {
 			return mAllCakes[i];
 		}
 		
+		static size_t doHash(packed_t const& pkd) {
+			size_t v = pkd.cakes * (Perm_t::maxRank()+1) + pkd.positions;
+			return v;
+		}
+		
 		std::array<cake_t, N> mAllCakes;
 		
 	};
-
 
 }}

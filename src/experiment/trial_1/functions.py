@@ -16,19 +16,31 @@ import gen_problems
 
 ALG_DOM = [
 		("algorithm::Astar", gen_domain_decls.gridnav_blocked(10, 10, True, False, True), "gridnav10_10", "Astar_gridnav"),
-		("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.gridnav_blocked_stack_merge(10, 10, True, False, 2, 2, 3), "gridnav10_10", "hastar_gnabt")
+		("algorithm::Astar", gen_domain_decls.pancake_stack_single(10, True), "pancake10", "Astar_pancakes"),
+		#("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.pancake_stack_ignore(10, 9, 1), "pancake10", "HAstar_abtpancakes"),
+		("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.gridnav_blocked_stack_merge(10, 10, True, False, 2, 2, 3), "gridnav10_10", "hastar_gnabt"),
+		("algorithm::Astar", gen_domain_decls.tiles_stack(3, 3, False, True, 0), "tiles8", "Astar_tiles8"),
+		("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.tiles_stack(3, 3, False, False, 5), "tiles8", "Astar_tiles8Abt")
 		]
 
 
 GEN_PROB_FILES = [ 
 		
 		{ "class" : "gridnav10_10", "fname" : "mapA", "gen" : "map", "blockedprob" : 0.35 },
-		{ "class" : "gridnav10_10", "fname" : "probsA.json", "gen" : "problems", "num" : 10, "mindistance" : 0.5, "map" : "mapA" }
+		{ "class" : "gridnav10_10", "fname" : "gn_probsA.json", "gen" : "problems", "num" : 10, "mindistance" : 0.5, "map" : "mapA" },
+		{ "class" : "pancake10", "fname" : "pc_probs.json", "num" : 10, "size" : 10 },
+		{ "class" : "tiles8", "fname" : "t8_probs.json", "num" : 10}
 		
 		]
 
 
-EXEC_PROB_FILES = { "gridnav10_10" : ["probsA.json"] }
+EXEC_PROB_FILES = 	{
+
+					"gridnav10_10" : ["gn_probsA.json"],
+					"pancake10" : ["pc_probs.json"],
+					"tiles8" : ["t8_probs.json"]
+					
+					}
 
 
 

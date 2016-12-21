@@ -50,13 +50,18 @@ namespace mjon661 { namespace tiles {
 			static const unsigned Sz = tilesPerLevel(L);
 			
 			
-			Abstractor(domStack_t& pStack) :
-				mTrns(pStack.getIndexMap<L+1>().translateIndices(pStack.getIndexMap<L>()))
-			{}
+			Abstractor(domStack_t& pStack)
+			{
+				IndexMap<Height*Width, tilesPerLevel(L+1)> abtIndexMap = pStack.getIndexMap<L+1>();
+				IndexMap<Height*Width, tilesPerLevel(L)> selfIndexMap = pStack.getIndexMap<L>();
+				
+				mTrns = abtIndexMap.translateIndices(selfIndexMap);
+			
+			}
 			
 			
 			BoardStateP<Height, Width, Sz-1> operator()(BoardStateP<Height, Width, Sz> const& pState) {
-				BoardStateP<Height, Width, Sz> abtState;
+				BoardStateP<Height, Width, Sz-1> abtState;
 				
 				for(unsigned i=0; i<abtState.size(); i++)
 					abtState[i] = pState[mTrns[i]];
@@ -64,7 +69,7 @@ namespace mjon661 { namespace tiles {
 				return abtState;
 			}
 			
-			std::array<idx_t, Sz> mTrns;
+			std::array<idx_t, tilesPerLevel(L+1)> mTrns;
 			
 			
 		};
@@ -93,21 +98,18 @@ namespace mjon661 { namespace tiles {
 		template<unsigned L>
 		IndexMap<Height*Width, tilesPerLevel(L)> getIndexMap() {
 			
-			std::array<tile_t, Height*Width> tmp{};
+			if(L == 0)
+				return IndexMap<Height*Width, tilesPerLevel(L)>();
 			
-			if(L > 0)
-				for(unsigned i=0; i<tilesPerLevel(L); i++)
-					tmp[i] = mAbt1Kept[i];
-			
-			return IndexMap<Height*Width, tilesPerLevel(L)>(tmp.begin(), tmp.begin() + tilesPerLevel(L));
+			return IndexMap<Height*Width, tilesPerLevel(L)>(mAbt1Kept.begin(), mAbt1Kept.begin() + tilesPerLevel(L));
 		}
 		
 		
 		
 		TilesGeneric_DomainStack(Json const& jConfig) :
 			mAbt1Kept{},
-			mInitState(jConfig.at("init")),
-			mGoalState(jConfig.at("goal"))
+			mInitState(jConfig.at("init").get<std::vector<tile_t>>()),
+			mGoalState(jConfig.at("goal").get<std::vector<tile_t>>())
 		{
 			if(!mInitState.valid())
 				throw ConfigException("Bad init");

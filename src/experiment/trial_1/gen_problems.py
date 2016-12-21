@@ -31,24 +31,24 @@ def _getTilesParity(perm, w, h):
 def _getTilesSolvability(perm, goal, w, h):
 	
 	if w % 2 == 1:
-		return getTilesParity(perm, w, h) == getTilesParity(goal, w, h)
+		return _getTilesParity(perm, w, h) == _getTilesParity(goal, w, h)
 	
 	permRow = (perm.index(0) / w)
 	goalRow = (goal.index(0) / w)
 	
 	blankRowParity = abs(permRow - goalRow) % 2
 	
-	return getTilesParity(perm) == blankRowParity
+	return _getTilesParity(perm) == blankRowParity
 
 
 
 def _getTilesInitState(w, h, goal):
-	perm = getRandomPerm(h*w)
+	perm = _getRandomPerm(h*w)
 	
-	if getTilesSolvability(perm, goal, w, h):
+	if _getTilesSolvability(perm, goal, w, h):
 		return perm
 	
-	return getTilesInitState(w, h, goal)
+	return _getTilesInitState(w, h, goal)
 
 
 
@@ -61,7 +61,7 @@ def _genTilesProblemSet(w, h, nprob, fname):
 	goalState = tuple(range(0, h*w))
 
 	for i in range(0, nprob):
-		initState = getTilesInitState(w, h, goalState)
+		initState = _getTilesInitState(w, h, goalState)
 
 		probs[str(i)] = {"init" : initState, "goal" : goalState}
 
@@ -76,7 +76,7 @@ def _genPancakeProblemSet(sz, nprob, fname):
 	probs = {}
 	
 	for i in range(0, nprob):
-		probs[str(i)] = {"init" : getRandomPerm(sz)}
+		probs[str(i)] = {"init" : _getRandomPerm(sz)}
 	
 	
 	with open(fname, "w") as f:
@@ -152,6 +152,12 @@ def generateFiles(probFiles):
 			elif p["gen"] == "problems":
 				_genGridNavProblemSet(p["fname"], p["map"],  10, 10, p["num"], p["mindistance"])
 		
+		elif p["class"] == "pancake10":
+				_genPancakeProblemSet(p["size"], p["num"], p["fname"])
+		
+		elif p["class"] == "tiles8":
+				_genTilesProblemSet(3, 3, p["num"], p["fname"])
+
 		else:
 			pass
 	

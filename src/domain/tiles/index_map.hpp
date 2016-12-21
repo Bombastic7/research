@@ -14,8 +14,10 @@ namespace mjon661 { namespace tiles {
 	struct IndexMap {
 
 		IndexMap() {
-			for(unsigned i=0; i<Sz; i++)
-				(*this)[i] = i;
+			for(int i=0; i<Sz; i++) {
+				mIdx_Tile[i] = i;
+				mTile_Idx[i] = i;
+			}
 		}
 		
 		//Iterator to Sz tiles. 0 must be among them.

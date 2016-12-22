@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "domain/gridnav/defs.hpp"
+#include "domain/gridnav/blocked/defs.hpp"
 #include "domain/gridnav/cell_array.hpp"
 
 #include "util/debug.hpp"

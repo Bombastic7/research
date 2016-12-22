@@ -1,4 +1,4 @@
 #pragma once
 
-#include "domain/gridnav/blocked/domain_stack.hpp"
+#include "domain/gridnav/blocked/fwd.hpp"
 

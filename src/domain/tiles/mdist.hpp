@@ -45,6 +45,7 @@ namespace mjon661 { namespace tiles {
 						if(Use_Weight) {
 							int cst = mIncrement[t][pos][dest];
 							fast_assert(cst == -t || cst == 0 || cst == t);
+						}
 						else
 							fast_assert(std::abs(mIncrement[t][pos][dest]) <= 1);
 					}
@@ -64,16 +65,14 @@ namespace mjon661 { namespace tiles {
 				
 				slow_assert(pBoard[i] >= 0 && pBoard[i] < H*W, "%d", pBoard[i]);
 
-				out_h += mDistance[i][pBoard[i]] * (Use_Weight ? pTile : 1)
+				out_h += mDistance[i][pBoard[i]] * (Use_Weight ? pBoard[i] : 1);
 				out_d += mDistance[i][pBoard[i]];
 			}
-			
-			return h;
 		}
 		
 		//Change in MD when pTile (not the blank) moves from pSrc to pDest in a move operation.
 		//i.e. state.h += increment(op, blankpos, state[op]), where op is the index the blank is moving to.
-		int increment(idx_t pSrc, idx_t pDest, tile_t pTile) const {
+		int increment_dist(idx_t pSrc, idx_t pDest, tile_t pTile) const {
 			return mIncrement[pTile][pSrc][pDest] * (Use_Weight ? pTile : 1);
 		}
 		

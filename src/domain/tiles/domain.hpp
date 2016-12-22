@@ -101,9 +101,15 @@ namespace mjon661 { namespace tiles {
 		}
 		
 		void performMove(state_t& pState, idx_t op) const {
-			if(Use_H)
-				pState.setHval(pState.getHval() + mManhattan.increment(op, pState.getBlankPos(), pState[op]));
+			if(Use_H) {
+				int distIncr = mManhattan.increment_dist(op, pState.getBlankPos(), pState[op]);
+				
+				cost_t newH = pState.get_h() + distIncr * (Use_Weight ? pState[op] : 1);
+				cost_t newD = pState.get_d() + distIncr;
 			
+				pState.set_h(newH);
+				pState.set_d(newD);
+			}
 			pState.moveBlank(op);
 		}
 

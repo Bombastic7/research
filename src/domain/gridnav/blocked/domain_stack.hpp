@@ -7,7 +7,7 @@
 #include <fstream>
 #include <cstdlib>
 
-#include "domain/gridnav/defs.hpp"
+#include "domain/gridnav/blocked/defs.hpp"
 #include "domain/gridnav/blocked/domain.hpp"
 #include "domain/gridnav/blocked/maps.hpp"
 
@@ -39,7 +39,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			static_assert(L == 0, "");
 			
 			Domain(selfStack_t& pStack) :
-				domain_base(pStack.mMap, pStack.mInitPos, pStack.mGoalPos, -1)
+				domain_base(pStack.mMap, pStack.mInitPos, pStack.mGoalPos, -1, pStack.mEffectiveRow)
 			{}
 		};
 		
@@ -84,6 +84,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		const idx_t mInitPos, mGoalPos;
 		GridNav_Map mMap;
+		std::array<unsigned, Height> mEffectiveRow; //Not used.
 	};
 
 
@@ -170,8 +171,15 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					pStack.mMapStack.getLevel(L), 
 					basePosAtLevel(pStack.mInitPos, L), 
 					basePosAtLevel(pStack.mGoalPos, L),
-					pStack.relaxedCostAtLevel(L))
-			{}
+					pStack.relaxedCostAtLevel(L),
+					mEffectiveRow)
+			{
+				for(unsigned i=0; i<heightAtAbtLevel(L); i++)
+					mEffectiveRow[i] = compressY(i, L);
+			
+			}
+			
+			std::array<unsigned, heightAtAbtLevel(L)> mEffectiveRow; //Abt row -> cheapest base row represented.
 		};
 		
 		template<unsigned L>
@@ -236,7 +244,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		const idx_t mInitPos, mGoalPos;
-		GridNav_MapStack_MergeAbt mMapStack;		
+		GridNav_MapStack_MergeAbt mMapStack;
+		
+		
 		
 	};
 

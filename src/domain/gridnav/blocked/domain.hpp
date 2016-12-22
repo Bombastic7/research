@@ -7,7 +7,7 @@
 #include <fstream>
 #include <cstdlib>
 
-#include "domain/gridnav/defs.hpp"
+#include "domain/gridnav/blocked/defs.hpp"
 #include "domain/gridnav/blocked/maps.hpp"
 
 #include "util/json.hpp"
@@ -284,8 +284,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mGoaly(pGoal / W)
 		{}
 		
-		cost_t getMoveCost(idx_t pPos, MoveDir pDir) const {
-			return Use_LC ? pPos / W : 1;
+		cost_t getMoveCost(idx_t pPos, MoveDir pDir, unsigned pBaseRow) const {
+			return Use_LC ? pBaseRow : 1;
 		}
 		
 		void getHeuristicValues(idx_t pPos, state_t& pState) const {
@@ -361,11 +361,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mGoaly(pGoal / W)
 		{}
 		
-		cost_t getMoveCost(idx_t pPos, MoveDir pDir) const {
+		cost_t getMoveCost(idx_t pPos, MoveDir pDir, unsigned pBaseRow) const {
 			float c = isDiagDir(pDir) ? SQRT2 : 1;
 			
 			if(Use_LC)
-				c *= pPos / W;
+				c *= pBaseRow;
+			
 			return c;
 		}
 		
@@ -591,13 +592,14 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 		
 			
-		GridNav_Dom(GridNav_Map const& pMap, idx_t pInitPos, idx_t pGoalPos, unsigned pRelaxedCost) :
+		GridNav_Dom(GridNav_Map const& pMap, idx_t pInitPos, idx_t pGoalPos, unsigned pRelaxedCost, std::array<unsigned, Height> const& pEffectiveRow) :
 			DomBase(pGoalPos),
 			noOp(MoveDir::NoOp),
 			mMap(pMap),
 			mInitPos(pInitPos),
 			mGoalPos(pGoalPos),
-			mRelaxedCost(pRelaxedCost)
+			mRelaxedCost(pRelaxedCost),
+			mEffectiveRow(pEffectiveRow)
 		{
 			fast_assert(mInitPos >= 0 && mInitPos < Height * Width, "init %u", mInitPos);
 			fast_assert(mGoalPos >= 0 && mGoalPos < Height * Width, "goal %u", mGoalPos);
@@ -631,7 +633,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			this->getHeuristicValues(pState.pos, pState);
 			
-			Cost edgeCost = this->getMoveCost(pState.pos, op);
+			Cost edgeCost = this->getMoveCost(pState.pos, op, mEffectiveRow[pState.pos/Width]);
 			
 			if(Use_Relax)
 				if(mMap[pState.pos] == 1)
@@ -684,7 +686,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		GridNav_Map const& mMap;
 		const idx_t mInitPos, mGoalPos;
 		unsigned mRelaxedCost;
-
+		std::array<unsigned, Height> const& mEffectiveRow;
 	};
 
 }}}

@@ -2,7 +2,7 @@
 
 #include "domain/tiles/tiles_domain_stack.hpp"
 
-/*
+
 namespace mjon661 { namespace tiles { 
 	
 
@@ -11,4 +11,4 @@ namespace mjon661 { namespace tiles {
 
 
 }}
-*/
+

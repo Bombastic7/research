@@ -59,11 +59,14 @@ namespace mjon661 { namespace algorithm {
 		
 		void doWalk(State& s) {
 			while(true) {
-				std::cout << "LEVEL " << std::to_string(L) << "\n\n";
+				std::cout << "\nLEVEL " << std::to_string(L) << "\n\n";
 				
 				PrintStatesAndOps<DomStack, L>::doPrint(mDomain, s);
 				
 				std::cout << "\n\n";
+				
+				if(mDomain.checkGoal(s))
+					std::cout << "Is Goal\n\n";
 				
 				OperatorSet opSet = mDomain.createOperatorSet(s);
 				
@@ -88,14 +91,12 @@ namespace mjon661 { namespace algorithm {
 				
 				
 				std::cout << "\nCOMMAND (e opn, a, p): ";
-				std::cout.flush();
-				
 				
 				std::string comnd;
 				
-				std::cin >> comnd;
+				std::getline(std::cin, comnd);
 				
-				
+
 				if(comnd == "p")
 					break;
 					
@@ -103,7 +104,10 @@ namespace mjon661 { namespace algorithm {
 					doAbstraction(s, Tag<(L < DomStack::Top_Abstract_Level)>{});
 					
 				}
-				else if(comnd[0] == 'e' && comnd.size() > 3) {
+				else if(comnd[0] == 'e' && comnd.size() > 2) {
+					
+					
+					
 					unsigned opn = strtol(comnd.c_str() + 2, nullptr, 10);
 					if(opn < opSet.size()) {
 						

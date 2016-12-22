@@ -87,8 +87,8 @@ namespace mjon661 { namespace tiles {
 			pState.set_d(cst_d);
 		}
 
-		cost_t getMoveCost(tile_t pMovedTile) const {
-			return Use_Weight ? pMovedTile : 1;
+		cost_t getMoveCost(state_t& pState, idx_t op) const {
+			return Use_Weight ? pState[op] : 1;
 		}
 		
 		void prettyPrint(state_t const& pState, std::ostream& out) const {
@@ -159,8 +159,17 @@ namespace mjon661 { namespace tiles {
 			pState.fromPacked(pkd);
 		}
 
-		cost_t getMoveCost(tile_t pMovedTile) const {
-			return Use_Weight ? pMovedTile : 1;
+		cost_t getMoveCost(state_t& pState, idx_t op) const {
+			
+			if(!Use_Weight)
+				return 1;
+			
+			int tileIdx;
+			
+			if(pState.tryFindAt(op, tileIdx))
+				return pState[tileIdx];
+			
+			return 1;
 		}
 		
 		void prettyPrint(state_t const& pState, std::ostream& out) const {
@@ -328,9 +337,10 @@ namespace mjon661 { namespace tiles {
 		
 		Edge createEdge(State& pState, idx_t op) const {
 			idx_t parentOp = pState.getBlankPos();
-			cost_t edgeCost = base_t::getMoveCost(pState[op]);
+			cost_t edgeCost = base_t::getMoveCost(pState, op);
 			
-			slow_assert(pState[op] != 0);
+			slow_assert(edgeCost > 0 && (unsigned)edgeCost < Board_Size);
+			slow_assert(pState.getBlankPos() != op);
 			
 			base_t::performMove(pState, op);
 			

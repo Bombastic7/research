@@ -3,10 +3,12 @@
 #include <cstdlib>
 #include "domain/tiles/defs.hpp"
 #include "util/math.hpp"
+#include "util/debug.hpp"
+
 
 namespace mjon661 { namespace tiles {
 
-	template<int H, int W>
+	template<int H, int W, bool Use_Weight>
 	struct Manhattan {
 		static_assert(H > 0 && W > 0, "");
 		
@@ -40,8 +42,11 @@ namespace mjon661 { namespace tiles {
 						
 						mIncrement[t][pos][dest] = mDistance[dest][t] - mDistance[pos][t];
 						
-						
-						fast_assert(std::abs(mIncrement[t][pos][dest]) <= 1);
+						if(Use_Weight) {
+							int cst = mIncrement[t][pos][dest];
+							fast_assert(cst == -t || cst == 0 || cst == t);
+						else
+							fast_assert(std::abs(mIncrement[t][pos][dest]) <= 1);
 					}
 				}
 				
@@ -49,27 +54,27 @@ namespace mjon661 { namespace tiles {
 		}
 		
 		//MD for state
-		int eval(BoardStateV<H, W> const& pBoard) const {
-			cost_t h = 0;
+		void eval(BoardStateV<H, W> const& pBoard, int& out_h, int& out_d) const {
+			
+			out_h = out_d = 0;
 			
 			for(unsigned i=0; i<Board_Size; i++) {
 				if(pBoard[i] == 0)
 					continue;
-				h += mDistance[i][pBoard[i]];
+				
+				slow_assert(pBoard[i] >= 0 && pBoard[i] < H*W, "%d", pBoard[i]);
+
+				out_h += mDistance[i][pBoard[i]] * (Use_Weight ? pTile : 1)
+				out_d += mDistance[i][pBoard[i]];
 			}
 			
 			return h;
 		}
 		
-		//MD for one tile from pSrc
-		int distance(idx_t pSrc, tile_t pTile) const {
-			return mDistance[pSrc][pTile];
-		}
-		
 		//Change in MD when pTile (not the blank) moves from pSrc to pDest in a move operation.
 		//i.e. state.h += increment(op, blankpos, state[op]), where op is the index the blank is moving to.
 		int increment(idx_t pSrc, idx_t pDest, tile_t pTile) const {
-			return mIncrement[pTile][pSrc][pDest];
+			return mIncrement[pTile][pSrc][pDest] * (Use_Weight ? pTile : 1);
 		}
 		
 		

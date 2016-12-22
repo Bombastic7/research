@@ -27,34 +27,25 @@ namespace mjon661 { namespace tiles {
 	
 	template<unsigned H, unsigned W, bool Use_Weight, bool Use_H>
 	struct CompleteTilesBase {
-		
-		static_assert(!(Use_Weight && Use_H), "");
-		
 
+		
 		template<bool, typename = void>
-		struct StateImpl : public BoardStateV<H, W> {
-			cost_t getHval() const {return 0;}
-			void setHval(cost_t) {}
+		struct StateImpl : public BoardStateV<H,W> {
+			using BoardStateV<H,W>::BoardStateV;
 			
-			StateImpl() = default;
-			StateImpl(BoardStateV<H,W> const& o) : BoardStateV<H,W>(o) {}
-			StateImpl(BoardStateV<H,W> const& o, cost_t) : BoardStateV<H,W>(o) {}
+			cost_t get_h() {return 0;} cost_t get_d() {return 0;} void set_h(cost_t) {} void set_d(cost_t) {}
 		};
 		
 		template<typename Ign>
-		struct StateImpl<true, Ign> : public BoardStateV<H, W> {
-			cost_t getHval() const {return hval;}
-			void setHval(cost_t h) {hval = h;}
-			StateImpl() = default;
-			StateImpl(BoardStateV<H,W> const& o) : BoardStateV<H,W>(o) {}
-			StateImpl(BoardStateV<H,W> const& o, cost_t pH) : BoardStateV<H,W>(o) {setHval(pH);}
+		struct StateImpl<true, Ign> : public BoardStateV<H,W> {
+			using BoardStateV<H,W>::BoardStateV;
 			
-			bool operator==(StateImpl<true, Ign> const& o) {
-				return BoardStateV<H, W> ::operator==(o);
-			}
+			cost_t get_h() {return h;} cost_t get_d() {return d;} void set_h(cost_t ph) {h=ph;} void set_d(cost_t pd) {d=pd;}
 			
-			cost_t hval;
+			cost_t h, d;
 		};
+		
+		
 
 		
 		using state_t = StateImpl<Use_H>;
@@ -66,9 +57,19 @@ namespace mjon661 { namespace tiles {
 		
 		CompleteTilesBase(BoardStateV<H,W> const& pInitState, BoardStateV<H,W> const& pGoalState) :
 			mManhattan(pGoalState),
-			mInitState(pInitState, mManhattan.eval(pInitState)),
-			mGoalState(pGoalState, mManhattan.eval(mGoalState))
+			mInitState(pInitState),
+			mGoalState(pGoalState)
 		{
+			cost_t cst_h, cst_d;
+			
+			mManhattan.eval(mInitState, cst_h, cst_d);
+			mInitState.set_h(cst_h);
+			mInitState.set_d(cst_d);
+			
+			mManhattan.eval(mGoalState, cst_h, cst_d);
+			mGoalState.set_h(cst_h);
+			mGoalState.set_d(cst_d);
+			
 			fast_assert(mManhattan.eval(mGoalState) == 0);
 		}
 		
@@ -78,16 +79,21 @@ namespace mjon661 { namespace tiles {
 		
 		void doUnpackState(state_t& pState, packed_t const& pkd) const {
 			pState.fromPacked(pkd);
-			pState.setHval(mManhattan.eval(pState));
+			
+			cost_t cst_h, cst_d;
+			
+			mManhattan.eval(pState, cst_h, cst_d);
+			pState.set_h(cst_h);
+			pState.set_d(cst_d);
 		}
 
-		cost_t getMoveCost(idx_t op) const {
-			return Use_Weight ? op / W : 1;
+		cost_t getMoveCost(tile_t pMovedTile) const {
+			return Use_Weight ? pMovedTile : 1;
 		}
 		
 		void prettyPrint(state_t const& pState, std::ostream& out) const {
 			pState.prettyPrint(out);
-			out << "H: " << pState.getHval() << "\n";
+			out << "(h, d): (" << pState.get_h() << ", " << pState.getd() << ")\n";
 		}
 		
 		size_t doHash(packed_t const& pkd) const {
@@ -103,14 +109,11 @@ namespace mjon661 { namespace tiles {
 
 		
 		cost_t getVal_h(state_t const& pState) const {
-			if(!Use_H)
-				return 0;
-			
-			return pState.getHval();
+			return pState.get_h();
 		}
 		
 		cost_t getVal_d(state_t const& pState) const {
-			return getVal_h(pState);
+			return pState.get_d();
 		}
 		
 		bool doCheckGoal(state_t const& pState) const {
@@ -119,7 +122,7 @@ namespace mjon661 { namespace tiles {
 		
 
 		private:
-		const Manhattan<H,W> mManhattan;
+		const Manhattan<H,W,Use_Weight> mManhattan;
 		const state_t mInitState, mGoalState;
 	};
 	
@@ -150,8 +153,8 @@ namespace mjon661 { namespace tiles {
 			pState.fromPacked(pkd);
 		}
 
-		cost_t getMoveCost(idx_t op) const {
-			return Use_Weight ? op / W : 1;
+		cost_t getMoveCost(tile_t pMovedTile) const {
+			return Use_Weight ? pMovedTile : 1;
 		}
 		
 		void prettyPrint(state_t const& pState, std::ostream& out) const {
@@ -319,10 +322,13 @@ namespace mjon661 { namespace tiles {
 		
 		Edge createEdge(State& pState, idx_t op) const {
 			idx_t parentOp = pState.getBlankPos();
+			cost_t edgeCost = base_t::getMoveCost(pState[op]);
+			
+			slow_assert(pState[op] != 0);
 			
 			base_t::performMove(pState, op);
 			
-			return Edge(pState, base_t::getMoveCost(op), parentOp);
+			return Edge(pState, edgeCost, parentOp);
 		}
 		
 		void destroyEdge(Edge& pEdge) const {

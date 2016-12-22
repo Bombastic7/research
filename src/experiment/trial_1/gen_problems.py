@@ -145,12 +145,12 @@ def generateFiles(probFiles):
 	
 	for p in probFiles:
 		
-		if p["class"] == "gridnav10_10":
+		if p["class"] == "gridnav1000_1000":
 			if p["gen"] == "map":
-				_genGridNavMap(10, 10, p["blockedprob"], p["fname"])
+				_genGridNavMap(1000, 1000, p["blockedprob"], p["fname"])
 			
 			elif p["gen"] == "problems":
-				_genGridNavProblemSet(p["fname"], p["map"],  10, 10, p["num"], p["mindistance"])
+				_genGridNavProblemSet(p["fname"], p["map"],  1000, 1000, p["num"], p["mindistance"])
 		
 		elif p["class"] == "pancake10":
 				_genPancakeProblemSet(p["size"], p["num"], p["fname"])

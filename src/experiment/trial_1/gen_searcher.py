@@ -38,6 +38,7 @@ def searcher_code(algdom):
 #include "search/hastar/generic/hastar.hpp"
 #include "search/ugsa/v1/ugsa_v1.hpp"
 #include "search/ugsa/v2/ugsa_v2.hpp"
+#include "search/ugsa/v2_bf/ugsa_v2.hpp"
 
 """
 
@@ -134,7 +135,7 @@ void selectAll(Json const& jExecDesc) {
 	std::string pAlgDom = jExecDesc["algdom"];
 	
 	if(pAlgDom == "")
-		throw std::runtime_error("Bad domain");
+		throw std::runtime_error("Bad domain or algorithm");
 """
 
 	for i in algdom:
@@ -164,13 +165,32 @@ void run_prob_from_set(mjon661::Json const& jExecDescSet, std::string const& key
 	codeStr += """
 int main(int argc, const char* argv[]) {
 
-	if(argc > 1 && std::string(argv[1]) == "-s") {
+	if(argc == 1) {
+		std::cout << "-s to get input from stdin\\n";
+		std::cout << "execdesc.json for file input\\n";
+		return 2;
+	}
+
+	if(std::string(argv[1]) == "-s") {
 		mjon661::Json j;
 		std::cin >> j;
 		mjon661::selectAll(j);
 	}
-	else
-		return 2;
+	else {
+		std::ifstream ifs(argv[1]);
+		
+		if(!ifs) {
+			std::cout << "Could not open problem set file\\n";
+			return 2;
+		}
+		
+		mjon661::Json j;
+		
+		ifs >> j;
+		
+		mjon661::selectAll(j);
+	}
+
 }
 """
 

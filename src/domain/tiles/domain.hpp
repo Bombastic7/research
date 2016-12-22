@@ -33,14 +33,14 @@ namespace mjon661 { namespace tiles {
 		struct StateImpl : public BoardStateV<H,W> {
 			using BoardStateV<H,W>::BoardStateV;
 			
-			cost_t get_h() {return 0;} cost_t get_d() {return 0;} void set_h(cost_t) {} void set_d(cost_t) {}
+			cost_t get_h() const {return 0;} cost_t get_d() const {return 0;} void set_h(cost_t) {} void set_d(cost_t) {}
 		};
 		
 		template<typename Ign>
 		struct StateImpl<true, Ign> : public BoardStateV<H,W> {
 			using BoardStateV<H,W>::BoardStateV;
 			
-			cost_t get_h() {return h;} cost_t get_d() {return d;} void set_h(cost_t ph) {h=ph;} void set_d(cost_t pd) {d=pd;}
+			cost_t get_h() const {return h;} cost_t get_d() const {return d;} void set_h(cost_t ph) {h=ph;} void set_d(cost_t pd) {d=pd;}
 			
 			cost_t h, d;
 		};
@@ -70,7 +70,7 @@ namespace mjon661 { namespace tiles {
 			mGoalState.set_h(cst_h);
 			mGoalState.set_d(cst_d);
 			
-			fast_assert(mManhattan.eval(mGoalState) == 0);
+			fast_assert(cst_h == cst_d  && cst_d == 0);
 		}
 		
 		state_t doCreateState() const {
@@ -93,7 +93,7 @@ namespace mjon661 { namespace tiles {
 		
 		void prettyPrint(state_t const& pState, std::ostream& out) const {
 			pState.prettyPrint(out);
-			out << "(h, d): (" << pState.get_h() << ", " << pState.getd() << ")\n";
+			out << "(h, d): (" << pState.get_h() << ", " << pState.get_d() << ")\n";
 		}
 		
 		size_t doHash(packed_t const& pkd) const {
@@ -129,7 +129,7 @@ namespace mjon661 { namespace tiles {
 
 		private:
 		const Manhattan<H,W,Use_Weight> mManhattan;
-		const state_t mInitState, mGoalState;
+		state_t mInitState, mGoalState;
 	};
 	
 	

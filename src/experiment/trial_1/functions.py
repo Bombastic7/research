@@ -113,7 +113,7 @@ Everything else is specific to the type and used by gen_problems.
 """
 GEN_PROB_FILES = [ 
 		
-		{ "type" : "gridnav", "fname" : GEN_DIR+"mapA", "gen" : "map", "blockedprob" : 0, "dim" : (1000,1000) },
+		{ "type" : "gridnav", "fname" : GEN_DIR+"mapA", "gen" : "map", "blockedprob" : 0.4, "dim" : (1000,1000) },
 		{ "type" : "gridnav", "fname" : GEN_DIR+"gn_probsA.json", "gen" : "problems", "num" : 10, "dim" : (1000,1000), "mindistance" : 0.5, "map" : GEN_DIR+"mapA" },
 		{ "type" : "pancake10", "fname" : GEN_DIR+"pancake10_probs.json", "num" : 10, "size" : 10 },
 		{ "type" : "tiles8", "fname" : GEN_DIR+"t8_probs.json", "num" : 10}

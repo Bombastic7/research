@@ -33,14 +33,22 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 										Use_H,
 										false>;
 		
+		static const unsigned Top_Abstract_Level = 0;
+		
+		
 		template<unsigned L>
 		struct Domain : domain_base {
 			
 			static_assert(L == 0, "");
 			
 			Domain(selfStack_t& pStack) :
-				domain_base(pStack.mMap, pStack.mInitPos, pStack.mGoalPos, -1, pStack.mEffectiveRow)
-			{}
+				domain_base(pStack.mMap, pStack.mInitPos, pStack.mGoalPos, -1, mEffectiveRow)
+			{
+				for(unsigned i=0; i<Height; i++)
+					mEffectiveRow[i] = i;
+			}
+			
+			std::array<unsigned, Height> mEffectiveRow;
 		};
 		
 		
@@ -84,7 +92,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		const idx_t mInitPos, mGoalPos;
 		GridNav_Map mMap;
-		std::array<unsigned, Height> mEffectiveRow; //Not used.
 	};
 
 

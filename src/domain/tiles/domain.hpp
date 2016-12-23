@@ -166,8 +166,10 @@ namespace mjon661 { namespace tiles {
 			
 			int tileIdx;
 			
-			if(pState.tryFindAt(op, tileIdx))
-				return pState[tileIdx];
+			if(pState.tryFindAt(op, tileIdx)) {
+				slow_assert(mMap.tileAt(tileIdx) != 0);
+				return mMap.tileAt(tileIdx);
+			}
 			
 			return 1;
 		}
@@ -339,8 +341,9 @@ namespace mjon661 { namespace tiles {
 			idx_t parentOp = pState.getBlankPos();
 			cost_t edgeCost = base_t::getMoveCost(pState, op);
 			
-			slow_assert(edgeCost > 0 && (unsigned)edgeCost < Board_Size);
 			slow_assert(pState.getBlankPos() != op);
+			slow_assert(edgeCost > 0 && (unsigned)edgeCost < Board_Size, "%d", edgeCost);
+			
 			
 			base_t::performMove(pState, op);
 			

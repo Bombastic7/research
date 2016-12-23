@@ -13,24 +13,80 @@ import gen_problems
 
 
 
-"""
-gridnav = 1000x1000, Unit/LC
-tiles8, tiles15, Unit/Weight
-
-
-Weights = (1,0) (1, 0.1) (1, 10) (0, 1)
-
-Astar, Bugsy, HAstar, UGSAv2(delay/bf)(1/multi level)
-
-"""
+PROBLEMS_DIR = "./problems/"
+RESULTS_DIR = "./results/"
 
 
 ALG_DOM = [
-		("algorithm::Astar", gen_domain_decls.gridnav_blocked(1000, 1000, True, True, True), "gridnav1000_1000", "Astar_gridnav"),
-		("algorithm::Bugsy", gen_domain_decls.gridnav_blocked(1000, 1000, True, True, True), "gridnav1000_1000", "Bugsy_gridnav"),
-		("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "hastar_gridnav"),
-		("algorithm::ugsav2_bf::UGSAv2_StatsLevel",  gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "ugsaBF_gridnav"),
-		("algorithm::ugsav2::UGSAv2_StatsLevel",  gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "ugsaDelay_gridnav"),
+		{
+		"alg":		"algorithm::Astar", 
+		"dom":		domgen_domain_decls.gridnav_blocked(1000, 1000, True, True, True), 
+		"class":	"gridnav1000_1000", 
+		"name":		"Astar_gridnav"
+		},
+		
+		{
+		"alg":		"algorithm::Bugsy",
+		"dom": 		gen_domain_decls.gridnav_blocked(1000, 1000, True, True, True),
+		"class": 	"gridnav1000_1000",
+		"name": 	"Bugsy_gridnav"
+		},
+		
+		{
+		"alg":		"algorithm::hastargeneric::HAstar_StatsLevel",
+		"dom": 		gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3),
+		"class": 	"gridnav1000_1000",
+		"name": 	"hastar_gridnav"
+		},
+		
+		
+		
+		{
+		"alg":		"algorithm::Astar", 
+		"dom":		gen_domain_decls.pancake_stack_single(10, True),
+		"class": 	"pancake10",
+		"name":		"Astar_pancake"
+		},
+		
+		{
+		"alg":		"algorithm::Bugsy", 
+		"dom":		gen_domain_decls.pancake_stack_single(10, True), 
+		"class": 	"pancake10", 
+		"name":		"Bugsy_pancake"
+		},
+		
+		{
+		"alg":		"algorithm::hastargeneric::HAstar_StatsLevel", 
+		"dom":		gen_domain_decls.pancake_stack_ignore(10, 8, 1), 
+		"class": 	"pancake10", 
+		"name":		"HAstar_pancake"
+		},
+		
+		
+		
+		{"alg":		"algorithm::Astar", 
+		"dom":		gen_domain_decls.tiles_stack(3,3,True,True,0), 
+		"class": 	"tiles8", 
+		"name":		"Astar_tiles8"
+		},
+		
+		{
+		"alg":		"algorithm::Bugsy", 
+		"dom":		gen_domain_decls.tiles_stack(3,3,True,True,0), 
+		"class": 	"tiles8", 
+		"name":		"Bugsy_tiles8"
+		},
+		
+		{
+		"alg":		"algorithm::hastargeneric::HAstar_StatsLevel", 
+		"dom":		gen_domain_decls.tiles_stack(3,3,True,False,5), 
+		"class": 	"tiles8", 
+		"name":		"HAstar_tiles8"
+		},
+		
+		#("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "hastar_gridnav"),
+		#("algorithm::ugsav2_bf::UGSAv2_StatsLevel",  gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "ugsaBF_gridnav"),
+		#("algorithm::ugsav2::UGSAv2_StatsLevel",  gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "ugsaDelay_gridnav"),
 		
 		#("algorithm::Astar", gen_domain_decls.pancake_stack_single(10, True), "pancake10", "Astar_pancakes"),
 		
@@ -43,10 +99,10 @@ ALG_DOM = [
 
 GEN_PROB_FILES = [ 
 		
-		{ "class" : "gridnav1000_1000", "fname" : "mapA", "gen" : "map", "blockedprob" : 0.45 },
-		{ "class" : "gridnav1000_1000", "fname" : "gn_probsA.json", "gen" : "problems", "num" : 10, "mindistance" : 0.5, "map" : "problems/mapA" },
-		#{ "class" : "pancake10", "fname" : "pc_probs.json", "num" : 10, "size" : 10 },
-		#{ "class" : "tiles8", "fname" : "t8_probs.json", "num" : 10}
+		{ "type" : "gridnav", "fname" : PROBLEMS_DIR+"mapA", "gen" : "map", "blockedprob" : 0.45, "dim" : (1000,1000) },
+		{ "type" : "gridnav", "fname" : PROBLEMS_DIR+"gn_probsA.json", "gen" : "problems", "num" : 10, "dim" : (1000,1000), "mindistance" : 0.5, "map" : PROBLEMS_DIR+"mapA" },
+		{ "type" : "pancake10", "fname" : PROBLEMS_DIR+"pancake10_probs.json", "num" : 10, "size" : 10 },
+		{ "type" : "tiles8", "fname" : PROBLEMS_DIR+"t8_probs.json", "num" : 10}
 		
 		]
 
@@ -63,17 +119,7 @@ EXEC_PROB_FILES = 	{
 
 WEIGHT_SCHEDULE = [(1,0), (1, 0.1), (1, 10), (0, 1)]
 
-
-
-for i in GEN_PROB_FILES:
-	i["fname"] = "./problems/" + i["fname"]
-
-
-for i in EXEC_PROB_FILES.itervalues():
-	for j in range(0, len(i)):
-		i[j] = "./problems/" + i[j]
-		
-
+algdom * probset //probset is object with entry for each weight
 
 
 def executeProblem(execDesc):
@@ -84,26 +130,26 @@ def executeProblem(execDesc):
 		
 		if proc.returncode == 0:
 			res = json.loads(searcherOut)
-			res["result"] = "success"
+			res["RESULT"] = { "status":"SUCCESS"}
 			return res
 		
 		elif proc.returncode == 10:
-			res = {"result" : "time limit"}
-			res["error_what"] = searcherOut
+			res = {"RESULT" : "status":"OOT"}
+			res["error_output"] = searcherOut
 			return res
 		
 		elif proc.returncode == 11:
-			res = {"result" : "memory limit"}
-			res["error_what"] = searcherOut
+			res = {"RESULT" : "status":"OOM"}
+			res["error_output"] = searcherOut
 			return res
 	
 		else:
-			res = {"result" : "bad return code"}
-			res["error_what"] = searcherOut
+			res = {"RESULT" : "status":"UNKNOWN"}
+			res["error_output"] = searcherOut
 			return res
 	
 	except Exception as e:
-		return json.loads("{ \"result\" : \"exception\", \"error_what\" : " + e + "\"}")
+		return json.loads("{ \"RESULT\" : \"exception\", \"error_what\" : " + e + "\"}")
 		
 
 def _doExec(params):
@@ -124,7 +170,7 @@ def _doExec(params):
 					"wt" : wt,
 					"algorithm conf" : {"wf" : wf, "wt" : wt},
 					"time limit" : 600,
-					"memory limit" : 4000
+					"memory limit" : 2000
 			}
 				
 	return (key, executeProblem(execDesc))

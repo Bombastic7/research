@@ -3,6 +3,8 @@
 #include <iostream>
 #include <vector>
 
+#include "util/debug.hpp"
+
 
 namespace mjon661 {
 	template<typename Domain>
@@ -37,26 +39,25 @@ namespace mjon661 {
 			if(states.size() == 0)
 				return 0;
 			
-			State s = states[0];
+			State s0 = states[0];
 			
 			Domain dom(pDomStack);
-			
-			return pathCostRec(dom, s, 0);
-		}
-		
-		
 
-		
-		Cost pathCostRec(Domain& pDomain, State& pState, unsigned i) {
-			if(i == operators.size())
-				return 0;
 			
-			Edge edge = pDomain.createEdge(pState, operators[i]);
-			Cost retCost = edge.cost() + pathCostRec(pDomain, edge.state(), i+1);
-			pDomain.destroyEdge(edge);
+			Edge prevEdge = dom.createEdge(s0, operators.at(0));
+			Cost pthcst = prevEdge.cost();
 			
-			return retCost;
+			for(unsigned i=1; i<operators.size(); i++) {
+				Edge e = dom.createEdge(prevEdge.state(), operators.at(i));
+				pthcst += e.cost();
+				prevEdge = e;
+			}
+			
+			fast_assert(dom.checkGoal(prevEdge.state()));
+			
+			return pthcst;
 		}
+
 		
 		std::vector<State> states;
 		std::vector<Operator> operators;

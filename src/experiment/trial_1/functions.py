@@ -13,18 +13,23 @@ import gen_problems
 
 
 
-GEN_DIR = "./problems/"
+GEN_DIR = "./generated/"
 
 
-
+"""
+alg: Name of algorithm class (used by gen_searcher)
+dom: Name of domain class (used by gen_searcher)
+class: problem class (used by generateRuns() )
+name: nice name (used by gen_searcher, generateRuns() )
+"""
 ALG_DOM = [
 		{
 		"alg":		"algorithm::Astar", 
-		"dom":		domgen_domain_decls.gridnav_blocked(1000, 1000, True, True, True), 
+		"dom":		gen_domain_decls.gridnav_blocked(1000, 1000, True, True, True), 
 		"class":	"gridnav1000_1000", 
 		"name":		"Astar_gridnav"
-		},
-		
+		},]
+"""
 		{
 		"alg":		"algorithm::Bugsy",
 		"dom": 		gen_domain_decls.gridnav_blocked(1000, 1000, True, True, True),
@@ -83,7 +88,7 @@ ALG_DOM = [
 		"class": 	"tiles8", 
 		"name":		"HAstar_tiles8"
 		},
-		
+	"""	
 		#("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "hastar_gridnav"),
 		#("algorithm::ugsav2_bf::UGSAv2_StatsLevel",  gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "ugsaBF_gridnav"),
 		#("algorithm::ugsav2::UGSAv2_StatsLevel",  gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "ugsaDelay_gridnav"),
@@ -94,12 +99,21 @@ ALG_DOM = [
 		#("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.gridnav_blocked_stack_merge(10, 10, True, False, 2, 2, 3), "gridnav10_10", "hastar_gnabt"),
 		#("algorithm::Astar", gen_domain_decls.tiles_stack(3, 3, False, True, 0), "tiles8", "Astar_tiles8"),
 		#("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.tiles_stack(3, 3, False, False, 5), "tiles8", "Astar_tiles8Abt")
-		]
+		#]
 
 
+"""
+Problem files that should be generated prior to performing searches.
+
+type: general area this file belongs to (Used by gen_problems).
+fname: file name of the generated problem set files (used by gen_problems).
+num: number of problems to generate for the set (gen_problems).
+
+Everything else is specific to the type and used by gen_problems.
+"""
 GEN_PROB_FILES = [ 
 		
-		{ "type" : "gridnav", "fname" : GEN_DIR+"mapA", "gen" : "map", "blockedprob" : 0.45, "dim" : (1000,1000) },
+		{ "type" : "gridnav", "fname" : GEN_DIR+"mapA", "gen" : "map", "blockedprob" : 0, "dim" : (1000,1000) },
 		{ "type" : "gridnav", "fname" : GEN_DIR+"gn_probsA.json", "gen" : "problems", "num" : 10, "dim" : (1000,1000), "mindistance" : 0.5, "map" : GEN_DIR+"mapA" },
 		{ "type" : "pancake10", "fname" : GEN_DIR+"pancake10_probs.json", "num" : 10, "size" : 10 },
 		{ "type" : "tiles8", "fname" : GEN_DIR+"t8_probs.json", "num" : 10}
@@ -107,17 +121,21 @@ GEN_PROB_FILES = [
 		]
 
 
+"""
+Problem set files associated with ALG_DOM["class"], as generated from the info in GEN_PROB_FILES.
+
+"""
 EXEC_PROB_FILES = 	{
 
-					"gridnav1000_1000" : ["gn_probsA.json"],
-					"pancake10" : ["pc_probs.json"],
-					"tiles8" : ["t8_probs.json"]
+					"gridnav1000_1000" : [GEN_DIR+"gn_probsA.json"],
+					"pancake10" : [GEN_DIR+"pc_probs.json"],
+					"tiles8" : [GEN_DIR+"t8_probs.json"]
 					
 					}
 
 
 
-WEIGHT_SCHEDULE = [(1,0), (1, 0.1), (1, 10), (0, 1)]
+WEIGHT_SCHEDULE = [(1,0)]#, (1, 0.1), (1, 10), (0, 1)]
 
 
 
@@ -128,28 +146,34 @@ def executeProblem(execDesc):
 		
 		searcherOut = proc.communicate(input=bytearray(json.dumps(execDesc)))[0]
 		
+		res = {}
+		
 		if proc.returncode == 0:
 			res = json.loads(searcherOut)
-			res["RESULT"] = { "status":"SUCCESS"}
+			res["status"] = "SUCCESS"
 			return res
 		
 		elif proc.returncode == 10:
-			res = {"RESULT" : "status":"OOT"}
+			res["status"] = "OOT"
 			res["error_output"] = searcherOut
 			return res
 		
 		elif proc.returncode == 11:
-			res = {"RESULT" : "status":"OOM"}
+			res["status"] = "OOM"
 			res["error_output"] = searcherOut
 			return res
 	
 		else:
-			res = {"RESULT" : "status":"UNKNOWN"}
-			res["error_output"] = searcherOut
+			res["status"] = "UNKNOWN"
+			res["error_output"] = searcherOut + "\n\n" + str(proc.returncode)
 			return res
 	
 	except Exception as e:
-		return json.loads("{ \"RESULT\" : \"exception\", \"error_output\" : " + e + "\"}")
+		res["status"] = "EXCEPTION"
+		res["error_output"] = e
+
+	return res
+
 		
 
 
@@ -158,13 +182,12 @@ def _doExec(runDesc):
 	key = runDesc[0]
 	run = runDesc[1]
 
-
 	
-	execDesc = {	"algdom" : run["NAME"]
-					"domain conf" : run["DOM_CONF"]
+	execDesc = {	"algdom" : run["NAME"],
+					"domain conf" : run["DOM_CONF"],
 					"domain" : run["DOM"],
-					"algorithm conf" : run["ALG_CONF"]
-					"algorithm" : run["ALG"]
+					"algorithm conf" : run["ALG_CONF"],
+					"algorithm" : run["ALG"],
 					"wf" : run["WF"],
 					"wt" : run["WT"],
 					"time limit" : 600,
@@ -173,15 +196,13 @@ def _doExec(runDesc):
 	
 	res = executeProblem(execDesc)
 	
-	return { key : res }
+	return (key, res)
 
 
 
 def generateRuns(runsfile):
-	#import pdb; pdb.set_trace()
-	#workerPool = multiprocessing.Pool()
-	
-	allRuns = []
+
+	allRuns = {}
 	
 	runkey = 0
 	
@@ -207,7 +228,7 @@ def generateRuns(runsfile):
 					run["PROB_KEY"] = probdesc[0]
 					run["DOM_CONF"] = probdesc[1]
 					
-					if ["conf"] in algdom:
+					if "conf" in algdom:
 						run["ALG_CONF"] = algdom["conf"]
 					else:
 						run["ALG_CONF"] = {}
@@ -216,7 +237,7 @@ def generateRuns(runsfile):
 					run["ALG_CONF"]["wt"] = weights[1]
 					
 					allRuns[str(runkey)] = run
-					run += 1
+					runkey += 1
 	
 	with open(runsfile, "w") as f:
 		json.dump(allRuns, f, indent=4, sort_keys=True)
@@ -236,7 +257,7 @@ def executeRuns(runsfile, resultsfile):
 
 
 	with open(resultsfile, "w") as f:
-		json.dump(results, f, indent=4, sort_keys=True)
+		json.dump(dict(results), f, indent=4, sort_keys=True)
 
 	
 

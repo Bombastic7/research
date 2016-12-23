@@ -132,7 +132,7 @@ namespace mjon661 {
 
 	codeStr += """
 void selectAll(Json const& jExecDesc) {
-	std::string pAlgDom = jExecDesc["algdom"];
+	std::string pAlgDom = jExecDesc.at("algdom");
 	
 	if(pAlgDom == "")
 		throw std::runtime_error("Bad domain or algorithm");
@@ -142,14 +142,14 @@ void selectAll(Json const& jExecDesc) {
 		codeStr += """
 	else if(pAlgDom == "{0}")
 		mjon661::execRoutine<{1}, {2}>(jExecDesc);
-	""".format(i[3], i[1], i[0])
+	""".format(i["name"], i["dom"], i["alg"])
 
 
 	codeStr += """
 	else
 		throw std::runtime_error("Bad domain or algorithm");
 }
-}//mjon661
+
 """
 
 
@@ -160,6 +160,7 @@ void run_prob_from_set(mjon661::Json const& jExecDescSet, std::string const& key
 	mjon661::selectAll(jExecDescSet.at(key));
 	
 }
+}//mjon661
 """
 
 	codeStr += """
@@ -180,7 +181,7 @@ int main(int argc, const char* argv[]) {
 		std::ifstream ifs(argv[1]);
 		
 		if(!ifs) {
-			std::cout << "Could not open problem set file\\n";
+			std::cout << "Could not open problem file\\n";
 			return 2;
 		}
 		

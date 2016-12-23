@@ -13,8 +13,8 @@ import gen_problems
 
 
 
-PROBLEMS_DIR = "./problems/"
-RESULTS_DIR = "./results/"
+GEN_DIR = "./problems/"
+
 
 
 ALG_DOM = [
@@ -99,10 +99,10 @@ ALG_DOM = [
 
 GEN_PROB_FILES = [ 
 		
-		{ "type" : "gridnav", "fname" : PROBLEMS_DIR+"mapA", "gen" : "map", "blockedprob" : 0.45, "dim" : (1000,1000) },
-		{ "type" : "gridnav", "fname" : PROBLEMS_DIR+"gn_probsA.json", "gen" : "problems", "num" : 10, "dim" : (1000,1000), "mindistance" : 0.5, "map" : PROBLEMS_DIR+"mapA" },
-		{ "type" : "pancake10", "fname" : PROBLEMS_DIR+"pancake10_probs.json", "num" : 10, "size" : 10 },
-		{ "type" : "tiles8", "fname" : PROBLEMS_DIR+"t8_probs.json", "num" : 10}
+		{ "type" : "gridnav", "fname" : GEN_DIR+"mapA", "gen" : "map", "blockedprob" : 0.45, "dim" : (1000,1000) },
+		{ "type" : "gridnav", "fname" : GEN_DIR+"gn_probsA.json", "gen" : "problems", "num" : 10, "dim" : (1000,1000), "mindistance" : 0.5, "map" : GEN_DIR+"mapA" },
+		{ "type" : "pancake10", "fname" : GEN_DIR+"pancake10_probs.json", "num" : 10, "size" : 10 },
+		{ "type" : "tiles8", "fname" : GEN_DIR+"t8_probs.json", "num" : 10}
 		
 		]
 
@@ -119,7 +119,7 @@ EXEC_PROB_FILES = 	{
 
 WEIGHT_SCHEDULE = [(1,0), (1, 0.1), (1, 10), (0, 1)]
 
-algdom * probset //probset is object with entry for each weight
+
 
 
 def executeProblem(execDesc):
@@ -149,68 +149,95 @@ def executeProblem(execDesc):
 			return res
 	
 	except Exception as e:
-		return json.loads("{ \"RESULT\" : \"exception\", \"error_what\" : " + e + "\"}")
+		return json.loads("{ \"RESULT\" : \"exception\", \"error_output\" : " + e + "\"}")
 		
 
-def _doExec(params):
+
+def _doExec(runDesc):
 	
-	algdom = params["algdom"]
-	key = params["key_desc"][0]
-	desc = params["key_desc"][1]
-	wf = params["weights"][0]
-	wt = params["weights"][1]
-				
+	key = runDesc[0]
+	run = runDesc[1]
+
+
 	
-	execDesc = {	"algdom" : algdom[3],
-					"domain conf" : desc,
-					"domain" : algdom[1],
-					"algorithm" : algdom[0], 
-					"algorithm conf" : {},
-					"wf" : wf,
-					"wt" : wt,
-					"algorithm conf" : {"wf" : wf, "wt" : wt},
+	execDesc = {	"algdom" : run["NAME"]
+					"domain conf" : run["DOM_CONF"]
+					"domain" : run["DOM"],
+					"algorithm conf" : run["ALG_CONF"]
+					"algorithm" : run["ALG"]
+					"wf" : run["WF"],
+					"wt" : run["WT"],
 					"time limit" : 600,
 					"memory limit" : 2000
 			}
-				
-	return (key, executeProblem(execDesc))
+	
+	res = executeProblem(execDesc)
+	
+	return { key : res }
 
 
 
-def executeAllProblems():
+def generateRuns(runsfile):
 	#import pdb; pdb.set_trace()
-	workerPool = multiprocessing.Pool()
+	#workerPool = multiprocessing.Pool()
+	
+	allRuns = []
+	
+	runkey = 0
 	
 	for algdom in ALG_DOM:
 		
-		probcls = algdom[2]
+		probcls = algdom["class"]
 		
 		for probfile in EXEC_PROB_FILES[probcls]:
 			
 			with open(probfile) as f:
 				probset = json.load(f)
 			
+			for weights in WEIGHT_SCHEDULE:
 			
-			
-			execDescList = [{"algdom" : algdom,
-							 "key_desc" : key_desc,
-							 "weights" : weights} for key_desc in probset.iteritems() for weights in WEIGHT_SCHEDULE]
+				for probdesc in probset.iteritems():
+					run = {}
+					run["ALG"] = algdom["alg"]
+					run["DOM"] = algdom["dom"]
+					run["WF"] = weights[0]
+					run["WT"] = weights[1]
+					run["NAME"] = algdom["name"]
+					run["PROB_FILE"] = probfile
+					run["PROB_KEY"] = probdesc[0]
+					run["DOM_CONF"] = probdesc[1]
+					
+					if ["conf"] in algdom:
+						run["ALG_CONF"] = algdom["conf"]
+					else:
+						run["ALG_CONF"] = {}
+					
+					run["ALG_CONF"]["wf"] = weights[0]
+					run["ALG_CONF"]["wt"] = weights[1]
+					
+					allRuns[str(runkey)] = run
+					run += 1
+	
+	with open(runsfile, "w") as f:
+		json.dump(allRuns, f, indent=4, sort_keys=True)
 	
 	
-			resList = workerPool.map(_doExec, execDescList)
-			results = {}
-			
-			for (key, res) in resList:
-				results[key] = res
-			
-			resFile = os.path.dirname(probfile) + "/"
-			resFile += os.path.basename(probfile).split(".")[0] + "_" + algdom[3] + "_results.json"
-			
-			with open(resFile, "w") as f:
-				
-				json.dump(results, f, indent=4, sort_keys=True)
-				print resFile
+
+
+def executeRuns(runsfile, resultsfile):
 	
+	with open(runsfile) as f:
+		allRuns = json.load(f)
+	
+	
+	workerPool = multiprocessing.Pool()
+	
+	results = workerPool.map(_doExec, allRuns.iteritems())
+
+
+	with open(resultsfile, "w") as f:
+		json.dump(results, f, indent=4, sort_keys=True)
+
 	
 
 
@@ -226,16 +253,19 @@ if __name__ == "__main__":
 			f.write(gencode)
 	
 	elif func == "problems":
-		if not os.path.exists("./problems"):
-			os.makedirs("./problems")
+		if not os.path.exists(GEN_DIR):
+			os.makedirs(GEN_DIR)
 		
 		gen_problems.generateFiles(GEN_PROB_FILES)
+	
+	elif func == "genruns":
+		if not os.path.exists(GEN_DIR):
+			os.makedirs(GEN_DIR)
 		
+		generateRuns(GEN_DIR+"runs.json")
+
 	elif func == "exec":
-		if not os.path.exists("./problems"):
-			os.makedirs("./problems")
-		
-		executeAllProblems()
+		executeRuns(GEN_DIR+"runs.json", GEN_DIR+"results.json")
 	
 	else:
 		raise RuntimeError()

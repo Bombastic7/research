@@ -39,21 +39,22 @@ namespace mjon661 {
 			if(states.size() == 0)
 				return 0;
 			
+			fast_assert(states.size()-1 == operators.size());
+			
 			State s0 = states[0];
 			
 			Domain dom(pDomStack);
 
+			Cost pthcst = 0;
 			
-			Edge prevEdge = dom.createEdge(s0, operators.at(0));
-			Cost pthcst = prevEdge.cost();
-			
-			for(unsigned i=1; i<operators.size(); i++) {
-				Edge e = dom.createEdge(prevEdge.state(), operators.at(i));
+			for(unsigned i=0; i<operators.size(); i++) {
+				State s = states.at(i);
+				Edge e = dom.createEdge(s, operators.at(i));
+				
 				pthcst += e.cost();
-				prevEdge = e;
+				
+				dom.destroyEdge(e);
 			}
-			
-			fast_assert(dom.checkGoal(prevEdge.state()));
 			
 			return pthcst;
 		}

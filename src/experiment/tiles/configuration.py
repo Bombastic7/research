@@ -6,21 +6,9 @@ def _bstr(b):
 	return "true" if b else "false"
 
 
-def gridnav_blocked(height, width, mv8, cstLC, hr):
+def tiles_stack(height, width, weighted, useH, Abt1Sz):
 	
-	declStr = "gridnav::blocked::GridNav_DomainStack_single<{0}, {1}, {2}, {3}, {4}>"\
-	.format(height, width, _bstr(mv8), _bstr(cstLC), _bstr(hr))
-	
-	return declStr
-	
-	
-	
-
-
-def gridnav_blocked_stack_merge(height, width, mv8, cstLC, hfact, wfact, fillfact, maxAbtLvl = 1000):
-	
-	declStr = "gridnav::blocked::GridNav_DomainStack_MergeAbt<{0},{1},{2},{3},{mxL},{4},{5},{6}>"\
-	.format(height, width, _bstr(mv8), _bstr(cstLC), hfact, wfact, fillfact, mxL=maxAbtLvl)
+	declStr = "tiles::TilesGeneric_DomainStack<{0}, {1}, {2}, {3}, {4}>".format(height, width, _bstr(weighted), _bstr(useH), Abt1Sz)
 	
 	return declStr
 
@@ -70,7 +58,7 @@ def executeProblem(execDesc):
 
 
 def executeProblemFile(algdoms):
-	with open("gn6_probs_A.json") as f:
+	with open("tiles8_probs_A.json") as f:
 		probset = json.load(f)
 
 	allRes = {}
@@ -97,7 +85,7 @@ def executeProblemFile(algdoms):
 		
 		allRes[ad["name"]] = adres
 	
-	with open("gn6_results_A.json", "w") as f:
+	with open("tiles8_results_A.json", "w") as f:
 		json.dump(allRes, f, indent=4, sort_keys=True)
 
 
@@ -113,8 +101,8 @@ ALGS = [
 
 
 DOMS = [
-		{"name" : "abtstack", "class" : gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 2, 1000), "abt": True},
-		{"name" : "base", "class" : gridnav_blocked(1000, 1000, True, True, True), "abt": False},
+		{"name" : "base", "class" : tiles_stack(3,3,True,True,0), "abt": True},
+		{"name" : "abtstack", "class" : tiles_stack(3,3,True,False,5), "abt": False},
 		
 		
 		]
@@ -123,9 +111,8 @@ DOMS = [
 
 if __name__ == "__main__":
 	if argv[1] == "prob":
-		gen_problems.genGridNavMap(1000, 1000, 0.4, "gn6_A")
-		gen_problems.genGridNavProblemSet("gn6_probs_A.json", "gn6_A", 1000, 1000, 10, 0.5)
-
+		gen_problems.genTilesProblemSet(3,3,10,"tiles8_probs_A.json")
+	
 	elif argv[1] == "exec":
 		algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : makeAlgDomName(a,d), "weights": a["weights"] } for a in ALGS for d in DOMS if a["abt"] == d["abt"] ]
 		executeProblemFile(algdoms)

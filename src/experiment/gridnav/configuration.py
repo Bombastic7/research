@@ -1,5 +1,8 @@
 #!/bin/python
 
+import sys
+import json
+
 import gen_problems
 
 def _bstr(b):
@@ -122,10 +125,10 @@ DOMS = [
 
 
 if __name__ == "__main__":
-	if argv[1] == "prob":
+	if sys.argv[1] == "prob":
 		gen_problems.genGridNavMap(1000, 1000, 0.4, "gn6_A")
 		gen_problems.genGridNavProblemSet("gn6_probs_A.json", "gn6_A", 1000, 1000, 10, 0.5)
 
-	elif argv[1] == "exec":
+	elif sys.argv[1] == "exec":
 		algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : makeAlgDomName(a,d), "weights": a["weights"] } for a in ALGS for d in DOMS if a["abt"] == d["abt"] ]
 		executeProblemFile(algdoms)

@@ -1,5 +1,8 @@
 #!/bin/python
 
+import sys
+import random
+import json
 
 def _bstr(b):
 	return "true" if b else "false"
@@ -140,9 +143,9 @@ DOMS = [
 
 
 if __name__ == "__main__":
-	if argv[1] == "prob":
+	if sys.argv[1] == "prob":
 		genPancakeProblemSet(10, 10, "pancake10_probs_A.json")
 
-	elif argv[1] == "exec":
+	elif sys.argv[1] == "exec":
 		algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : makeAlgDomName(a,d), "weights": a["weights"] } for a in ALGS for d in DOMS if a["abt"] == d["abt"] ]
 		executeProblemFile(algdoms)

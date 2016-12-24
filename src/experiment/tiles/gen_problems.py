@@ -1,3 +1,8 @@
+ #!/bin/python
+ 
+import random
+import json
+
 import configuration
 
 
@@ -25,24 +30,24 @@ def getTilesParity(perm, w, h):
 def getTilesSolvability(perm, goal, w, h):
 	
 	if w % 2 == 1:
-		return _getTilesParity(perm, w, h) == _getTilesParity(goal, w, h)
+		return getTilesParity(perm, w, h) == getTilesParity(goal, w, h)
 	
 	permRow = (perm.index(0) / w)
 	goalRow = (goal.index(0) / w)
 	
 	blankRowParity = abs(permRow - goalRow) % 2
 	
-	return _getTilesParity(perm) == blankRowParity
+	return getTilesParity(perm) == blankRowParity
 
 
 
 def getTilesInitState(w, h, goal):
-	perm = _getRandomPerm(h*w)
+	perm = getRandomPerm(h*w)
 	
-	if _getTilesSolvability(perm, goal, w, h):
+	if getTilesSolvability(perm, goal, w, h):
 		return perm
 	
-	return _getTilesInitState(w, h, goal)
+	return getTilesInitState(w, h, goal)
 
 
 
@@ -55,7 +60,7 @@ def genTilesProblemSet(w, h, nprob, fname):
 	goalState = tuple(range(0, h*w))
 
 	for i in range(0, nprob):
-		initState = _getTilesInitState(w, h, goalState)
+		initState = getTilesInitState(w, h, goalState)
 
 		probs[str(i)] = {"init" : initState, "goal" : goalState}
 

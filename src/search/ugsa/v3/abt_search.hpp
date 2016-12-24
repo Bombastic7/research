@@ -21,9 +21,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 		public:
 		
-		//using AbtSearch = UGSAv3_Abt<D, 1, Top+1, StatsManager>
+		using AbtSearch = UGSAv3_Abt<D, L+1, Bound, StatsManager>;
 		
-		using Domain = typename D::template Domain<0>;
+		using Domain = typename D::template Domain<L>;
 		using Cost = typename Domain::Cost;
 		using Operator = typename Domain::Operator;
 		using OperatorSet = typename Domain::OperatorSet;
@@ -33,13 +33,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		using StatsAcc = typename StatsManager::template StatsAcc<L>;
 		
 		using BaseAbstractor = typename D::template Abstractor<L-1>;
+		using BaseState = typename D::template Domain<L-1>::State;
 		
-		
+
 
 		struct Node {
 			Util_t g, f;
 			PackedState pkd;
-			Operator in_op; parent_op;
+			Operator in_op, parent_op;
 			Node* parent;
 		};
 		
@@ -96,7 +97,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSAv3_Abt(D& pDomStack, UGSABehaviour& pBehaviour, StatsManager& pStats) :
+		UGSAv3_Abt(D& pDomStack, UGSABehaviour<>& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, mBehaviour, pStats),
@@ -114,17 +115,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 		
 		void addToReport(Json& jR) {
+			/*
 			Json jAll, j;
-			j["reopnd"] = mStats.reopnd;
 			j["Node size"] = sizeof(Node);
 			j["Wrapped Node Size"] = sizeof(typename ClosedList_t::Wrapped_t);
 			j["closed fill"] = mClosedList.getFill();
 			j["closed table size"] = mClosedList.size();
 			j["open size"] = mOpenList.size();
 			j["open capacity"] = mOpenList.capacity();
-			j["config"] = mConfig.report();
-			j["behaviour"] = mBehaviour.report();
 			jR[std::string("Level ") + std::to_string(L)] = j;
+			*/
 			mAbtSearch.addToReport(jR);
 		}
 
@@ -139,17 +139,26 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				
 				mDomain.packState(s0, pkd0);
 				
-				CacheEntry* ent = mCacheStore.retrieve(pkd);
+				CacheEntry* ent = mCache.retrieve(pkd0);
 				
 				if(ent && ent->exact) {
 					return ent->h;
+				}
+				
+				
+				
+				bool miss = mCache.get(pkd0, ent);
+				
+				if(miss) {
+					ent->exact = false;
+					ent->h = mAbtSearch.doSearch(s0);
 				}
 				
 				Node* n0 = mNodePool.construct();
 				
 				n0->pkd =		pkd0;
 				n0->g = 		Cost(0);
-				n0->f = 		computeHeuristic(s0);
+				n0->f = 		ent->h;
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
@@ -159,7 +168,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			}
 			
 			Cost retCost;
-			Node* goalNode;
+			Node* goalNode = nullptr;
 			
 			while(true) {				
 				Node* n = mOpenList.pop();
@@ -197,7 +206,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			}
 			
 			
-			for(Node* n = goalNode; n != nullptr; n = n.parent) {
+			for(Node* n = goalNode; n != nullptr; n = n->parent) {
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
 				ent->exact = true;
@@ -207,6 +216,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
+			
+			return retCost;
 		}
 		
 		
@@ -256,7 +267,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			} else {
 				
 				CacheEntry* ent;
-				bool miss = mCache.get(kid_pkd, ent)
+				bool miss = mCache.get(kid_pkd, ent);
 				
 				if(miss) {
 					ent->exact = false;
@@ -271,8 +282,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
-				kid_node->expdAtGen = mStats.expd;
-				kid_node->f			= kid->g + ent->h;
+				kid_node->f			= kid_node->g + ent->h;
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -299,7 +309,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSABehaviour			mBehaviour;
+		UGSABehaviour<>			mBehaviour;
 		StatsAcc				mStatsAcc;
 		AbtSearch				mAbtSearch;
 		BaseAbstractor			mAbtor;
@@ -316,9 +326,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	template<typename D, unsigned Bound, typename StatsManager>
 	struct UGSAv3_Abt<D, Bound, Bound, StatsManager> {
 		
-		UGSAv3_Abt(D& pDomStack, UGSABehaviour& pBehaviour, StatsManager& pStats) {}
+		UGSAv3_Abt(D& pDomStack, UGSABehaviour<>& pBehaviour, StatsManager& pStats) {}
 		
-		Util_t doSearch() {return 0;}
+		Util_t doSearch(typename D::template Domain<Bound-1>::State const&) {return 0;}
 	};
 	
 	

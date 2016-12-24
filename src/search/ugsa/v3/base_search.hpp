@@ -10,6 +10,7 @@
 #include "util/exception.hpp"
 
 #include "search/ugsa/v3/common.hpp"
+#include "search/ugsa/v3/abt_search.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav3 {
@@ -21,7 +22,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 		public:
 		
-		using AbtSearch = UGSAv3_Abt<D, 1, Top+1, StatsManager>
+		using AbtSearch = UGSAv3_Abt<D, 1, Top+1, StatsManager>;
 		
 		using Domain = typename D::template Domain<0>;
 		using Cost = typename Domain::Cost;
@@ -30,14 +31,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
-
+		using StatsAcc = typename StatsManager::template StatsAcc<0>;
+		
 		
 
 		struct Node {
 			Cost g;
 			Util_t f;
 			PackedState pkd;
-			Operator in_op; parent_op;
+			Operator in_op, parent_op;
 			Node* parent;
 		};
 
@@ -85,7 +87,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSAv3_Base(D& pDomStack, UGSABehaviour& pBehaviour, StatsManager& pStats) :
+		UGSAv3_Base(D& pDomStack, UGSABehaviour<>& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, mBehaviour, pStats),
@@ -105,7 +107,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 		
 		Json report() {
-			Json jAll, j;
+			Json jAll, j;/*
 			j["expd"] = mStats.expd;
 			j["gend"] = mStats.gend;
 			j["dups"] = mStats.dups;
@@ -120,6 +122,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			j["behaviour"] = mBehaviour.report();
 			jAll["level 0"] = j;
 			mAbtSearch.addToReportRec(jAll);
+			*/
 			return jAll;
 		}
 
@@ -132,7 +135,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				Node* n0 = mNodePool.construct();
 				
 				n0->g = 		Cost(0);
-				n0->f = 		computeHeuristic(s0);
+				n0->f = 		computeHeuristic(mInitState);
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
@@ -238,8 +241,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
-				kid_node->expdAtGen = mStats.expd;
-				kid_node->f			= kid->g + computeHeuristic(edge.state());
+				kid_node->f			= kid_node->g + computeHeuristic(edge.state());
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -268,7 +270,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSABehaviour			mBehaviour;
+		UGSABehaviour<>			mBehaviour;
 		StatsAcc				mStatsAcc;
 		AbtSearch				mAbtSearch;
 		const Domain			mDomain;

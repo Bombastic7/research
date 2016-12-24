@@ -52,7 +52,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		using iterator = typename Store_t::iterator;
 		
 		
-		CacheStore_basic(Domain const& pDomain) :
+		CacheStore(Domain const& pDomain) :
 			mStore(StoreOps(pDomain), StoreOps(pDomain)),
 			mPool()
 		{}
@@ -105,7 +105,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			wf(pwf), wt(pwt)
 		{}
 		
-		Util computeAbtG(unsigned pLvl, Util_t pParentG, Util_t pEdgeCost) {
+		Util_t computeAbtG(unsigned pLvl, Util_t pParentG, Util_t pEdgeCost) {
 			return pParentG + pEdgeCost;
 		}
 		

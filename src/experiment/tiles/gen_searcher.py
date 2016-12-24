@@ -44,6 +44,7 @@ def searcher_code(algdom):
 #include "search/ugsa/v1/ugsa_v1.hpp"
 #include "search/ugsa/v2/ugsa_v2.hpp"
 #include "search/ugsa/v2_bf/ugsa_v2.hpp"
+#include "search/ugsa/v3/ugsa_v3.hpp"
 
 """
 

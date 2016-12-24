@@ -2,6 +2,7 @@
 
 import sys
 import json
+import subprocess
 
 import gen_problems
 
@@ -92,7 +93,10 @@ def executeProblemFile(algdoms):
 				execParams["domain conf"] = pr
 				execParams["algorithm conf"] = {"wf" : wf, "wt" : wt}
 				
-				result = executeSearcher(execParams)
+				execParams["wf"] = wf
+				execParams["wt"] = wt
+				
+				result = executeProblem(execParams)
 				
 				weightres[k] = result 
 

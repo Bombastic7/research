@@ -3,6 +3,7 @@
 import sys
 import random
 import json
+import subprocess
 
 def _bstr(b):
 	return "true" if b else "false"
@@ -87,7 +88,10 @@ def executeProblemFile(algdoms):
 				execParams["domain conf"] = pr
 				execParams["algorithm conf"] = {"wf" : wf, "wt" : wt}
 				
-				result = executeSearcher(execParams)
+				execParams["wf"] = wf
+				execParams["wt"] = wt
+				
+				result = executeProblem(execParams)
 				
 				weightres[k] = result 
 

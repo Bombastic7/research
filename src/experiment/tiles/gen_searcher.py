@@ -137,7 +137,7 @@ namespace mjon661 {
 
 	codeStr += """
 void selectAll(Json const& jExecDesc) {
-	std::string pAlgDom = jExecDesc.at("algdom");
+	std::string pAlgDom = jExecDesc.at("name");
 	
 	if(pAlgDom == "")
 		throw std::runtime_error("Bad domain or algorithm");

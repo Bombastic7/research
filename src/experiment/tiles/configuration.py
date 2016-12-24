@@ -3,6 +3,7 @@
 import sys
 import random
 import json
+import subprocess
 
 import gen_problems
 
@@ -24,12 +25,13 @@ def makeAlgDomName(alg, dom):
 
 
 def executeProblem(execDesc):
+	res = {}
+	
 	try:
 		proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
 		
-		searcherOut = proc.communicate(input=bytearray(json.dumps(execDesc)))[0]
+		searcherOut = proc.communicate(input=bytearray(json.dumps(execDesc)))[0]	
 		
-		res = {}
 		
 		if proc.returncode == 0:
 			res = json.loads(searcherOut)
@@ -81,7 +83,10 @@ def executeProblemFile(algdoms):
 				execParams["domain conf"] = pr
 				execParams["algorithm conf"] = {"wf" : wf, "wt" : wt}
 				
-				result = executeSearcher(execParams)
+				execParams["wf"] = wf
+				execParams["wt"] = wt
+				
+				result = executeProblem(execParams)
 				
 				weightres[k] = result 
 
@@ -100,13 +105,14 @@ def executeProblemFile(algdoms):
 
 ALGS = [
 		{"name" : "Astar", "class" : "algorithm::Astar", "abt" : False, "weights" : [(1,0)]},
+		{"name" : "HAstar", "class" : "algorithm::hastargeneric::HAstar_StatsLevel", "abt" : True, "weights" : [(1,0)]},
 		]
 
 
 
 DOMS = [
-		{"name" : "base", "class" : tiles_stack(3,3,True,True,0), "abt": True},
-		{"name" : "abtstack", "class" : tiles_stack(3,3,True,False,5), "abt": False},
+		{"name" : "base", "class" : tiles_stack(3,3,True,True,0), "abt": False},
+		{"name" : "abtstack", "class" : tiles_stack(3,3,True,False,5), "abt": True},
 		
 		
 		]

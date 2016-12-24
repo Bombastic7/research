@@ -7,7 +7,9 @@
 #include "search/solution.hpp"
 #include "util/debug.hpp"
 #include "util/json.hpp"
-#include "util/exception.hpp"
+
+#include "search/ugsa/v3/common.hpp"
+
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav3 {
@@ -35,12 +37,21 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 
 		struct Node {
-			Cost g, f;
+			Util_t g, f;
 			PackedState pkd;
 			Operator in_op; parent_op;
 			Node* parent;
 		};
-
+		
+		struct CacheEntry {
+			PackedState pkd;
+			Util_t h;
+			bool exact;
+		};
+		
+		using CacheStore_t = CacheStore<Domain, CacheEntry>;
+		
+		
 		
 		struct ClosedOps {
 			ClosedOps(Domain const& pDomain) :
@@ -85,25 +96,21 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSAv3_Base(D& pDomStack, UGSAConfig const& pConfig, UGSABehaviour& pBehaviour, StatsManager& pStats) :
-			mConfig				(pConfig),
+		UGSAv3_Abt(D& pDomStack, UGSABehaviour& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
-			//mAbtSearch			(pDomStack, pConfig, mBehaviour, pStats),
+			mAbtSearch			(pDomStack, mBehaviour, pStats),
 			mAbtor				(pDomStack),
 			mDomain				(pDomStack),
-			mAbtor				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
-			mNodePool			()
+			mNodePool			(),
+			mCache				(mDomain)
 		{}
 
 		
 		void reset() {
 			mOpenList.clear();
-			mClosedList.clear();
-			mNodePool.clear();
-			mAbtSearch.reset();
 		}
 		
 		void addToReport(Json& jR) {
@@ -117,30 +124,42 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			j["open capacity"] = mOpenList.capacity();
 			j["config"] = mConfig.report();
 			j["behaviour"] = mBehaviour.report();
-			jR["Level 0"] = j;
+			jR[std::string("Level ") + std::to_string(L)] = j;
 			mAbtSearch.addToReport(jR);
 		}
 
 		
 		
 		
-		Cost doSearch(BaseState const& pBaseState) {
+		Util_t doSearch(BaseState const& pBaseState) {
 			
 			{
 				State s0 = mAbtor(pBaseState);
+				PackedState pkd0;
+				
+				mDomain.packState(s0, pkd0);
+				
+				CacheEntry* ent = mCacheStore.retrieve(pkd);
+				
+				if(ent && ent->exact) {
+					return ent->h;
+				}
 				
 				Node* n0 = mNodePool.construct();
 				
+				n0->pkd =		pkd0;
 				n0->g = 		Cost(0);
 				n0->f = 		computeHeuristic(s0);
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
-				
-				mDomain.packState(mInitState, n0->pkd);
+
 				mOpenList.push(n0);
 				mClosedList.add(n0);
 			}
+			
+			Cost retCost;
+			Node* goalNode;
 			
 			while(true) {				
 				Node* n = mOpenList.pop();
@@ -149,7 +168,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				mDomain.unpackState(s, n->pkd);
 
 				if(mDomain.checkGoal(s)) {
-					prepareSolution(pSolution, n);
+					retCost = n->g;
 					mStatsAcc.submit();
 					break;
 				}
@@ -162,6 +181,32 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 					resortOpenList();
 				}*/
 			}
+			
+			for(auto it = mClosedList.begin(); it != mClosedList.end(); ++it) {
+				Node* n = *it;
+				
+				CacheEntry* ent = mCache.retrieve(n->pkd);
+				slow_assert(ent);
+				if(ent->exact)
+					continue;
+				
+				Util_t pg = goalNode->f - n->g;
+				
+				if(ent->h < pg)
+					ent->h = pg;
+			}
+			
+			
+			for(Node* n = goalNode; n != nullptr; n = n.parent) {
+				CacheEntry* ent = mCache.retrieve(n->pkd);
+				slow_assert(ent);
+				ent->exact = true;
+			}
+			
+			mStatsAcc.submit();
+			mOpenList.clear();
+			mClosedList.clear();
+			mNodePool.clear();
 		}
 		
 		
@@ -184,7 +229,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
 
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
-			Cost 		kid_g   = pParentNode->g + edge.cost();
+			Util_t 		kid_g   = mBehaviour.computeAbtG(L, pParentNode->g, edge.cost());
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -209,15 +254,25 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 					mOpenList.pushOrUpdate(kid_dup);
 				}
 			} else {
+				
+				CacheEntry* ent;
+				bool miss = mCache.get(kid_pkd, ent)
+				
+				if(miss) {
+					ent->exact = false;
+					ent->h = mAbtSearch.doSearch(edge.state());
+				}
+				
+				
 				Node* kid_node 		= mNodePool.construct();
-
+				
 				kid_node->g 		= kid_g;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
 				kid_node->expdAtGen = mStats.expd;
-				kid_node->f			= kid->g + computeHeuristic(edge.state());
+				kid_node->f			= kid->g + ent->h;
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -226,10 +281,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			mDomain.destroyEdge(edge);
 		}
 		
-		Cost computeHeuristic(State const& pState) {
-			return 0;
-			//return mAbtSearch.doSearch(pState);
-		}
+
 		
 		/*
 		void resortOpenList() {
@@ -246,15 +298,28 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		*/
 		
 		
-		UGSAConfig				mConfig;
+
 		UGSABehaviour			mBehaviour;
 		StatsAcc				mStatsAcc;
-		//AbtSearch				mAbtSearch;
+		AbtSearch				mAbtSearch;
 		BaseAbstractor			mAbtor;
 		const Domain			mDomain;
 		
 		OpenList_t 				mOpenList;
 		ClosedList_t 			mClosedList;
 		NodePool_t 				mNodePool;
+		
+		CacheStore_t			mCache;
 	};
+	
+	
+	template<typename D, unsigned Bound, typename StatsManager>
+	struct UGSAv3_Abt<D, Bound, Bound, StatsManager> {
+		
+		UGSAv3_Abt(D& pDomStack, UGSABehaviour& pBehaviour, StatsManager& pStats) {}
+		
+		Util_t doSearch() {return 0;}
+	};
+	
+	
 }}}

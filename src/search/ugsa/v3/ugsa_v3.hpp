@@ -5,8 +5,22 @@
 #include "util/json.hpp"
 #include "search/solution.hpp"
 
+#include "search/ugsa/v3/common.hpp"
+
 
 namespace mjon661 { namespace algorithm { namespace ugsav3 {
+	
+	
+	template<typename = void>
+	struct TestStatsManager {
+		
+		void expd() {}
+		void gend() {}
+		void dups() {}
+		void reopnd() {}
+		
+	};
+	
 	
 	
 	template<typename DomStack, typename StatsManager>
@@ -17,10 +31,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 		UGSAv3(DomStack& pStack, Json const& jConfig) :
-			mConfig(jConfig.at("wf"), jConfig.at("wt")),
-			mBehaviour(),
+			mBehaviour(jConfig.at("wf"), jConfig.at("wt")),
 			mStatsManager(),
-			mAlgo(pStack, mConfig, mBehaviour, mStatsManager)
+			mAlgo(pStack, mBehaviour, mStatsManager)
 		{
 			
 		}
@@ -30,14 +43,17 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			
 			mAlgo.doSearch(mInitState, pSol);
 		}
+
+
+		UGSAConfig mBehaviour;
+		StatsManager mStatsManager;
+
+		UGSAv3_Base<DomStack, DomStack::Top_Abstract_Level, StatsManager> mAlgo;
 		
 	};
 	
 	
-	UGSAConfig mConfig;
-	UGSAConfig mBehaviour;
-	StatsManager mStatsManager;
-
-	UGSAv3_Base<DomStack, DomStack::Top_Abstract_Level, StatsManager> mAlgo;
+	template<typename D>
+	using UGSAv3_Test = UGSAv3<D, TestStatsManager<>>;
 	
 }}}

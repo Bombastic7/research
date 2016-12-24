@@ -9,6 +9,8 @@
 #include "util/json.hpp"
 #include "util/exception.hpp"
 
+#include "search/ugsa/v3/common.hpp"
+
 
 namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
@@ -32,7 +34,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 
 		struct Node {
-			Cost g, f;
+			Cost g;
+			Util_t f;
 			PackedState pkd;
 			Operator in_op; parent_op;
 			Node* parent;
@@ -82,13 +85,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSAv3_Base(D& pDomStack, UGSAConfig const& pConfig, UGSABehaviour& pBehaviour, StatsManager& pStats) :
-			mConfig				(pConfig),
+		UGSAv3_Base(D& pDomStack, UGSABehaviour& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
-			mAbtSearch			(pDomStack, pConfig, mBehaviour, pStats),
+			mAbtSearch			(pDomStack, mBehaviour, pStats),
 			mDomain				(pDomStack),
-			mAbtor				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
@@ -266,7 +267,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		*/
 		
 		
-		UGSAConfig				mConfig;
+
 		UGSABehaviour			mBehaviour;
 		StatsAcc				mStatsAcc;
 		AbtSearch				mAbtSearch;
@@ -276,6 +277,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		ClosedList_t 			mClosedList;
 		NodePool_t 				mNodePool;
 		
-		const BaseState 		mInitState;
+		const State		 		mInitState;
 	};
 }}}

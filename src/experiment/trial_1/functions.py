@@ -16,11 +16,75 @@ import gen_problems
 GEN_DIR = "./generated/"
 
 
+
+
+DOMS = [
+			{
+			"dom": gen_domain_decls.gridnav_blocked(1000, 1000, True, True, True), "class": "gridnav1000_1000", "domname": "gridnav6",
+			"dom": gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, True), "class": "gridnav1000_1000", "domname": "gridnav6",
+
+			
+			},
+			{"dom": gen_domain_decls.pancake_stack_single, "class": "pancake10", "domname": "pancake10"},
+			{"dom": gen_domain_decls.tiles_stack(3,3,True,True,0), "class":"tiles8", "domname":"tiles8"},
+
+
+
+
+
+
+
+
+
 """
 alg: Name of algorithm class (used by gen_searcher)
 dom: Name of domain class (used by gen_searcher)
 class: problem class (used by generateRuns() )
 name: nice name (used by gen_searcher, generateRuns() )
+"""
+
+ALGS_0 = [ 	{"alg": "algorithm::Astar", "algname": "Astar"},
+			{"alg": "algorithm::Bugsy", "algname": "Bugsy"}
+		]
+		
+ALGS_ABT = [
+			{"alg": "algorithm::hastargeneric::HAstar_StatsLevel", "algname": "HAstar"}
+		]
+
+DOMS_0 = [
+			{"dom": gen_domain_decls.gridnav_blocked(1000, 1000, True, True, True), "class": "gridnav1000_1000", "domname": "gridnav6"},
+			{"dom": gen_domain_decls.pancake_stack_single, "class": "pancake10", "domname": "pancake10"},
+			{"dom": gen_domain_decls.tiles_stack(3,3,True,True,0), "class":"tiles8", "domname":"tiles8"},
+		]
+
+DOMS_ABT = [
+			{"dom": gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, True), "class": "gridnav1000_1000", "domname": "gridnav6"},
+			{"dom": gen_domain_decls.pancake_stack_ignore(10, 6, 1), "class": "pancake10", "domname": "pancake10"},
+			{"dom": gen_domain_decls.tiles_stack(3,3,True,False,5), "class":"tiles8", "domname":"tiles8"},	
+
+
+def makeAlgDomName(alg, dom):
+	return a["algname"] + "_" + d["domname"]
+
+
+
+ALG_DOM = []
+
+for a in ALGS_0:
+	for d in DOMS_0:
+	ad = {}
+	ad = { "name": a["algname"] + "_" + d["domname"], "
+	algdom = a + d
+	algdom["name"] = a["algname"] + "_" + d["domname"]
+	ALG_DOM.append(algdom)
+
+for a in ALGS_ABT:
+	for d in DOMS_ABT:
+	algdom = a + d
+	algdom["name"] = a["algname"] + "_" + d["domname"]
+	ALG_DOM.append(algdom)
+
+
 """
 ALG_DOM = [
 		{
@@ -28,8 +92,8 @@ ALG_DOM = [
 		"dom":		gen_domain_decls.gridnav_blocked(1000, 1000, True, True, True), 
 		"class":	"gridnav1000_1000", 
 		"name":		"Astar_gridnav"
-		},]
-"""
+		},
+
 		{
 		"alg":		"algorithm::Bugsy",
 		"dom": 		gen_domain_decls.gridnav_blocked(1000, 1000, True, True, True),
@@ -88,7 +152,7 @@ ALG_DOM = [
 		"class": 	"tiles8", 
 		"name":		"HAstar_tiles8"
 		},
-	"""	
+
 		#("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "hastar_gridnav"),
 		#("algorithm::ugsav2_bf::UGSAv2_StatsLevel",  gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "ugsaBF_gridnav"),
 		#("algorithm::ugsav2::UGSAv2_StatsLevel",  gen_domain_decls.gridnav_blocked_stack_merge(1000, 1000, True, True, 2, 2, 3), "gridnav1000_1000", "ugsaDelay_gridnav"),
@@ -99,8 +163,8 @@ ALG_DOM = [
 		#("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.gridnav_blocked_stack_merge(10, 10, True, False, 2, 2, 3), "gridnav10_10", "hastar_gnabt"),
 		#("algorithm::Astar", gen_domain_decls.tiles_stack(3, 3, False, True, 0), "tiles8", "Astar_tiles8"),
 		#("algorithm::hastargeneric::HAstar_StatsLevel", gen_domain_decls.tiles_stack(3, 3, False, False, 5), "tiles8", "Astar_tiles8Abt")
-		#]
-
+		]
+"""
 
 """
 Problem files that should be generated prior to performing searches.
@@ -114,9 +178,9 @@ Everything else is specific to the type and used by gen_problems.
 GEN_PROB_FILES = [ 
 		
 		{ "type" : "gridnav", "fname" : GEN_DIR+"mapA", "gen" : "map", "blockedprob" : 0.4, "dim" : (1000,1000) },
-		{ "type" : "gridnav", "fname" : GEN_DIR+"gn_probsA.json", "gen" : "problems", "num" : 10, "dim" : (1000,1000), "mindistance" : 0.5, "map" : GEN_DIR+"mapA" },
-		{ "type" : "pancake10", "fname" : GEN_DIR+"pancake10_probs.json", "num" : 10, "size" : 10 },
-		{ "type" : "tiles8", "fname" : GEN_DIR+"t8_probs.json", "num" : 10}
+		{ "type" : "gridnav", "fname" : GEN_DIR+"gn_probsA.json", "gen" : "problems", "num" : 3, "dim" : (1000,1000), "mindistance" : 0.5, "map" : GEN_DIR+"mapA" },
+		{ "type" : "pancake10", "fname" : GEN_DIR+"pancake10_probs.json", "num" : 3, "size" : 10 },
+		{ "type" : "tiles8", "fname" : GEN_DIR+"t8_probs.json", "num" : 3}
 		
 		]
 
@@ -127,16 +191,91 @@ Problem set files associated with ALG_DOM["class"], as generated from the info i
 """
 EXEC_PROB_FILES = 	{
 
-					"gridnav1000_1000" : [GEN_DIR+"gn_probsA.json"],
-					"pancake10" : [GEN_DIR+"pc_probs.json"],
-					"tiles8" : [GEN_DIR+"t8_probs.json"]
+					"gridnav1000_1000" : GEN_DIR+"gn_probsA.json",
+					"pancake10" : GEN_DIR+"pc_probs.json",
+					"tiles8" : GEN_DIR+"t8_probs.json"
 					
 					}
 
 
 
-WEIGHT_SCHEDULE = [(1,0)]#, (1, 0.1), (1, 10), (0, 1)]
+WEIGHT_SCHEDULE = [(1,0), (1, 0.1), (1, 10), (0, 1)]
 
+
+
+
+
+VALUE_NAMES = ("solution length", "solution cost", "utility", "walltime")
+
+
+
+
+
+def getValues(res):
+	if res["status"] != "SUCCESS":
+		return
+	
+	if res["solution length"] == 0:
+		return
+	
+	return [ res[k] for k in VALUE_NAMES ]
+
+
+
+def getResults(runsSet, resultsSet):
+	
+	classResults = {}
+	
+	for (key, run) in runsSet.iteritems():
+		
+		cls = run["CLASS"] #Instead of algdom, use class+name. Return dict[class] = 3d array name*weights*problem
+		name = run["NAME"]
+		
+		if cls not in classResults:
+			classResults[cls] = {}
+		
+		if name not in classResults[cls]:
+			classResults[cls][name] = [[]*len(WEIGHT_SCHEDULE)]
+		
+		res = resultsSet[key]
+		
+		vals = getValues(res)
+		
+		weightIdx = WEIGHT_SCHEDULE.index((run["WF"], run["WT"]))
+		
+		if vals is not None:
+			classResults[cls][name][weightIdx].append( vals )
+		else:
+			print "ignored run", key
+	
+	return classResults
+
+
+
+	
+def printResults(runsfile, resultsfile):
+	with open(runsfile) as f:
+		runsSet = json.load(f)
+	
+	with open(resultsfile) as f:
+		resultsSet = json.load(f)
+	
+	clsRes = getClassResults(runsSet, resultsSet)
+	
+	for (clskey, clsinfo) in clsRes.iteritems():
+		
+		print clskey
+		
+		for (nmkey, nminfo) in clsinfo.iteritems():
+			
+			print nmkey
+			
+			for i in nminfo:
+				for j in i:
+					print j
+	
+	
+	
 
 
 
@@ -198,35 +337,56 @@ def _doExec(runDesc):
 	
 	return (key, res)
 
+#class -> name -> weight -> probfile -> probkey
 
-
-def generateRuns(runsfile):
-
-	allRuns = {}
+"""
+for each class
+	f = create class file
 	
-	runkey = 0
 	
-	for algdom in ALG_DOM:
-		
-		probcls = algdom["class"]
-		
-		for probfile in EXEC_PROB_FILES[probcls]:
+	for each algdom in class
+		for each weight
+			for each probkey
 			
-			with open(probfile) as f:
-				probset = json.load(f)
+				f[algdom][weight][probkey] = ...
+
+
+"""
+
+def generateRuns():
+
+	for cls in EXEC_PROB_FILES.iterkeys():
+		
+		probfile = GEN_DIR+"probs_" + cls + ".json"
+		
+		with open(probfile) as f:
+			probset = json.load(f)
+		
+		clsruns = []
+		
+		
+			
+		for algdom in ALG_DOM if algdom["class"] == cls:
+			
+			algdomruns = []
 			
 			for weights in WEIGHT_SCHEDULE:
-			
-				for probdesc in probset.iteritems():
+				
+				weightsruns = []
+				
+				for prob in probset:
+					
 					run = {}
+					
 					run["ALG"] = algdom["alg"]
 					run["DOM"] = algdom["dom"]
 					run["WF"] = weights[0]
 					run["WT"] = weights[1]
 					run["NAME"] = algdom["name"]
 					run["PROB_FILE"] = probfile
-					run["PROB_KEY"] = probdesc[0]
-					run["DOM_CONF"] = probdesc[1]
+					run["PROB_KEY"] = prob["key"]
+					run["DOM_CONF"] = prob["domain conf"]
+					run["CLASS"] = probcls
 					
 					if "conf" in algdom:
 						run["ALG_CONF"] = algdom["conf"]
@@ -235,23 +395,49 @@ def generateRuns(runsfile):
 					
 					run["ALG_CONF"]["wf"] = weights[0]
 					run["ALG_CONF"]["wt"] = weights[1]
+		
+					weights.append(run)
+				
+				algdomruns.append(weighsruns)
+			
+			clsruns.append(algdomruns)
+		
+		
+		with open(GEN_DIR+"runs_" + cls + ".json", "w") as runsfile:
+			json.dump(clsruns, runsfile)
+		
+
+
+
+	
+	
+
+
+def executeRuns():
+	
+	workerPool = multiprocessing.Pool()
+	
+	for cls in EXEC_PROB_FILES.iterkeys():
+		
+		runfile = GEN_DIR+"runs_" + cls + ".json"
+		
+		with open(runfile) as f:
+			runsset = json.load(f)
+		
+		for algdom in runsset:
+			for weights in algdom:
+				
+				results = workerPool.map(_doExec(, 
+				
+				for run in weights:
 					
-					allRuns[str(runkey)] = run
-					runkey += 1
-	
-	with open(runsfile, "w") as f:
-		json.dump(allRuns, f, indent=4, sort_keys=True)
-	
-	
 
-
-def executeRuns(runsfile, resultsfile):
 	
 	with open(runsfile) as f:
 		allRuns = json.load(f)
 	
 	
-	workerPool = multiprocessing.Pool()
+	
 	
 	results = workerPool.map(_doExec, allRuns.iteritems())
 
@@ -285,9 +471,12 @@ if __name__ == "__main__":
 		
 		generateRuns(GEN_DIR+"runs.json")
 
-	elif func == "exec":
+	elif func == "exec": #exec dom_alg problemfile weight
 		executeRuns(GEN_DIR+"runs.json", GEN_DIR+"results.json")
 	
+	elif func == "stats":
+		printResults(GEN_DIR+"runs.json", GEN_DIR+"results.json")
+
 	else:
 		raise RuntimeError()
 	

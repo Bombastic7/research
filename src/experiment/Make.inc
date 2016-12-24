@@ -1,3 +1,4 @@
 
 
-include src/experiment/trial_1/Make.inc
+
+include src/experiment/gridnav/Make.inc

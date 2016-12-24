@@ -6,11 +6,14 @@ FLAGS:=-Wall -Werror -g -O0 $(DEFS)
 CXXFLAGS:=$(FLAGS) -std=c++0x
 LDFLAGS:=$(FLAGS) -std=c++0x
 
+
+ROOTDIR=$(CURDIR)
+
 SRCDIR:=src
 OBJDIR:=build/obj
 DEPDIR:=build/obj
 BUILDDIR:=build
-EXPDIR:=experiment
+
 
 
 BINS:=
@@ -24,7 +27,6 @@ include src/util/Make.inc
 include src/search/Make.inc
 include src/domain/Make.inc
 include src/experiment/Make.inc
-
 include src/test/Make.inc
 
 
@@ -41,6 +43,8 @@ $(DEPDIR)/%.d: $(SRCDIR)/%.cc
 	@echo $@
 	@mkdir -p $(@D)
 	@./dep.sh $(CXX) $(@D) $(CXXFLAGS) $(LDFLAGS) -I$(SRCDIR) $< > $@
+
+
 
 
 .PHONY: clean

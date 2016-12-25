@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 
 #include "util/debug.hpp"
 #include "util/json.hpp"
@@ -13,20 +14,106 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	
 	
 	template<typename = void>
-	struct TestStatsManager {
+	struct LevelStatsManager {
 		
-		template<unsigned L>
+		template<unsigned L, typename = void>
 		struct StatsAcc {
-			void expd() {}
+			void expd() {mExpd++;}
 			void gend() {}
 			void dups() {}
 			void reopnd() {}
-			void submit() {}
 			
-			StatsAcc(TestStatsManager<>&) {}
+			void end() {			
+				mNSearches++;
+			
+			}
+				
+			StatsAcc(LevelStatsManager<>& pManager) :
+				mManager(pManager)
+			{
+				reset();
+			}
+			
+			void reset() {
+				mExpd = mNSearches = 0;
+			}
+			
+			void submit() {
+				Json j;
+				j["total expd"] = mExpd;
+				j["NSearches"] = mNSearches;
+				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;
+				mManager.mTotExpd += mExpd;
+			}
+			
+			private:
+			LevelStatsManager<>& mManager;
+			unsigned mExpd, mNSearches;
 		};
 		
+		
+		template<typename Ign>
+		struct StatsAcc<0,Ign> {
+			void expd() {mExpd++;}
+			void gend() {mGend++;}
+			void dups() {mDups++;}
+			void reopnd() {mReopnd++;}
+			
+			unsigned getExpd() {
+				return mExpd;
+			}
+			
+			void end() {}
+			
+			void submit() {
+				Json j;
+				j["expd"] = mExpd;
+				j["gend"] = mGend;
+				j["dups"] = mDups;
+				j["reopnd"] = mReopnd;
+				mManager.mReport["Level 0"] = j;
+				mManager.mTotExpd += mExpd;
+			}
+			
+
+			StatsAcc(LevelStatsManager<>& pManager) :
+				mManager(pManager)
+			{
+				reset();
+			}
+			
+			void reset() {
+				mExpd = mGend = mDups = mReopnd = 0;
+			}
+			
+			LevelStatsManager& mManager;
+			unsigned mExpd, mGend, mDups, mReopnd;
+			
+		};
+		
+		
+		LevelStatsManager() :
+			mTotExpd(),
+			mReport()
+		{}
+		
+		Json report() {
+			mReport["expd"] = mTotExpd;
+			return mReport;
+		}
+		
+		
+		void reset() {
+			mTotExpd = 0;
+			mReport = Json();
+		}
+		
+		unsigned mTotExpd;
+		Json mReport;
 	};
+	
+	
+	
 	
 	
 	
@@ -47,27 +134,29 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 		void execute(Solution<BaseDomain>& pSol) {
-			
 			mAlgo.doSearch(pSol);
 		}
 
-
 		Json report() {
-			Json j;
-			j["test"] = "test";
-			return j;
+			mAlgo.submitStats();
+			return mStatsManager.report();
+		}
+		
+		void reset() {
+			mAlgo.reset();
+			mStatsManager.reset();
+			mBehaviour.reset();
 		}
 
 
 		UGSABehaviour<> mBehaviour;
 		StatsManager mStatsManager;
-
 		UGSAv3_Base<DomStack, DomStack::Top_Abstract_Level, StatsManager> mAlgo;
 		
 	};
 	
 	
 	template<typename D>
-	using UGSAv3_Test = UGSAv3<D, TestStatsManager<>>;
+	using UGSAv3_Test = UGSAv3<D, LevelStatsManager<>>;
 	
 }}}

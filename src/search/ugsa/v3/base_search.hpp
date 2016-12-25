@@ -103,11 +103,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
+			mStatsAcc.reset();
 			mAbtSearch.reset();
 		}
 		
+		void submitStats() {
+			mStatsAcc.submit();
+			mAbtSearch.submitStats();
+		}
+		
+		/*
 		Json report() {
-			Json jAll, j;/*
+			Json jAll, j;
 			j["expd"] = mStats.expd;
 			j["gend"] = mStats.gend;
 			j["dups"] = mStats.dups;
@@ -122,10 +129,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			j["behaviour"] = mBehaviour.report();
 			jAll["level 0"] = j;
 			mAbtSearch.addToReportRec(jAll);
-			*/
+			
 			return jAll;
 		}
-
+		*/
 		
 		
 		
@@ -153,7 +160,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 				if(mDomain.checkGoal(s)) {
 					prepareSolution(pSolution, n);
-					mStatsAcc.submit();
+					mStatsAcc.end();
 					break;
 				}
 				

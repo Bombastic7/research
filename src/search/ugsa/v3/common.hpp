@@ -109,6 +109,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			return pParentG + pEdgeCost;
 		}
 		
+		void reset() {}
+		
 		const Util_t wf, wt;
 	};
 	

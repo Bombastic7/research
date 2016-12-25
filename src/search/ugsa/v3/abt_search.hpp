@@ -111,11 +111,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 		
 		void reset() {
-			mOpenList.clear();
+			mStatsAcc.reset();
+			mAbtSearch.reset();
 		}
 		
+		void submitStats() {
+			mStatsAcc.submit();
+			mAbtSearch.submitStats();
+		}
+		
+		/*
 		void addToReport(Json& jR) {
-			/*
+			
 			Json jAll, j;
 			j["Node size"] = sizeof(Node);
 			j["Wrapped Node Size"] = sizeof(typename ClosedList_t::Wrapped_t);
@@ -124,10 +131,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			j["open size"] = mOpenList.size();
 			j["open capacity"] = mOpenList.capacity();
 			jR[std::string("Level ") + std::to_string(L)] = j;
-			*/
+			
 			mAbtSearch.addToReport(jR);
 		}
-
+		*/
 		
 		
 		
@@ -178,7 +185,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 				if(mDomain.checkGoal(s)) {
 					retCost = n->g;
-					mStatsAcc.submit();
+					goalNode = n;
+					mStatsAcc.end();
 					break;
 				}
 				
@@ -212,7 +220,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				ent->exact = true;
 			}
 			
-			mStatsAcc.submit();
+			mStatsAcc.end();
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
@@ -329,6 +337,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		UGSAv3_Abt(D& pDomStack, UGSABehaviour<>& pBehaviour, StatsManager& pStats) {}
 		
 		Util_t doSearch(typename D::template Domain<Bound-1>::State const&) {return 0;}
+		void reset() {}
+		void submitStats() {}
 	};
 	
 	

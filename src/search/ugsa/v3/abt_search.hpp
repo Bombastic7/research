@@ -106,7 +106,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
-			mCache				(mDomain)
+			mCache				(mDomain),
+			mBestExactNode		(nullptr)
 		{}
 
 		
@@ -190,13 +191,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 					break;
 				}
 				
+				if(n == mBestExactNode) {
+					retCost = n->f;
+					goalNode = n;
+					mStatsAcc.end();
+					break;
+				}
+				
 				expand(n, s);
-				/*
-				if(mBehaviour.shouldUpdate(mStats.expd)) {
-					mBehaviour.update(mStats.expd);
-					mAbtSearch.clearCacheRec();
-					resortOpenList();
-				}*/
 			}
 			
 			for(auto it = mClosedList.begin(); it != mClosedList.end(); ++it) {
@@ -224,6 +226,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
+			mBestExactNode = nullptr;
 			
 			return retCost;
 		}
@@ -274,16 +277,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				}
 			} else {
 				
+				Node* kid_node 		= mNodePool.construct();
+				
 				CacheEntry* ent;
 				bool miss = mCache.get(kid_pkd, ent);
 				
 				if(miss) {
 					ent->exact = false;
 					ent->h = mAbtSearch.doSearch(edge.state());
-				}
-				
-				
-				Node* kid_node 		= mNodePool.construct();
+				}		
 				
 				kid_node->g 		= kid_g;
 				kid_node->pkd 		= kid_pkd;
@@ -294,6 +296,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
+				
+				if(ent->exact && (!mBestExactNode || mBestExactNode->f < kid_node->f)) {
+					mBestExactNode = kid_node;
+				}
 			}
 			
 			mDomain.destroyEdge(edge);
@@ -328,6 +334,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		NodePool_t 				mNodePool;
 		
 		CacheStore_t			mCache;
+		Node*					mBestExactNode;
 	};
 	
 	

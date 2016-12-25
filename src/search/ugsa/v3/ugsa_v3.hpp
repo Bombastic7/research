@@ -157,6 +157,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	
 	
 	template<typename D>
-	using UGSAv3_Test = UGSAv3<D, LevelStatsManager<>>;
+	using UGSAv3_StatsLevel = UGSAv3<D, LevelStatsManager<>>;
 	
 }}}

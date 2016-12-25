@@ -106,7 +106,7 @@ def executeProblemFile(algdoms):
 ALGS = [
 		{"name" : "Astar", "class" : "algorithm::Astar", "abt" : False, "weights" : [(1,0)]},
 		{"name" : "HAstar", "class" : "algorithm::hastargeneric::HAstar_StatsLevel", "abt" : True, "weights" : [(1,0)]},
-		{"name" : "UGSAv3", "class" : "algorithm::ugsav3::UGSAv3_Test", "abt" : True, "weights" : [(1,0)]},
+		{"name" : "UGSAv3", "class" : "algorithm::ugsav3::UGSAv3_StatsLevel", "abt" : True, "weights" : [(1,0)]},
 		]
 
 

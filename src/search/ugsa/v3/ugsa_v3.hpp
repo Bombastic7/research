@@ -139,7 +139,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 		Json report() {
 			mAlgo.submitStats();
-			return mStatsManager.report();
+			Json j = mStatsManager.report();
+			j["behaviour"] = mBehaviour.report();
+			return j;
 		}
 		
 		void reset() {
@@ -149,7 +151,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 
 
-		UGSABehaviour<> mBehaviour;
+		UGSABehaviour<BaseDomain> mBehaviour;
 		StatsManager mStatsManager;
 		UGSAv3_Base<DomStack, DomStack::Top_Abstract_Level, StatsManager> mAlgo;
 		

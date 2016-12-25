@@ -41,6 +41,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			PackedState pkd;
 			Operator in_op, parent_op;
 			Node* parent;
+			
+			unsigned depth;
+			unsigned abtDistance;
+			Cost abtCost;
 		};
 
 		
@@ -87,7 +91,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSAv3_Base(D& pDomStack, UGSABehaviour<>& pBehaviour, StatsManager& pStats) :
+		UGSAv3_Base(D& pDomStack, UGSABehaviour<Domain>& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, mBehaviour, pStats),
@@ -141,8 +145,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			{
 				Node* n0 = mNodePool.construct();
 				
+				AbtSearchResult<Cost> res = mAbtSearch.doSearch(mInitState);
+				
+				n0->f = res.ug;
+				n0->abtDistance = res.depth;
+				n0->abtCost = res.g;
+				n0->depth = 0;
+				
 				n0->g = 		Cost(0);
-				n0->f = 		computeHeuristic(mInitState);
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
@@ -202,6 +212,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		void expand(Node* n, State& s) {
 			mStatsAcc.expd();
 			
+			mBehaviour.informNodeExpansion(n->depth);
+			
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
 			for(unsigned i=0; i<ops.size(); i++) {
@@ -217,6 +229,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
 			Cost 		kid_g   = pParentNode->g + edge.cost();
+			unsigned	kid_depth = pParentNode->depth + 1;
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -233,6 +246,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 					kid_dup->in_op		= pInOp;
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
+					kid_dup->depth		= kid_depth;
 					
 					if(!mOpenList.contains(kid_dup)) {
 						mStatsAcc.reopnd();
@@ -242,13 +256,29 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				}
 			} else {
 				Node* kid_node 		= mNodePool.construct();
+				
+				AbtSearchResult<Cost> res = mAbtSearch.doSearch(edge.state());
+				
+				kid_node->f = res.ug + kid_g;
+				kid_node->abtDistance = res.depth;
+				kid_node->abtCost = res.g;
+
+				Cost dAbtCost = pParentNode->abtCost - kid_node->abtCost;
+				unsigned dAbtDistance = pParentNode->abtDistance - kid_node->abtDistance;
+				
+				slow_assert(dAbtCost >= 0);
+				slow_assert(dAbtDistance >= 0);
+				
+				mBehaviour.informCostDif(edge.cost(), dAbtCost);
+				mBehaviour.informPathDif(1, dAbtDistance);
 
 				kid_node->g 		= kid_g;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
-				kid_node->f			= kid_node->g + computeHeuristic(edge.state());
+				kid_node->f			= kid_node->g + res.g;
+				kid_node->depth		= kid_depth;
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -257,9 +287,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			mDomain.destroyEdge(edge);
 		}
 		
-		Cost computeHeuristic(State const& pState) {
-			return mAbtSearch.doSearch(pState);
-		}
+
 		
 		/*
 		void resortOpenList() {
@@ -277,7 +305,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSABehaviour<>			mBehaviour;
+		UGSABehaviour<Domain>&	mBehaviour;
 		StatsAcc				mStatsAcc;
 		AbtSearch				mAbtSearch;
 		const Domain			mDomain;

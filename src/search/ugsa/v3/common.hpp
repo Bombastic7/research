@@ -1,6 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <iostream>
+#include <vector>
+#include <cmath>
 #include "search/closedlist.hpp"
 #include "search/nodepool.hpp"
 #include "util/exception.hpp"
@@ -13,6 +16,17 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 	using Util_t = double;
 	
+
+
+	template<typename Cost>
+	struct AbtSearchResult {
+		Util_t ug;
+		Cost g;
+		unsigned depth;
+	};
+
+
+
 
 	template<typename Domain, typename CacheEntry>
 	struct CacheStore {
@@ -95,25 +109,133 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		Pool_t mPool;
 	};
 	
-	
-	
+
+
+	 
 	template<typename = void>
-	struct UGSABehaviour {
+	struct DepthCompression {
 		
-		
-		UGSABehaviour(Util_t pwf, Util_t pwt) :
-			wf(pwf), wt(pwt)
-		{}
-		
-		Util_t computeAbtG(unsigned pLvl, Util_t pParentG, Util_t pEdgeCost) {
-			return pParentG + pEdgeCost;
+		void informPathDif(unsigned pBaseDif, unsigned pAbtDif) {
+			mAbtCompAcc += pBaseDif / pAbtDif;
+			mNsamples++;
 		}
 		
-		void reset() {}
+		double getDepthCompression() {
+			return mAbtCompAcc / mNsamples;
+		}
 		
-		const Util_t wf, wt;
+		void reset() {
+			mAbtCompAcc = 1;
+			mNsamples = 1;
+		}
+		
+		private:
+		double mAbtCompAcc;
+		unsigned mNsamples;
+	};
+	 
+	template<typename Domain>
+	struct CostCompression {
+		
+		using Cost = typename Domain::Cost;
+		
+		void informCostDif(Cost pBaseDif, Cost pAbtDif) {
+			mAbtCompAcc += pBaseDif / pAbtDif;
+			mNsamples++;
+		}
+		
+		double getCostCompression() {
+			return mAbtCompAcc / mNsamples;
+		}
+		
+		void reset() {
+			mAbtCompAcc = 1;
+			mNsamples = 1;
+		}
+		
+		private:
+		double mAbtCompAcc;
+		unsigned mNsamples;
 	};
 	
+	template<typename = void>
+	struct ComputeAvgBF {
+		
+		void informNodeExpansion(unsigned pDepth) {
+			if(pDepth == 0)
+				return;
+			
+			if(pDepth >= mDepthCount.size()) {
+				mDepthCount.resize(mDepthCount.size()*2, 0);
+				mDepthBF.resize(mDepthCount.size()*2, 0);
+			}
+			
+			if(pDepth > mTopDepth) {
+				slow_assert(pDepth == mTopDepth + 1);
+				mTopDepth++;
+			}
+
+			mAvgBFAcc -= mDepthBF[pDepth];
+			mDepthBF[pDepth] = std::pow(++mDepthCount[pDepth], 1.0/pDepth);
+			mAvgBFAcc += mDepthBF[pDepth];
+		}
+		
+		double getAvgBF() {
+			return mAvgBFAcc / mTopDepth;
+		}
+		
+		void reset() {
+			std::fill(mDepthCount.begin(), mDepthCount.end(), 0);
+			std::fill(mDepthBF.begin(), mDepthBF.end(), 0);
+			mDepthCount[0] = 1;
+			mAvgBFAcc = 1;
+			mTopDepth = 1;
+		}
+
+		private:
+		std::vector<unsigned> mDepthCount;
+		std::vector<double> mDepthBF;
+		
+		double mAvgBFAcc;
+		unsigned mTopDepth;
+	};
+	
+	
+	template<typename Domain>
+	struct UGSABehaviour : public CostCompression<Domain>, public DepthCompression<>, public ComputeAvgBF<> {
+		
+		using Cost = typename Domain::Cost;
+
+		UGSABehaviour(Util_t pwf, Util_t pwt) :
+			wf(pwf), wt(pwt)
+		{
+			reset();
+		}
+		
+		Util_t compute_ug(unsigned pLvl, Cost pG, unsigned pDistance) {
+			
+			return 	wf * this->getCostCompression() * pG + 
+					wt * pow(this->getAvgBF(), this->getDepthCompression() * pDistance);
+		}
+		
+		
+		void reset() {
+			CostCompression<Domain>::reset();
+			DepthCompression<>::reset();
+			ComputeAvgBF<>::reset();
+		}
+		
+		Json report() {
+			Json j;
+			j["avg bf"] = this->getAvgBF();
+			j["depth comp"] = this->getDepthCompression();
+			j["cost comp"] = this->getCostCompression();
+			return j;
+			
+		}
+		
+		const Util_t wf, wt;
+	};	
 	
 	
 }}}

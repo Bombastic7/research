@@ -374,7 +374,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			if(!Use_H)
 				return;
 			
-			else if(!Use_LC) {
+			if(!Use_LC) {
 				int dx = std::abs(pPos % W - mGoalx), dy = std::abs(pPos / W - mGoaly);
 				
 				pState.set_h(std::abs(dx-dy) + mathutil::min(dx, dy) * SQRT2);
@@ -631,7 +631,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			State edgeState;
 			edgeState.pos = applyMove<Height, Width>(pState.pos, op);
 			
-			this->getHeuristicValues(pState.pos, pState);
+			this->getHeuristicValues(edgeState.pos, edgeState);
 			
 			Cost edgeCost = this->getMoveCost(pState.pos, op, mEffectiveRow[pState.pos/Width]);
 			

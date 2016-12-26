@@ -213,6 +213,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			for(auto it = mClosedList.begin(); it != mClosedList.end(); ++it) {
 				Node* n = *it;
 				
+				if(mOpenList.contains(n))
+					continue;
+				
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
 

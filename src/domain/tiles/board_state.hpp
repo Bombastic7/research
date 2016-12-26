@@ -28,6 +28,8 @@ namespace mjon661 { namespace tiles {
 		
 		BoardStateV() = default;
 		
+		BoardStateV(BoardStateV<H,W> const& o) = default;
+		
 		BoardStateV(std::array<tile_t, H*W> const& o) :
 			base_t(o)
 		{

@@ -40,7 +40,7 @@ namespace mjon661 { namespace gridnav {
 			
 			c -= '0';
 			
-			if(!pAllowedTypes.empty() && !contains(pAllowedTypes, c))
+			if(!pAllowedTypes.empty() && !mathutil::contains(pAllowedTypes, c))
 				throw std::runtime_error(std::string("CellArray::read: bad cell: ") + c);
 			
 			mCells[i] = c;

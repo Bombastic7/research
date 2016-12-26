@@ -122,6 +122,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			//mAbtSearch.reset();
 		}
 		
+		void clearCache() {
+			mCache.clear();
+		}
+		
 		void submitStats() {
 			mStatsAcc.submit();
 			//mAbtSearch.submitStats();

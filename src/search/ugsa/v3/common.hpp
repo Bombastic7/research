@@ -119,7 +119,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			if(pAdist == 0)
 				return;
 
-			mAbtCompAcc += pAdist / pBdist;
+			mAbtCompAcc += pBdist / pAdist;
 			mNsamples++;
 		}
 		
@@ -144,7 +144,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			if(pAcost == 0)
 				return;
 			
-			mAbtCompAcc += pAcost / pBcost;
+			mAbtCompAcc += pBcost / pAcost;
 			
 			
 			if((mNsamples-1) % 100 == 0 || mNsamples < 100) {//.............
@@ -194,6 +194,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			mAvgBFAcc -= mDepthBF[pDepth];
 			mDepthBF[pDepth] = std::pow(++mDepthCount[pDepth], 1.0/pDepth);
 			mAvgBFAcc += mDepthBF[pDepth];
+			
+			mTotalExpansions++;
 		}
 		
 		double getAvgBF() {
@@ -206,6 +208,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			mDepthCount[0] = 1;
 			mAvgBFAcc = 1;
 			mTopDepth = 1;
+			mTotalExpansions = 0;
+		}
+		
+		unsigned getTotalExpansions() {
+			return mTotalExpansions;
 		}
 
 		private:
@@ -214,6 +221,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		flt_t mAvgBFAcc;
 		unsigned mTopDepth;
+		unsigned mTotalExpansions;
 	};
 	
 	
@@ -232,11 +240,26 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 					wt * pow(this->getAvgBF(), this->getDepthCompression() * pDistance);
 		}
 		
+		bool shouldUpdate() {
+			unsigned exp = this->getTotalExpansions();
+			
+			if(exp <= 10)
+				return true;
+				
+			if(exp >= mNextExpd) {
+				mNextExpd *= 2;
+				return true;
+			}
+			return false;
+		}
+		
 		
 		void reset() {
 			CostCompression<>::reset();
 			DepthCompression<>::reset();
 			ComputeAvgBF<>::reset();
+			mLastExpd = 0;
+			mNextExpd = 16;
 		}
 		
 		Json report() {
@@ -249,6 +272,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 		
 		const flt_t wf, wt;
+		unsigned mLastExpd, mNextExpd;
 	};	
 	
 	

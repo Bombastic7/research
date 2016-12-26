@@ -34,17 +34,21 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		using StatsAcc = typename StatsManager::template StatsAcc<0>;
 		
 		
+		struct AbtSolInfo {
+			unsigned dist;
+			Cost cost;
+		};
+		
 
 		struct Node {
 			Cost g;
 			Util_t f;
 			PackedState pkd;
+			unsigned depth;
 			Operator in_op, parent_op;
 			Node* parent;
 			
-			unsigned depth;
-			unsigned abtDistance;
-			Cost abtCost;
+			AbtSolInfo abtsol;
 		};
 
 		
@@ -145,19 +149,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			{
 				Node* n0 = mNodePool.construct();
 				
-				AbtSearchResult<Cost> res = mAbtSearch.doSearch(mInitState);
-				
-				n0->f = res.ug;
-				n0->abtDistance = res.depth;
-				n0->abtCost = res.g;
 				n0->depth = 0;
-				
 				n0->g = 		Cost(0);
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
 				
 				mDomain.packState(mInitState, n0->pkd);
+				
+				doAbtSearch(n0, mInitState);
+				
 				mOpenList.push(n0);
 				mClosedList.add(n0);
 			}
@@ -175,12 +176,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				}
 				
 				expand(n, s);
-				/*
-				if(mBehaviour.shouldUpdate(mStats.expd)) {
-					mBehaviour.update(mStats.expd);
-					mAbtSearch.clearCacheRec();
-					resortOpenList();
-				}*/
+				
+				if(mBehaviour.shouldUpdate()) {
+					mAbtSearch.clearCache();
+					updateOpenList();
+				}
 			}
 		}
 		
@@ -220,8 +220,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			if(parentNode != nullptr) {
 				
 				flt_t dBcost = (flt_t)n->g - parentNode->g;
-				flt_t dAcost = (flt_t)parentNode->abtCost - n->abtCost;
-				int dAdist = parentNode->abtDistance - n->abtDistance;
+				flt_t dAcost = (flt_t)parentNode->abtsol.cost - n->abtsol.cost;
+				int dAdist = parentNode->abtsol.dist - n->abtsol.dist;
+				std::cout << dAdist << " " << parentNode->abtsol.dist << " " << n->abtsol.dist << "\n";//............
 				
 				mBehaviour.informCostDif(dBcost, dAcost);
 				mBehaviour.informPathDif(1, dAdist);
@@ -270,21 +271,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				}
 			} else {
 				Node* kid_node 		= mNodePool.construct();
-				
-				AbtSearchResult<Cost> res = mAbtSearch.doSearch(edge.state());
-				
-				kid_node->f = res.ug + kid_g;
-				kid_node->abtDistance = res.depth;
-				kid_node->abtCost = res.g;
-
 
 				kid_node->g 		= kid_g;
+				kid_node->depth		= kid_depth;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
-				kid_node->f			= kid_node->g + res.g;
-				kid_node->depth		= kid_depth;
+				
+				doAbtSearch(kid_node, edge.state());
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -294,20 +289,27 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 		
 
+
+		void doAbtSearch(Node* n, State pState) {
+			AbtSearchResult<Cost> res = mAbtSearch.doSearch(pState);
+			n->abtsol.cost = res.g;
+			n->abtsol.dist = res.depth;
+			n->f = n->g + res.ug;
+		}
 		
-		/*
-		void resortOpenList() {
+		
+		void updateOpenList() {
 			for(unsigned i=0; i<mOpenList.size(); i++) {
 				Node* n = mOpenList.at(i);
 				
 				State s;
 				mDomain.unpackState(s, n->pkd);
 				
-				n->u = computeUtil(s, n->g);
+				doAbtSearch(n, s);
 			}
 			mOpenList.reinit();
 		}
-		*/
+		
 		
 		
 

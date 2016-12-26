@@ -15,7 +15,7 @@
 namespace mjon661 { namespace algorithm { namespace ugsav3 {	
 
 	using Util_t = double;
-	
+	using flt_t = double;
 
 
 	template<typename Cost>
@@ -115,13 +115,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	template<typename = void>
 	struct DepthCompression {
 		
-		void informPathDif(unsigned pBaseDif, unsigned pAbtDif) {
-			mAbtCompAcc += pBaseDif / pAbtDif;
+		void informPathDif(int pBdist, int pAdist) {
+			if(pAdist == 0)
+				return;
+
+			mAbtCompAcc += pAdist / pBdist;
 			mNsamples++;
 		}
 		
 		double getDepthCompression() {
-			return mAbtCompAcc / mNsamples;
+			return mathutil::max(1.0, mAbtCompAcc / mNsamples);
 		}
 		
 		void reset() {
@@ -130,22 +133,28 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 		
 		private:
-		double mAbtCompAcc;
+		flt_t mAbtCompAcc;
 		unsigned mNsamples;
 	};
 	 
-	template<typename Domain>
+	template<typename = void>
 	struct CostCompression {
 		
-		using Cost = typename Domain::Cost;
-		
-		void informCostDif(Cost pBaseDif, Cost pAbtDif) {
-			mAbtCompAcc += pBaseDif / pAbtDif;
+		void informCostDif(flt_t pBcost, flt_t pAcost) {
+			if(pAcost == 0)
+				return;
+			
+			mAbtCompAcc += pAcost / pBcost;
+			
+			
+			if((mNsamples-1) % 100 == 0 || mNsamples < 100) {//.............
+				std::cout << mNsamples << ": " << mAbtCompAcc/mNsamples << ", " << pBcost<< ", " << pAcost << "\n";
+			}
 			mNsamples++;
 		}
 		
 		double getCostCompression() {
-			return mAbtCompAcc / mNsamples;
+			return mathutil::max(1.0, mAbtCompAcc / mNsamples);
 		}
 		
 		void reset() {
@@ -154,12 +163,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 		
 		private:
-		double mAbtCompAcc;
+		flt_t mAbtCompAcc;
 		unsigned mNsamples;
 	};
 	
 	template<typename = void>
 	struct ComputeAvgBF {
+		
+		ComputeAvgBF() :
+			mDepthCount(100),
+			mDepthBF(100)
+		{
+			//reset();
+		}
 		
 		void informNodeExpansion(unsigned pDepth) {
 			if(pDepth == 0)
@@ -194,17 +210,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 		private:
 		std::vector<unsigned> mDepthCount;
-		std::vector<double> mDepthBF;
+		std::vector<flt_t> mDepthBF;
 		
-		double mAvgBFAcc;
+		flt_t mAvgBFAcc;
 		unsigned mTopDepth;
 	};
 	
 	
-	template<typename Domain>
-	struct UGSABehaviour : public CostCompression<Domain>, public DepthCompression<>, public ComputeAvgBF<> {
-		
-		using Cost = typename Domain::Cost;
+	template<typename = void>
+	struct UGSABehaviour : public CostCompression<>, public DepthCompression<>, public ComputeAvgBF<> {
 
 		UGSABehaviour(Util_t pwf, Util_t pwt) :
 			wf(pwf), wt(pwt)
@@ -212,7 +226,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			reset();
 		}
 		
-		Util_t compute_ug(unsigned pLvl, Cost pG, unsigned pDistance) {
+		Util_t compute_ug(unsigned pLvl, flt_t pG, unsigned pDistance) {
 			
 			return 	wf * this->getCostCompression() * pG + 
 					wt * pow(this->getAvgBF(), this->getDepthCompression() * pDistance);
@@ -220,7 +234,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 		void reset() {
-			CostCompression<Domain>::reset();
+			CostCompression<>::reset();
 			DepthCompression<>::reset();
 			ComputeAvgBF<>::reset();
 		}
@@ -234,7 +248,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			
 		}
 		
-		const Util_t wf, wt;
+		const flt_t wf, wt;
 	};	
 	
 	

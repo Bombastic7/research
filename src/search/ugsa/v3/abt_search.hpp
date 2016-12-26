@@ -254,6 +254,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				ent->h = goalNode->g - n->g;
 				ent->depth = goalNode->depth - n->depth;
 			}
+
 			
 			mStatsAcc.end();
 			mOpenList.clear();

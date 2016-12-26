@@ -80,7 +80,7 @@ namespace mjon661 {
 			Rank_t pkd = 0;
 			
 			for(int i=0; i<Sz; i++)
-				pkd += vals[i] * factorial<Rank_t>(N-i-1, Sz-i-1);
+				pkd += vals[i] * mathutil::factorial<Rank_t>(N-i-1, Sz-i-1);
 			
 			return pkd;
 		}
@@ -110,7 +110,7 @@ namespace mjon661 {
 			if(v.size() != Sz)
 				return false;
 			
-			if(!withinInclusive(v, 0, N-1) || !uniqueElements(v))
+			if(!mathutil::withinInclusive(v, 0, N-1) || !mathutil::uniqueElements(v))
 				return false;
 			
 			return true;

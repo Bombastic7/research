@@ -32,7 +32,7 @@ namespace mjon661 { namespace gridnav {
 				
 				cell_t c = *first;
 				
-				if(!pAllowedTypes.empty() && !contains(pAllowedTypes, c))
+				if(!pAllowedTypes.empty() && !mathutil::contains(pAllowedTypes, c))
 					throw std::runtime_error(std::string("CellArray::read: iterator, bad cell: ") + c);
 				
 				mCells[i] = c;

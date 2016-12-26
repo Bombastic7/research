@@ -11,8 +11,7 @@
  * Math operations, added as needed.
  */
 
-namespace mjon661 {
-	
+namespace mjon661 { namespace mathutil {
 
 	constexpr uint64_t factorial64(uint64_t n) {
 		return n == 0 ? 1 : n * factorial64(n-1);
@@ -115,4 +114,4 @@ namespace mjon661 {
 		
 		return true;
 	}
-}
+}}

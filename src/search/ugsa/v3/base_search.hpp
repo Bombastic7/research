@@ -214,6 +214,20 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			
 			mBehaviour.informNodeExpansion(n->depth);
 			
+			
+			Node* parentNode = n->parent;
+			
+			if(parentNode != nullptr) {
+				
+				flt_t dBcost = (flt_t)n->g - parentNode->g;
+				flt_t dAcost = (flt_t)parentNode->abtCost - n->abtCost;
+				int dAdist = parentNode->abtDistance - n->abtDistance;
+				
+				mBehaviour.informCostDif(dBcost, dAcost);
+				mBehaviour.informPathDif(1, dAdist);
+			}
+			
+			
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
 			for(unsigned i=0; i<ops.size(); i++) {
@@ -263,14 +277,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				kid_node->abtDistance = res.depth;
 				kid_node->abtCost = res.g;
 
-				Cost dAbtCost = pParentNode->abtCost - kid_node->abtCost;
-				unsigned dAbtDistance = pParentNode->abtDistance - kid_node->abtDistance;
-				
-				slow_assert(dAbtCost >= 0);
-				slow_assert(dAbtDistance >= 0);
-				
-				mBehaviour.informCostDif(edge.cost(), dAbtCost);
-				mBehaviour.informPathDif(1, dAbtDistance);
 
 				kid_node->g 		= kid_g;
 				kid_node->pkd 		= kid_pkd;

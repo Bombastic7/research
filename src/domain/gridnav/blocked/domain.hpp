@@ -317,7 +317,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		void lifeCostHeuristics(idx_t pPos, int& out_h, int& out_d) const {
 			int x = pPos % W, y = pPos / W;
 			
-			int dx = std::abs(x-mGoalx), miny = min(y, mGoaly);
+			int dx = std::abs(x-mGoalx), miny = mathutil::min(y, mGoaly);
 			
 			// Horizontal segment at the cheaper of y/gy. Vertical segment straight from y to goaly.
 			int p1 = dx * miny + verticalPathFactor(y, mGoaly);
@@ -377,8 +377,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			else if(!Use_LC) {
 				int dx = std::abs(pPos % W - mGoalx), dy = std::abs(pPos / W - mGoaly);
 				
-				pState.set_h(std::abs(dx-dy) + min(dx, dy) * SQRT2);
-				pState.set_d(max(dx, dy));
+				pState.set_h(std::abs(dx-dy) + mathutil::min(dx, dy) * SQRT2);
+				pState.set_d(mathutil::max(dx, dy));
 			}
 			
 			else {
@@ -408,8 +408,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			//int maxdown = min(y, mGoaly);
 			int extra = dx - dy;
 			
-			int down = min(min(y, mGoaly), (dx-dy)/2);
-			int botRow = min(y, mGoaly) - down;
+			int down = mathutil::min(mathutil::min(y, mGoaly), (dx-dy)/2);
+			int botRow = mathutil::min(y, mGoaly) - down;
 			int across = extra - 2*down;
 			
 			out_h = verticalPathFactor(y, botRow) + across * botRow + verticalPathFactor(botRow, mGoaly);

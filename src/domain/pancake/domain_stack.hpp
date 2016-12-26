@@ -94,7 +94,7 @@ namespace mjon661 { namespace pancake {
 			if(jConfig.count("kept")) {
 			std::vector<cake_t> v = jConfig.at("kept");
 
-			if(v.size() != (unsigned)Abt1Sz || !withinInclusive(v, 0u, N-1) || !uniqueElements(v))
+			if(v.size() != (unsigned)Abt1Sz || !mathutil::withinInclusive(v, 0u, N-1) || !mathutil::uniqueElements(v))
 			throw ConfigException("Bad kept cakes");
 
 			for(unsigned i=0; i<Abt1Sz; i++)

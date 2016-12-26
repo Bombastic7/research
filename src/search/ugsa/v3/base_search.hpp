@@ -33,12 +33,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		using Edge = typename Domain::Edge;
 		using StatsAcc = typename StatsManager::template StatsAcc<0>;
 		
-		
-		struct AbtSolInfo {
-			unsigned dist;
-			Cost cost;
-		};
-		
+
 
 		struct Node {
 			Cost g;
@@ -47,8 +42,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			unsigned depth;
 			Operator in_op, parent_op;
 			Node* parent;
-			
-			AbtSolInfo abtsol;
 		};
 
 		
@@ -155,9 +148,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
 				
+				n0->f = mAbtSearch.doSearch(mInitState);
+				
 				mDomain.packState(mInitState, n0->pkd);
 				
-				doAbtSearch(n0, mInitState);
+				//doAbtSearch(n0, mInitState);
 				
 				mOpenList.push(n0);
 				mClosedList.add(n0);
@@ -218,14 +213,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			Node* parentNode = n->parent;
 			
 			if(parentNode != nullptr) {
-				
-				flt_t dBcost = (flt_t)n->g - parentNode->g;
-				flt_t dAcost = (flt_t)parentNode->abtsol.cost - n->abtsol.cost;
-				int dAdist = parentNode->abtsol.dist - n->abtsol.dist;
-				std::cout << dAdist << " " << parentNode->abtsol.dist << " " << n->abtsol.dist << "\n";//............
-				
-				mBehaviour.informCostDif(dBcost, dAcost);
-				mBehaviour.informPathDif(1, dAdist);
+				mBehaviour.informBasePath(n->g, n->depth);
 			}
 			
 			
@@ -279,7 +267,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
 				
-				doAbtSearch(kid_node, edge.state());
+				kid_node->f = kid_g + mAbtSearch.doSearch(edge.state());
+				//doAbtSearch(kid_node, edge.state());
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -289,13 +278,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 		
 
+		//Sets n->f.  n->g must already be set.
+		//~ void doAbtSearch(Node* n, State pState) {
+			//~ AbtSearchResult<Cost> res = mAbtSearch.doSearch(pState);
+			//~ n->f = n->g + res.ug;
 
-		void doAbtSearch(Node* n, State pState) {
-			AbtSearchResult<Cost> res = mAbtSearch.doSearch(pState);
-			n->abtsol.cost = res.g;
-			n->abtsol.dist = res.depth;
-			n->f = n->g + res.ug;
-		}
+		//~ }
 		
 		
 		void updateOpenList() {
@@ -305,7 +293,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				State s;
 				mDomain.unpackState(s, n->pkd);
 				
-				doAbtSearch(n, s);
+				//doAbtSearch(s);
 			}
 			mOpenList.reinit();
 		}

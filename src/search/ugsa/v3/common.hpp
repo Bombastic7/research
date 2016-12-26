@@ -23,6 +23,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		Util_t ug;
 		Cost g;
 		unsigned depth;
+		bool hasPathInfo;
 	};
 
 
@@ -111,61 +112,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	
 
 
-	 
-	template<typename = void>
-	struct DepthCompression {
-		
-		void informPathDif(int pBdist, int pAdist) {
-			if(pAdist == 0)
-				return;
 
-			mAbtCompAcc += pBdist / pAdist;
-			mNsamples++;
-		}
-		
-		double getDepthCompression() {
-			return mathutil::max(1.0, mAbtCompAcc / mNsamples);
-		}
-		
-		void reset() {
-			mAbtCompAcc = 1;
-			mNsamples = 1;
-		}
-		
-		private:
-		flt_t mAbtCompAcc;
-		unsigned mNsamples;
-	};
-	 
-	template<typename = void>
-	struct CostCompression {
-		
-		void informCostDif(flt_t pBcost, flt_t pAcost) {
-			if(pAcost == 0)
-				return;
-			
-			mAbtCompAcc += pBcost / pAcost;
-			
-			
-			if((mNsamples-1) % 100 == 0 || mNsamples < 100) {//.............
-				std::cout << mNsamples << ": " << mAbtCompAcc/mNsamples << ", " << pBcost<< ", " << pAcost << "\n";
-			}
-			mNsamples++;
-		}
-		
-		double getCostCompression() {
-			return mathutil::max(1.0, mAbtCompAcc / mNsamples);
-		}
-		
-		void reset() {
-			mAbtCompAcc = 1;
-			mNsamples = 1;
-		}
-		
-		private:
-		flt_t mAbtCompAcc;
-		unsigned mNsamples;
-	};
 	
 	template<typename = void>
 	struct ComputeAvgBF {
@@ -226,7 +173,46 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	
 	
 	template<typename = void>
-	struct UGSABehaviour : public CostCompression<>, public DepthCompression<>, public ComputeAvgBF<> {
+	struct AbtEdgeCorrection {
+		
+		void informAbtPath(flt_t pAcost, flt_t pAdist) {
+			mXAcc += pAdist / pAcost;
+			mNsamplesAbt++;
+		}
+		
+		void informBasePath(flt_t pBcost, flt_t pBdist) {
+			mYAcc += pBcost / pBdist;
+			mNsamplesBase++;
+		}
+		
+		flt_t getAbtDistCorrection() {
+			return (mXAcc / mNsamplesAbt) * (mYAcc / mNsamplesBase);
+		}
+		
+		void reset() {
+			mXAcc = mYAcc = 1;
+			mNsamplesAbt = mNsamplesBase = 1;
+		}
+		
+		Json report() {
+			Json j;
+			j["Abt cost/dist"] = 1.0 / (mXAcc / mNsamplesAbt);
+			j["Base cost/dist"] = mYAcc / mNsamplesBase;
+			j["Abt samples"] = mNsamplesAbt;
+			j["Base samples"] = mNsamplesBase;
+			j["abt dist correction"] = getAbtDistCorrection();
+			return j;
+			
+		}
+		
+		private:
+		flt_t mXAcc, mYAcc;
+		unsigned mNsamplesAbt, mNsamplesBase;
+	
+	};
+	
+	template<typename = void>
+	struct UGSABehaviour : public AbtEdgeCorrection<>, public ComputeAvgBF<> {
 
 		UGSABehaviour(Util_t pwf, Util_t pwt) :
 			wf(pwf), wt(pwt)
@@ -236,11 +222,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		Util_t compute_ug(unsigned pLvl, flt_t pG, unsigned pDistance) {
 			
-			return 	wf * this->getCostCompression() * pG + 
-					wt * pow(this->getAvgBF(), this->getDepthCompression() * pDistance);
+			return 	wf * pG + 
+					wt * pow(this->getAvgBF(), this->getAbtDistCorrection() * pDistance);
 		}
 		
 		bool shouldUpdate() {
+			return false;
 			unsigned exp = this->getTotalExpansions();
 			
 			if(exp <= 10)
@@ -255,18 +242,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 		void reset() {
-			CostCompression<>::reset();
-			DepthCompression<>::reset();
+			AbtEdgeCorrection<>::reset();
 			ComputeAvgBF<>::reset();
 			mLastExpd = 0;
 			mNextExpd = 16;
 		}
 		
 		Json report() {
-			Json j;
+			Json j = AbtEdgeCorrection<>::report();
 			j["avg bf"] = this->getAvgBF();
-			j["depth comp"] = this->getDepthCompression();
-			j["cost comp"] = this->getCostCompression();
 			return j;
 			
 		}

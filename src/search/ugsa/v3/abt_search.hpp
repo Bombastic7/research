@@ -51,8 +51,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		struct CacheEntry {
 			PackedState pkd;
 			Util_t uh;
-			Cost h;
-			unsigned depth;
 			bool exact;
 		};
 		
@@ -149,7 +147,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 		
-		AbtSearchResult<Cost> doSearch(BaseState const& pBaseState) {
+		Util_t doSearch(BaseState const& pBaseState) {
 			
 			{
 				State s0 = mAbtor(pBaseState);
@@ -159,28 +157,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				
 				CacheEntry* ent = mCache.retrieve(pkd0);
 				
-				if(ent && ent->exact) {
-					AbtSearchResult<Cost> res;
-					res.g = ent->h;
-					res.ug = ent->uh;
-					res.depth = ent->depth;
-					return res;
-				}
-				
+				if(ent && ent->exact)
+					return ent->uh;				
 				
 				
 				bool miss = mCache.get(pkd0, ent);
 				
 				if(miss) {
 					ent->exact = false;
-					//AbtSearchResult<Cost> res = mAbtSearch.doSearch(s0);
-					
-					//ent->uh = res.ug;
-					//ent->h = res.h;
-					//ent->depth = res.depth;
 					ent->uh = 0;
-					ent->h = 0;
-					ent->depth = 0;
 				}
 				
 				Node* n0 = mNodePool.construct();
@@ -198,8 +183,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				mClosedList.add(n0);
 			}
 			
-			AbtSearchResult<Cost> res;
+
 			Node* goalNode = nullptr;
+			Util_t retUCost = 0;
 			
 			while(true) {				
 				Node* n = mOpenList.pop();
@@ -208,22 +194,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				mDomain.unpackState(s, n->pkd);
 
 				if(mDomain.checkGoal(s)) {
-					res.ug = n->ug;
-					res.g = n->g;
-					res.depth = n->depth;
+					retUCost = n->ug;
 					goalNode = n;
 					mStatsAcc.end();
 					break;
 				}
 				
 				if(n == mBestExactNode) {
-					
-					CacheEntry* ent = mCache.retrieve(n->pkd);
-					slow_assert(ent);
-					
-					res.ug = n->uf;
-					res.g = n->g + ent->h;
-					res.depth = n->depth + ent->depth;
+					retUCost = n->uf;
 					goalNode = n;
 					mStatsAcc.end();
 					break;
@@ -237,6 +215,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
+
 				if(ent->exact)
 					continue;
 
@@ -251,14 +230,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
 				
-				if(ent->exact)
-					continue;
-				
 				ent->exact = true;
-				ent->h = goalNode->g - n->g;
-				ent->depth = goalNode->depth - n->depth;
 			}
-
+			
+			mBehaviour.informAbtPath(goalNode->g, goalNode->depth);
 			
 			mStatsAcc.end();
 			mOpenList.clear();
@@ -266,7 +241,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			mNodePool.clear();
 			mBestExactNode = nullptr;
 			
-			return res;
+			return retUCost;
 		}
 		
 		
@@ -290,8 +265,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
 			
-			Cost		kid_g	 = pParentNode->g + edge.cost();
-			Util_t 		kid_ug   = mBehaviour.compute_ug(L, kid_g, pParentNode->depth + 1);
+			Cost		kid_g	 	= pParentNode->g + edge.cost();
+			unsigned	kid_depth 	= pParentNode->depth + 1;
+			
+			Util_t 		kid_ug   	= mBehaviour.compute_ug(L, kid_g, kid_depth);
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -344,7 +321,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				
 				kid_node->g 		= kid_g;
 				kid_node->ug		= kid_ug;
-				kid_node->depth		= pParentNode->depth + 1;
+				kid_node->depth		= kid_depth;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
@@ -361,23 +338,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			
 			mDomain.destroyEdge(edge);
 		}
-		
-
-		
-		/*
-		void resortOpenList() {
-			for(unsigned i=0; i<mOpenList.size(); i++) {
-				Node* n = mOpenList.at(i);
-				
-				State s;
-				mDomain.unpackState(s, n->pkd);
-				
-				n->u = computeUtil(s, n->g);
-			}
-			mOpenList.reinit();
-		}
-		*/
-		
 		
 
 		UGSABehaviour<BaseDomain>& mBehaviour;

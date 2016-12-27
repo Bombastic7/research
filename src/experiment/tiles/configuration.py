@@ -12,7 +12,7 @@ import gen_problems
 
 
 RES_CACHE_DIR = "./rescache/"
-MAX_SUBPROCS = multiprocessing.cpu_count()
+N_WORKERS = int(multiprocessing.cpu_count() * 1.5)
 
 def _bstr(b):
 	return "true" if b else "false"
@@ -31,57 +31,19 @@ def makeAlgDomName(alg, dom):
 
 
 
-
-def putSubProc(execDesc, whch, subProcSlots):
-	freeSlots = [i for i in range(len(subProcSlots)) if subProcSlots[i] is None]
-	if len(freeSlots) == 0:
-		return False
-	
-	newProc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-	newProc.stdin.write(json.dumps(execDesc))
-	
-	subProcSlots[freeSlots[0]] = (newProc, whch)
-	return True
-
-
-def getSubProc(subProcSlots):
-	for i in range(len(subProcSlots)):
-		if subProcSlots[i] is not None and subProcSlots[i][0].poll():
-			searcherOut = subProcSlots[i][0].stdout.read()
-			res = (json.loads(searcherOut), subProcSlots[i][1])
-			subProcSlots[i] = None
-			return res
-
-	return None
-
-
-
-
-def writeToCache(res, whch):
-	
-	fname = RES_CACHE_DIR + whch[0] + "_" + whch[1] + "_" + whch[2]
-
-	with open(fname, "w") as f:
-		json.dump(res, f, indent=4, sort_keys=True)
-
-
-
-
-def executeProblemFile(algdoms, singleProbKey = None):
-	with open("tiles15_probs_A.json") as f:
+def execWorker(algdomQueue, resDict, lck, probfile):
+	with open(probfile) as f:
 		probset = json.load(f)
 
-	allRes = []
-	subProcSlots = [None] * MAX_SUBPROCS
-	
-	for ad in algdoms:
+	while True:
+		ad = algdomQueue.get()
+		if ad is None:
+			break
 		
 		for (wf, wt) in ad["weights"]:
 
-			if singleProbKey:
-				probsetitems = [(singleProbKey, probset[singleProbKey])]
-			else:
-				probsetitems = probset.iteritems()
+
+			probsetitems = probset.iteritems()
 				
 			for (k,pr) in probsetitems:
 				
@@ -94,49 +56,42 @@ def executeProblemFile(algdoms, singleProbKey = None):
 				execParams["wf"] = wf
 				execParams["wt"] = wt
 				
-				#execParams["time limit"] = 60
-				#execParams["memory limit"] = 2100
+				execParams["time limit"] = 25
+				execParams["memory limit"] = 2100
+
+
+				proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+			
+				searcherOut = proc.communicate(input=bytearray(json.dumps(execParams)))[0]
+
+				res = json.loads(searcherOut)
 				
-				while True:
-					res = getSubProc(subProcSlots)
-					if res is not None:
-						allRes.append(res)
-						
-						writeToCache(res)
-						continue
+				lck.acquire()
 				
-					wasPut = putSubProc(execParams, (ad["name"], str((wf, wt)), k), subProcSlots)
-					
-					if wasPut:
-						break
-					
-					time.sleep(5)
+				
+				if ad["name"] not in resDict:
+					resDict[ad["name"]] = {}
+				
+				forName = resDict[ad["name"]]
 
-	
-	resDict = {}
-	
-	for r in allRes:
-		
-		res = r[0]
-		i0 = r[1][0]
-		i1 = r[1][1]
-		i2 = r[1][2]
-		
-		if i0 not in resDict:
-			resDict[i0] = {}
-		
-		if i1 not in resDict[i0]:
-			resDict[i0][i1] = {}
-		
-		resDict[i0][i1][i2] = res
-		
-	
-	with open("tiles15_results_A_ugsa.json", "w") as f:
-		json.dump(allRes, f, indent=4, sort_keys=True)
+				if str((wf, wt)) not in forName:
+					forName[str((wf, wt))] = {}
+				
+				forName[str((wf, wt))][k] = res
+				
+				resDict[ad["name"]] = forName
+				
+				lck.release()
+				
+				with open(RES_CACHE_DIR + ad["name"] + "_" + str((wf, wt)) + "_" + k + ".json", "w") as f:
+					json.dump(res, f, indent=4, sort_keys=True)
 
 
 
 
+
+
+		
 
 
 
@@ -149,8 +104,8 @@ ALGS = [
 
 
 DOMS = [
-		{"name" : "base15", "class" : tiles_stack(4,4,False,True,0), "abt": False},
-		{"name" : "abt15", "class" : tiles_stack(4,4,False,False,7), "abt": True},
+		{"name" : "base15", "class" : tiles_stack(3,3,False,True,0), "abt": False},
+		{"name" : "abt15", "class" : tiles_stack(3,3,False,False,7), "abt": True},
 		
 		
 		]
@@ -159,20 +114,35 @@ DOMS = [
 
 if __name__ == "__main__":
 	if sys.argv[1] == "prob":
-		gen_problems.genTilesProblemSet(4,4,10,"tiles15_probs_A.json")
+		gen_problems.genTilesProblemSet(3,3,10,"tiles8_probs_A.json")
 	
 	elif sys.argv[1] == "exec":
 		if not os.path.exists(RES_CACHE_DIR):
 			os.makedirs(RES_CACHE_DIR)
 		
+		inprobfile = sys.argv[2]
+		outresfile = sys.argv[3]
+		
 		algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : makeAlgDomName(a,d), "weights": a["weights"] } for a in ALGS for d in DOMS if a["abt"] == d["abt"] ]
 		
-		if len(sys.argv) >= 3:
-			algdoms[:] = [ad for ad in algdoms if ad["name"] == sys.argv[2]]
+		manager = multiprocessing.Manager()
+		resultsDict = manager.dict()
+		taskQueue = manager.Queue()
+		dictLock = manager.Lock()
 		
-		assert(len(algdoms) >= 1)
+		for i in algdoms:
+			taskQueue.put(i)
 		
-		if(len(sys.argv) >= 4):
-			executeProblemFile(algdoms, sys.argv[3])
-		else:
-			executeProblemFile(algdoms)
+		for i in range(N_WORKERS):
+			taskQueue.put(None)
+		
+		workers = [multiprocessing.Process(target = execWorker, args = (taskQueue, resultsDict, dictLock, inprobfile)) for i in range(N_WORKERS)]
+		
+		for i in workers:
+			i.start()
+		
+		for i in workers:
+			i.join()
+		
+		with open(outresfile, "w") as f:
+			json.dump(resultsDict._getvalue(), f)

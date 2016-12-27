@@ -25,7 +25,7 @@ $(BUILDDIR)/experiment/tiles/%.py: $(SRCDIR)/experiment/tiles/%.py
 	cp $< $@
 
 TILES_EXP_FILES:=$(BUILDDIR)/experiment/tiles/searcher $(BUILDDIR)/experiment/tiles/configuration.py $(BUILDDIR)/experiment/tiles/gen_problems.py
-BINS+=TILES_EXP_FILES
+BINS+=$(TILES_EXP_FILES)
 
 -include $(DEPDIR)/experiment/tiles/searcher_auto.d
 

@@ -68,71 +68,69 @@ namespace mjon661 {
 			if(res < 0)
 				throw std::runtime_error("Failed to set memory limit");
 		}
-
 		
-		D 		dom(jExecDesc.at("domain conf"));
-		Alg<D> 	algo(dom, jExecDesc.at("algorithm conf"));
+		Json jOut;
 		
 		Timer timer;
 		Solution<BaseDomain> sol;
-		
-		Json jOut;
-		bool memLimitReached = false;
-		
-		timer.start();
-		
-		//try {
+			
+		try {		
+			D 		dom(jExecDesc.at("domain conf"));
+			Alg<D> 	algo(dom, jExecDesc.at("algorithm conf"));
+
+			timer.start();
 			algo.execute(sol);
+			timer.stop();
+			
 			jOut["result"] = "good";
-		/*}
+		
+			jOut["solution length"] = sol.operators.size();
+			jOut["solution cost"] = sol.pathCost(dom);
+			jOut["algo"] = algo.report();
+			jOut["resources"] = resourceReport();
+			jOut["walltime"] = timer.seconds();
+			
+			
+			double cputime = jOut["resources"].at("cputime");
+			double walltime = timer.seconds();
+			double exptimeCpu = cputime / jOut["algo"].at("expd").get<double>();
+			double exptimeWall = walltime / jOut["algo"].at("expd").get<double>();
+			
+			double wf = jExecDesc.at("wf");
+			double wt = jExecDesc.at("wt");
+			
+			double ucpu = wf * sol.pathCost(dom) + wt * cputime;
+			double uwall = wf * sol.pathCost(dom) + wt * walltime;
+			
+			jOut["cputime"] = cputime;
+			jOut["exptime_cpu"] = exptimeCpu;
+			jOut["exptime_wall"] = exptimeWall;
+			jOut["utility"] = ucpu;
+			jOut["utility_wall"] = uwall;
+			jOut["utility_cpu"] = ucpu;
+			
+			std::cout << jOut.dump(4) << "\\n";
+			
+			if(jExecDesc.count("print solution"))
+				if(jExecDesc.at("print solution").get<bool>())
+					sol.printSolution(dom, std::cout);
+			
 		} catch(std::bad_alloc const& e) {
-			Json jErr;
 			jOut["result"] = "OOM";
 			std::string msg = jOut.dump();
 			write(1, msg.c_str(), msg.size());
 			exit(0);
-		}*/
-
-		timer.stop();
-		
-		
-		jOut["solution length"] = sol.operators.size();
-		jOut["solution cost"] = sol.pathCost(dom);
-		jOut["algo"] = algo.report();
-		jOut["resources"] = resourceReport();
-		jOut["walltime"] = timer.seconds();
-		
-		
-		double cputime = jOut["resources"].at("cputime");
-		double walltime = timer.seconds();
-		double exptimeCpu = cputime / jOut["algo"].at("expd").get<double>();
-		double exptimeWall = walltime / jOut["algo"].at("expd").get<double>();
-		
-		double wf = jExecDesc.at("wf");
-		double wt = jExecDesc.at("wt");
-		
-		double ucpu = wf * sol.pathCost(dom) + wt * cputime;
-		double uwall = wf * sol.pathCost(dom) + wt * walltime;
-		
-		jOut["cputime"] = cputime;
-		jOut["exptime_cpu"] = exptimeCpu;
-		jOut["exptime_wall"] = exptimeWall;
-		jOut["utility"] = ucpu;
-		jOut["utility_wall"] = uwall;
-		jOut["utility_cpu"] = ucpu;
-		
-		std::cout << jOut.dump(4) << "\\n";
-		
-		if(jExecDesc.count("print solution"))
-			if(jExecDesc.at("print solution").get<bool>())
-				sol.printSolution(dom, std::cout);
-		
-		if(memLimitReached && jExecDesc.count("memory limit dump")) {
-			std::ofstream ofs("memlimitdump.txt", std::ofstream::in | std::ofstream::app);
+		} catch(std::exception const& e) {
+			jOut["result"] = "exception";
 			
-			if(ofs)
-				ofs << jExecDesc.dump(4) << "\\n" << jOut.dump(4) << "\\n";
+			std::string errwht(e.what());
+			jOut["error_what"] = errwht;
+			
+			std::string msg = jOut.dump();
+			write(1, msg.c_str(), msg.size());
+			exit(0);
 		}
+		
 	}
 
 """
@@ -142,8 +140,8 @@ namespace mjon661 {
 void selectAll(Json const& jExecDesc) {
 	std::string pAlgDom = jExecDesc.at("name");
 	
-	if(pAlgDom == "")
-		throw std::runtime_error("Bad domain or algorithm");
+	if(false)
+		;
 """
 
 	for i in algdom:
@@ -154,8 +152,11 @@ void selectAll(Json const& jExecDesc) {
 
 
 	codeStr += """
-	else
-		throw std::runtime_error("Bad domain or algorithm");
+	else {
+		Json jErr;
+		jErr["result"] = "bad name";
+		std::cout << jErr.dump(4);
+	}
 }
 
 """

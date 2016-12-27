@@ -12,7 +12,7 @@ import gen_problems
 
 
 RES_CACHE_DIR = "./rescache/"
-N_WORKERS = int(multiprocessing.cpu_count() * 1.5)
+N_WORKERS = 7#int(multiprocessing.cpu_count() * 1.5)
 
 def _bstr(b):
 	return "true" if b else "false"
@@ -31,7 +31,7 @@ def makeAlgDomName(alg, dom):
 
 
 
-def execWorker(algdomQueue, resDict, lck, probfile):
+def execWorker(algdomQueue, resDict, lck, probfile, doDump):
 	with open(probfile) as f:
 		probset = json.load(f)
 
@@ -59,12 +59,20 @@ def execWorker(algdomQueue, resDict, lck, probfile):
 				execParams["time limit"] = 25
 				execParams["memory limit"] = 2100
 
+				if doDump:
+					res = execParams
+				
+				else:
+					proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+				
+					searcherOut = proc.communicate(input=bytearray(json.dumps(execParams)))[0]
 
-				proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-			
-				searcherOut = proc.communicate(input=bytearray(json.dumps(execParams)))[0]
-
-				res = json.loads(searcherOut)
+					try:
+						res = json.loads(searcherOut)
+					except ValueError as e:
+						print searcherOut
+						print e
+						raise e
 				
 				lck.acquire()
 				
@@ -83,7 +91,7 @@ def execWorker(algdomQueue, resDict, lck, probfile):
 				
 				lck.release()
 				
-				with open(RES_CACHE_DIR + ad["name"] + "_" + str((wf, wt)) + "_" + k + ".json", "w") as f:
+				with open(RES_CACHE_DIR + ad["name"] + "_" + str((wf, wt)).replace(" ", "_") + "_" + k + ".json", "w") as f:
 					json.dump(res, f, indent=4, sort_keys=True)
 
 
@@ -104,26 +112,59 @@ ALGS = [
 
 
 DOMS = [
-		{"name" : "base15", "class" : tiles_stack(3,3,False,True,0), "abt": False},
-		{"name" : "abt15", "class" : tiles_stack(3,3,False,False,7), "abt": True},
-		
-		
+		{"name" : "base8", "class" : tiles_stack(3,3,False,True,0), "abt": False, "probcls" : 8},
+		{"name" : "abt8", "class" : tiles_stack(3,3,False,False,5), "abt": True, "probcls" : 8},
+		{"name" : "base15", "class" : tiles_stack(4,4,False,True,0), "abt": False, "probcls" : 15},
+		{"name" : "abt15", "class" : tiles_stack(4,4,False,False,7), "abt": True, "probcls" : 15}
 		]
+
+PROBFILES = {
+		8 : (3,3,10,"probs_8.json"),
+		16 : (4,4,10,"probs_15.json")
+			}
 
 
 
 if __name__ == "__main__":
+	if len(sys.argv) == 1:
+		print "prob"
+		print "exec <inprobs> <outresults> [dump]"
+	
 	if sys.argv[1] == "prob":
-		gen_problems.genTilesProblemSet(3,3,10,"tiles8_probs_A.json")
+		for args in PROBFILES.itervalues():
+			gen_problems.genTilesProblemSet(*args)
+	
 	
 	elif sys.argv[1] == "exec":
+		print "Searching with", N_WORKERS, "workers on", multiprocessing.cpu_count(), "processors."
+		
 		if not os.path.exists(RES_CACHE_DIR):
 			os.makedirs(RES_CACHE_DIR)
 		
+		rmProc = subprocess.Popen(["rm", "-rf", RES_CACHE_DIR+"*"])
+		rmProc.wait()
+		
+		
 		inprobfile = sys.argv[2]
 		outresfile = sys.argv[3]
+		doDump = True if len(sys.argv) >= 5 and sys.argv[4] == "dump" else False
 		
-		algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : makeAlgDomName(a,d), "weights": a["weights"] } for a in ALGS for d in DOMS if a["abt"] == d["abt"] ]
+		inprobcls = None
+		
+		for (cls, (h, w, n, fn)) in PROBFILES.iteritems():
+			if fn == inprobfile:
+				inprobcls = cls
+				break
+		
+		assert(inprobcls is not None)
+		
+
+		algdoms = [ { 	"alg" : a["class"], 
+						"dom" : d["class"], 
+						"name" : makeAlgDomName(a,d), 
+						"weights": a["weights"] } 
+						for a in ALGS for d in DOMS 
+						if a["abt"] == d["abt"] and d["probcls"] == inprobcls ]
 		
 		manager = multiprocessing.Manager()
 		resultsDict = manager.dict()
@@ -136,7 +177,7 @@ if __name__ == "__main__":
 		for i in range(N_WORKERS):
 			taskQueue.put(None)
 		
-		workers = [multiprocessing.Process(target = execWorker, args = (taskQueue, resultsDict, dictLock, inprobfile)) for i in range(N_WORKERS)]
+		workers = [multiprocessing.Process(target = execWorker, args = (taskQueue, resultsDict, dictLock, inprobfile, doDump)) for i in range(N_WORKERS)]
 		
 		for i in workers:
 			i.start()
@@ -145,4 +186,4 @@ if __name__ == "__main__":
 			i.join()
 		
 		with open(outresfile, "w") as f:
-			json.dump(resultsDict._getvalue(), f)
+			json.dump(resultsDict._getvalue(), f, indent=4, sort_keys=True)

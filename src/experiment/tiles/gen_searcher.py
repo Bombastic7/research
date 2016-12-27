@@ -25,6 +25,7 @@ def searcher_code(algdom):
 #include <fstream>
 #include <string>
 #include <cstdio>
+#include <unistd.h>
 
 #include "app/platform/resource.hpp"
 #include "search/solution.hpp"
@@ -80,17 +81,18 @@ namespace mjon661 {
 		
 		timer.start();
 		
-		try {
+		//try {
 			algo.execute(sol);
 			jOut["result"] = "good";
-		
+		/*}
 		} catch(std::bad_alloc const& e) {
-			memLimitReached = true;
-			exit(11);
-		}
-		
-		//Cpu time limit reached raises a signal and exits the program via exit(10) (app/platform/resource.cc).
-		
+			Json jErr;
+			jOut["result"] = "OOM";
+			std::string msg = jOut.dump();
+			write(1, msg.c_str(), msg.size());
+			exit(0);
+		}*/
+
 		timer.stop();
 		
 		
@@ -173,29 +175,55 @@ void run_prob_from_set(mjon661::Json const& jExecDescSet, std::string const& key
 int main(int argc, const char* argv[]) {
 
 	if(argc == 1) {
-		std::cout << "-s to get input from stdin\\n";
-		std::cout << "execdesc.json for file input\\n";
+		std::cout << "Usage:\\n";
+		std::cout << "-s 		| Get input from stdin\\n";
+		std::cout << "<exec>	| for file input\\n";
+		std::cout << "<probs> <probkey> <name> [<time>] [<mem>]\\n";
 		return 2;
 	}
-
-	if(std::string(argv[1]) == "-s") {
-		mjon661::Json j;
-		std::cin >> j;
-		mjon661::selectAll(j);
-	}
-	else {
-		std::ifstream ifs(argv[1]);
+	
+	if(argc >= 2) {
+		if(std::string(argv[1]) == "-s") {
+			mjon661::Json j;
+			std::cin >> j;
+			mjon661::selectAll(j);
+		}
+		else {
+			std::ifstream ifs(argv[1]);
 		
-		if(!ifs) {
-			std::cout << "Could not open problem file\\n";
-			return 2;
+			if(!ifs) {
+				std::cout << "Could not open problem file\\n";
+				return 2;
+			}
+		
+			mjon661::Json j;
+		
+			ifs >> j;
+		
+			if(argc == 2)
+				mjon661::selectAll(j);
+		
+			else if(argc >= 4) {
+				mjon661::Json execdesc, algconf;
+				
+				algconf["wt"] = 0;
+				algconf["wf"] = 1;
+				
+				execdesc["domain conf"] = j[argv[2]];
+				execdesc["algorithm conf"] = algconf;
+				execdesc["name"] = argv[3];
+				execdesc["wt"] = 0;
+				execdesc["wf"] = 1;
+				
+				if(argc >= 5)
+					execdesc["time limit"] = strtod(argv[4], nullptr);
+				if(argc >= 6)
+					execdesc["memory limit"] = strtod(argv[5], nullptr);
+				
+				mjon661::selectAll(execdesc);
+			}
 		}
 		
-		mjon661::Json j;
-		
-		ifs >> j;
-		
-		mjon661::selectAll(j);
 	}
 
 }

@@ -85,10 +85,10 @@ namespace mjon661 {
 		
 		} catch(std::bad_alloc const& e) {
 			memLimitReached = true;
-			exit(11);
+			exit(4);
 		}
 		
-		//Cpu time limit reached raises a signal and exits the program via exit(10) (app/platform/resource.cc).
+		//Cpu time limit reached raises a signal and exits the program via exit(3) (app/platform/resource.cc).
 		
 		timer.stop();
 		

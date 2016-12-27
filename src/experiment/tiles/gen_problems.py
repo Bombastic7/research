@@ -37,7 +37,7 @@ def getTilesSolvability(perm, goal, w, h):
 	
 	blankRowParity = abs(permRow - goalRow) % 2
 	
-	return getTilesParity(perm) == blankRowParity
+	return getTilesParity(perm, w, h) == blankRowParity
 
 
 

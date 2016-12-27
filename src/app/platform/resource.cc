@@ -3,6 +3,8 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <unistd.h>
+#include <string>
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -15,11 +17,14 @@
 
 namespace mjon661 {
 
-	static void sigHandler(int pSig) {
+	void sigHandler(int pSig) {
 		if(pSig == SIGXCPU) {
-			std::cout << "\n\n\n" << prettyTimestamp() << ": CPU time limit reached." << std::endl;
+			Json j;
+			j["result"] = "OOT";
+			std::string msg = j.dump();
+			write(1, msg.c_str(), msg.size());
 		}
-		exit(10);
+		exit(0);
 	}
 	
 	static bool installSigHandler() {		
@@ -43,6 +48,7 @@ namespace mjon661 {
 		
 		if(rl.rlim_cur > pVal) {
 			rl.rlim_cur = pVal;
+			//rl.rlim_max = pVal + 10;
 			res = setrlimit(pResource, &rl);
 			
 			if(res != 0)
@@ -53,12 +59,12 @@ namespace mjon661 {
 	}
 
 	double setCpuTimeLimit(double pSeconds) {
+		if(!installSigHandler())
+			return -1;
 		return setResourceLimit(RLIMIT_CPU, pSeconds);
 	}
 	
 	double setVirtMemLimit(double pMB) {
-		if(!installSigHandler())
-			return -1;
 		return setResourceLimit(RLIMIT_AS, pMB*1000000)/1000000;
 	}
 

@@ -43,12 +43,12 @@ def executeProblem(execDesc):
 			res["status"] = "SUCCESS"
 			return res
 		
-		elif proc.returncode == 10:
+		elif proc.returncode == 3:
 			res["status"] = "OOT"
 			res["error_output"] = searcherOut
 			return res
 		
-		elif proc.returncode == 11:
+		elif proc.returncode == 4:
 			res["status"] = "OOM"
 			res["error_output"] = searcherOut
 			return res

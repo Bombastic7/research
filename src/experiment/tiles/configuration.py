@@ -1,11 +1,18 @@
 #!/bin/python
 
 import sys
+import os
 import random
 import json
 import subprocess
+import time
+import multiprocessing
 
 import gen_problems
+
+
+RES_CACHE_DIR = "./rescache/"
+MAX_SUBPROCS = multiprocessing.cpu_count()
 
 def _bstr(b):
 	return "true" if b else "false"
@@ -24,58 +31,59 @@ def makeAlgDomName(alg, dom):
 
 
 
-def executeProblem(execDesc):
-	res = {}
+
+def putSubProc(execDesc, whch, subProcSlots):
+	freeSlots = [i for i in range(len(subProcSlots)) if subProcSlots[i] is None]
+	if len(freeSlots) == 0:
+		return False
 	
-	try:
-		proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-		
-		searcherOut = proc.communicate(input=bytearray(json.dumps(execDesc)))[0]	
-		
-		
-		if proc.returncode == 0:
-			res = json.loads(searcherOut)
-			res["status"] = "SUCCESS"
-			return res
-		
-		elif proc.returncode == 10:
-			res["status"] = "OOT"
-			res["error_output"] = searcherOut
-			return res
-		
-		elif proc.returncode == 11:
-			res["status"] = "OOM"
-			res["error_output"] = searcherOut
-			return res
+	newProc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+	newProc.stdin.write(json.dumps(execDesc))
 	
-		else:
-			res["status"] = "UNKNOWN"
-			res["error_output"] = searcherOut + "\n\n" + str(proc.returncode)
+	subProcSlots[freeSlots[0]] = (newProc, whch)
+	return True
+
+
+def getSubProc(subProcSlots):
+	for i in range(len(subProcSlots)):
+		if subProcSlots[i] is not None and subProcSlots[i][0].poll():
+			searcherOut = subProcSlots[i][0].stdout.read()
+			res = (json.loads(searcherOut), subProcSlots[i][1])
+			subProcSlots[i] = None
 			return res
+
+	return None
+
+
+
+
+def writeToCache(res, whch):
 	
-	except Exception as e:
-		res["status"] = "EXCEPTION"
-		res["error_output"] = e
+	fname = RES_CACHE_DIR + whch[0] + "_" + whch[1] + "_" + whch[2]
 
-	return res
-
+	with open(fname, "w") as f:
+		json.dump(res, f, indent=4, sort_keys=True)
 
 
 
 
-def executeProblemFile(algdoms):
-	with open("tiles8_probs_A.json") as f:
+def executeProblemFile(algdoms, singleProbKey = None):
+	with open("tiles15_probs_A.json") as f:
 		probset = json.load(f)
 
-	allRes = {}
+	allRes = []
+	subProcSlots = [None] * MAX_SUBPROCS
 	
 	for ad in algdoms:
-		adres = {}
 		
 		for (wf, wt) in ad["weights"]:
-			weightres = {}
 
-			for (k,pr) in probset.iteritems():
+			if singleProbKey:
+				probsetitems = [(singleProbKey, probset[singleProbKey])]
+			else:
+				probsetitems = probset.iteritems()
+				
+			for (k,pr) in probsetitems:
 				
 				execParams = {}
 				execParams["name"] = ad["name"]
@@ -86,15 +94,44 @@ def executeProblemFile(algdoms):
 				execParams["wf"] = wf
 				execParams["wt"] = wt
 				
-				result = executeProblem(execParams)
+				#execParams["time limit"] = 60
+				#execParams["memory limit"] = 2100
 				
-				weightres[k] = result 
+				while True:
+					res = getSubProc(subProcSlots)
+					if res is not None:
+						allRes.append(res)
+						
+						writeToCache(res)
+						continue
+				
+					wasPut = putSubProc(execParams, (ad["name"], str((wf, wt)), k), subProcSlots)
+					
+					if wasPut:
+						break
+					
+					time.sleep(5)
 
-			adres[str((wf,wt))] = weightres
-		
-		allRes[ad["name"]] = adres
 	
-	with open("tiles8_results_A.json", "w") as f:
+	resDict = {}
+	
+	for r in allRes:
+		
+		res = r[0]
+		i0 = r[1][0]
+		i1 = r[1][1]
+		i2 = r[1][2]
+		
+		if i0 not in resDict:
+			resDict[i0] = {}
+		
+		if i1 not in resDict[i0]:
+			resDict[i0][i1] = {}
+		
+		resDict[i0][i1][i2] = res
+		
+	
+	with open("tiles15_results_A_ugsa.json", "w") as f:
 		json.dump(allRes, f, indent=4, sort_keys=True)
 
 
@@ -112,8 +149,8 @@ ALGS = [
 
 
 DOMS = [
-		{"name" : "base", "class" : tiles_stack(3,3,True,True,0), "abt": False},
-		{"name" : "abtstack", "class" : tiles_stack(3,3,True,False,5), "abt": True},
+		{"name" : "base15", "class" : tiles_stack(4,4,False,True,0), "abt": False},
+		{"name" : "abt15", "class" : tiles_stack(4,4,False,False,7), "abt": True},
 		
 		
 		]
@@ -122,8 +159,20 @@ DOMS = [
 
 if __name__ == "__main__":
 	if sys.argv[1] == "prob":
-		gen_problems.genTilesProblemSet(3,3,10,"tiles8_probs_A.json")
+		gen_problems.genTilesProblemSet(4,4,10,"tiles15_probs_A.json")
 	
 	elif sys.argv[1] == "exec":
+		if not os.path.exists(RES_CACHE_DIR):
+			os.makedirs(RES_CACHE_DIR)
+		
 		algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : makeAlgDomName(a,d), "weights": a["weights"] } for a in ALGS for d in DOMS if a["abt"] == d["abt"] ]
-		executeProblemFile(algdoms)
+		
+		if len(sys.argv) >= 3:
+			algdoms[:] = [ad for ad in algdoms if ad["name"] == sys.argv[2]]
+		
+		assert(len(algdoms) >= 1)
+		
+		if(len(sys.argv) >= 4):
+			executeProblemFile(algdoms, sys.argv[3])
+		else:
+			executeProblemFile(algdoms)

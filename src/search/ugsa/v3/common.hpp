@@ -178,18 +178,24 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	struct AbtEdgeCorrection {
 		
 		void informPath(unsigned pLvl, flt_t pCost, flt_t pDist) {			
-			if(pLvl == 0)
+			if(pLvl == 0) {
+				if(pCost == 0)
+					return;
 				mPathRatiosAcc[0] += pDist / pCost;
-			
+			}
 			else
+				if(pDist == 0)
+					return;
 				mPathRatiosAcc[pLvl] += pCost / pDist;
-
+			}
+			
 			mSampleCount[pLvl] += 1;
 		}
 		
 		flt_t getDistCorrection(unsigned pLvl) {
 			slow_assert(pLvl > 0);
 			flt_t f = (mPathRatiosAcc[0] / mSampleCount[0]) * (mPathRatiosAcc[pLvl] / mSampleCount[pLvl]);
+			slow_assert(isfinite(f) && f > 0);
 			return f;
 		}
 		

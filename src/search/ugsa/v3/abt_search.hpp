@@ -229,7 +229,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				if(ent->exact)
 					continue;
 
-				Util_t upg = goalNode->uf - n->ug;
+				Util_t upg = retUCost - n->ug;
 				
 				if(ent->uh < upg) {
 					ent->uh = upg;
@@ -242,10 +242,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
 				
-				if(!ent->exact)
+				if(!ent->exact) {
 					mStatsAcc.l_cacheMadeExact();
-				
-				ent->exact = true;
+					ent->exact = true;
+				}
 			}
 			
 			mBehaviour.informPath(L, goalNode->g, goalNode->depth);
@@ -349,7 +349,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
 				
-				if(ent->exact && (!mBestExactNode || mBestExactNode->uf < kid_node->uf)) {
+				if(ent->exact && (!mBestExactNode || mBestExactNode->uf > kid_node->uf)) {
 					mBestExactNode = kid_node;
 				}
 			}

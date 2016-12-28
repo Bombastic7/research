@@ -33,10 +33,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		template<unsigned L, typename = void>
 		struct StatsAcc {
-			void a_expd() {mExpd++;}
-			void a_gend() {}
-			void a_dups() {}
-			void a_reopnd() {}
+			void a_expd() {mExpd++; if(L==0) mL0expd++; }
+			void a_gend() { if(L==0) mL0gend++; }
+			void a_dups() { if(L==0) mL0dups++; }
+			void a_reopnd() { if(L==0) mL0reopnd++; }
 			
 			void l_cacheMadeExact() { mCacheMadeExact++; }
 			void l_cacheImprove() { mCacheImprove++; }
@@ -71,8 +71,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			unsigned mSolPartial, mSolFull;
 			unsigned mNsearches;
 			
-			
-			
+			unsigned mL0expd, mL0gend, mL0dups, mL0reopnd;
+	
 			
 			StatsAcc(LevelStatsManager<>& pManager) :
 				mManager(pManager)
@@ -89,6 +89,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				mCacheHit = mCacheMiss = mCachePartial = 0;
 				mSolPartial = mSolFull = mNsearches = 0;
 				mExpd = mNsearches = 0;
+				
+				mL0expd = mL0gend = mL0dups = mL0reopnd = 0;
 				
 				mAccExpd = Acc_t();
 				mAccOpen = Acc_t();
@@ -107,15 +109,22 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			
 			void submit() {
 				Json j;
-				j["expd"] = accPrettyStr(mAccExpd);
-				if(L!=0) {
+				if(L == 0) {
+					j["expd"] = mL0expd;
+					j["gend"] = mL0gend;
+					j["dups"] = mL0dups;
+					j["reopnd"] = mL0reopnd;
+					
+				}
+				else {
+					j["expd"] = accPrettyStr(mAccExpd);
 					j["open sz"] = accPrettyStr(mAccOpen);
 					j["closed sz"] = accPrettyStr(mAccClosed);
+					j["Cache improved"] = accPrettyStr(mAccCacheImprove);
+					j["Cache added"] = accPrettyStr(mAccCacheAdd);
+					j["Cache made exact"] = accPrettyStr(mAccCacheMadeExact);
+					j["NSearches"] = mNsearches;
 				}
-				j["Cache improved"] = accPrettyStr(mAccCacheImprove);
-				j["Cache added"] = accPrettyStr(mAccCacheAdd);
-				j["Cache made exact"] = accPrettyStr(mAccCacheMadeExact);
-				j["NSearches"] = mNsearches;
 				
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;
 				mManager.mTotExpd += ba::sum(mAccExpd);

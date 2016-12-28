@@ -13,8 +13,8 @@ import gen_problems
 
 RES_CACHE_DIR = "./rescache/"
 
-WORKER_MEM = 7000
-TIME_LIMIT = 600
+WORKER_MEM = 3000
+TIME_LIMIT = 60
 
 def setNWorkers():
 	global N_WORKERS
@@ -80,7 +80,7 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 				res = execParams
 			
 			else:
-				print "starting", adp["name"], {"wf" : wf, "wt" : wt}, probfile, k
+				print "starting", adp["name"], {"wf" : wf, "wt" : wt}, probfile, probkey
 				logFileObj.flush()
 				
 				proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -98,7 +98,7 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 			lck.acquire()
 			
 			try:
-				print "Writing", adp["name"], {"wf" : wf, "wt" : wt}, probfile, k
+				print "Writing", adp["name"], {"wf" : wf, "wt" : wt}, probfile, probkey
 				logFileObj.flush()
 				
 				if adp["name"] not in resDict:
@@ -112,7 +112,7 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 				forName[str((wf, wt))][probkey] = res
 				
 				resDict[adp["name"]] = forName
-				print "Wrote", adp["name"], {"wf" : wf, "wt" : wt}, probfile, k
+				print "Wrote", adp["name"], {"wf" : wf, "wt" : wt}, probfile, probkey
 				logFileObj.flush()
 				
 			except Exception as e:
@@ -136,8 +136,8 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 
 
 ALGS = [
-		{"name" : "Astar", "class" : "algorithm::Astar", "abt" : False, "weights" : [(1,0)]},
-		{"name" : "HAstar", "class" : "algorithm::hastargeneric::HAstar_StatsLevel", "abt" : True, "weights" : [(1,0)]},
+		#{"name" : "Astar", "class" : "algorithm::Astar", "abt" : False, "weights" : [(1,0)]},
+		{"name" : "HAstar", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "abt" : True, "weights" : [(1,0)]},
 		{"name" : "UGSAv3", "class" : "algorithm::ugsav3::UGSAv3_StatsLevel", "abt" : True, "weights" : [(1,0)]},
 		]
 

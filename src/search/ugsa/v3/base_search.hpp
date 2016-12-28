@@ -166,7 +166,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 				if(mDomain.checkGoal(s)) {
 					prepareSolution(pSolution, n);
-					mStatsAcc.end();
+					mStatsAcc.s_end();
 					break;
 				}
 				
@@ -205,7 +205,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 		
 		void expand(Node* n, State& s) {
-			mStatsAcc.expd();
+			mStatsAcc.a_expd();
 			
 			mBehaviour.informNodeExpansion(n->depth);
 			
@@ -223,7 +223,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				if(ops[i] == n->parent_op)
 					continue;
 				
-				mStatsAcc.gend();
+				mStatsAcc.a_gend();
 				considerkid(n, s, ops[i]);
 			}
 		}
@@ -240,7 +240,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			Node* kid_dup = mClosedList.find(kid_pkd);
 
 			if(kid_dup) {
-				mStatsAcc.dups();
+				mStatsAcc.a_dups();
 				if(kid_dup->g > kid_g) {
 					
 					kid_dup->f			-= kid_dup->g;
@@ -252,7 +252,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 					kid_dup->depth		= kid_depth;
 					
 					if(!mOpenList.contains(kid_dup)) {
-						mStatsAcc.reopnd();
+						mStatsAcc.a_reopnd();
 					}
 					
 					mOpenList.pushOrUpdate(kid_dup);

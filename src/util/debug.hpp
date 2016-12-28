@@ -22,26 +22,26 @@
 #endif
 
 #if DEBUGLEVEL==0
-#pragma message "no asserts"
+//#pragma message "no asserts"
 #endif
 
 #if DEBUGLEVEL>=DEBUGFAST
 #define fast_assert(cond,...) (cond) ? ((void)0) : ::mjon661::debugimpl::assertfailimpl(__FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__)
-#pragma message "fast_assert"
+//#pragma message "fast_assert"
 #else
 #define fast_assert(cond,...)  while(false) { (void)(cond); }
 #endif
 
 #if DEBUGLEVEL>=DEBUGSLOW
 #define slow_assert(cond,...) (cond) ? ((void)0) : ::mjon661::debugimpl::assertfailimpl(__FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__)
-#pragma message "slow_assert"
+//#pragma message "slow_assert"
 #else
 #define slow_assert(cond,...) while(false) { (void)(cond); }
 #endif
 
 #if DEBUGLEVEL>=DEBUGGLACIAL
 #define glacial_assert(cond,...) (cond) ? ((void)0) : ::mjon661::debugimpl::assertfailimpl(__FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__)
-#pragma message "glacial_assert"
+//#pragma message "glacial_assert"
 #else
 #define glacial_assert(cond,...) while(false) { (void)(cond); }
 #endif

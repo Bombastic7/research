@@ -14,8 +14,8 @@
 
 namespace mjon661 { namespace algorithm { namespace ugsav3 {	
 
-	using Util_t = double;
-	using flt_t = double;
+	using Util_t = float;
+	using flt_t = float;
 
 
 	template<typename Cost>

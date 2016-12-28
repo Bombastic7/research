@@ -8,11 +8,12 @@
 
 #include "search/ugsa/v3/common.hpp"
 #include "search/ugsa/v3/base_search.hpp"
+#include "search/ugsa/v3/level_stats.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	
-	
+	/*
 	template<typename = void>
 	struct LevelStatsManager {
 		
@@ -111,7 +112,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		unsigned mTotExpd;
 		Json mReport;
 	};
-	
+	*/
 	
 	
 	

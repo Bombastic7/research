@@ -157,16 +157,23 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				
 				CacheEntry* ent = mCache.retrieve(pkd0);
 				
-				if(ent && ent->exact)
+				if(ent && ent->exact) {
+					mStatsAcc.s_cacheHit();
+					mStatsAcc.s_end();
 					return ent->uh;				
-				
+				}
 				
 				bool miss = mCache.get(pkd0, ent);
+				
 				
 				if(miss) {
 					ent->exact = false;
 					ent->uh = 0;
+					mStatsAcc.s_cacheMiss();
+					mStatsAcc.l_cacheAdd();
 				}
+				else
+					mStatsAcc.s_cachePartial();
 				
 				Node* n0 = mNodePool.construct();
 				
@@ -196,14 +203,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				if(mDomain.checkGoal(s)) {
 					retUCost = n->ug;
 					goalNode = n;
-					mStatsAcc.end();
+					mStatsAcc.s_solutionFull();
 					break;
 				}
 				
 				if(n == mBestExactNode) {
 					retUCost = n->uf;
 					goalNode = n;
-					mStatsAcc.end();
+					mStatsAcc.s_solutionPartial();
 					break;
 				}
 				
@@ -224,8 +231,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 				Util_t upg = goalNode->uf - n->ug;
 				
-				if(ent->uh < upg)
+				if(ent->uh < upg) {
 					ent->uh = upg;
+					mStatsAcc.l_cacheImprove();
+				}
 			}
 			
 			
@@ -233,17 +242,24 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
 				
+				if(!ent->exact)
+					mStatsAcc.l_cacheMadeExact();
+				
 				ent->exact = true;
 			}
 			
 			mBehaviour.informAbtPath(goalNode->g, goalNode->depth);
 			
-			mStatsAcc.end();
+			mStatsAcc.s_openListSize(mOpenList.size());
+			mStatsAcc.s_closedListSize(mClosedList.getFill());
+			
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
 			mBestExactNode = nullptr;
-			
+
+
+			mStatsAcc.s_end();
 			return retUCost;
 		}
 		
@@ -251,7 +267,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		private:
 		
 		void expand(Node* n, State& s) {
-			mStatsAcc.expd();
+			mStatsAcc.a_expd();
 			
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
@@ -259,7 +275,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				if(ops[i] == n->parent_op)
 					continue;
 				
-				mStatsAcc.gend();
+				mStatsAcc.a_gend();
 				considerkid(n, s, ops[i]);
 			}
 		}
@@ -279,7 +295,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			Node* kid_dup = mClosedList.find(kid_pkd);
 
 			if(kid_dup) {
-				mStatsAcc.dups();
+				mStatsAcc.a_dups();
 				if(kid_dup->ug > kid_ug) {
 					kid_dup->uf			-= kid_dup->ug;
 					kid_dup->uf			+= kid_ug;
@@ -293,7 +309,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 					kid_dup->depth		= pParentNode->depth + 1;
 					
 					if(!mOpenList.contains(kid_dup)) {
-						mStatsAcc.reopnd();
+						mStatsAcc.a_reopnd();
 					}
 					
 					mOpenList.pushOrUpdate(kid_dup);
@@ -320,6 +336,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 					//AbtSearchResult<Cost> res = mAbtSearch.doSearch(edge.state());
 					
 					ent->uh = 0;
+					mStatsAcc.l_cacheAdd();
 				}
 				
 				kid_node->g 		= kid_g;

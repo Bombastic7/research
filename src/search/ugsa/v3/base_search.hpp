@@ -88,7 +88,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSAv3_Base(D& pDomStack, UGSABehaviour<Domain>& pBehaviour, StatsManager& pStats) :
+		UGSAv3_Base(D& pDomStack, UGSABehaviour<Top+1>& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, mBehaviour, pStats),
@@ -213,7 +213,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			Node* parentNode = n->parent;
 			
 			if(parentNode != nullptr) {
-				mBehaviour.informBasePath(n->g, n->depth);
+				mBehaviour.informPath(0, n->g, n->depth);
 			}
 			
 			
@@ -301,7 +301,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSABehaviour<Domain>&	mBehaviour;
+		UGSABehaviour<Top+1>&	mBehaviour;
 		StatsAcc				mStatsAcc;
 		AbtSearch				mAbtSearch;
 		const Domain			mDomain;

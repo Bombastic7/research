@@ -152,7 +152,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 
 
-		UGSABehaviour<BaseDomain> mBehaviour;
+		UGSABehaviour<DomStack::Top_Abstract_Level+1> mBehaviour;
 		StatsManager mStatsManager;
 		UGSAv3_Base<DomStack, DomStack::Top_Abstract_Level, StatsManager> mAlgo;
 		

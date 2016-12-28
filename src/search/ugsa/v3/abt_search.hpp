@@ -24,7 +24,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		using AbtSearch = UGSAv3_Abt<D, L+1, Bound, StatsManager>;
 		
 		using Domain = typename D::template Domain<L>;
-		using BaseDomain = typename D::template Domain<0>;
 		using Cost = typename Domain::Cost;
 		using Operator = typename Domain::Operator;
 		using OperatorSet = typename Domain::OperatorSet;
@@ -101,10 +100,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 
-		UGSAv3_Abt(D& pDomStack, UGSABehaviour<BaseDomain>& pBehaviour, StatsManager& pStats) :
+		UGSAv3_Abt(D& pDomStack, UGSABehaviour<Bound>& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
-			//mAbtSearch			(pDomStack, mBehaviour, pStats),
+			mAbtSearch			(pDomStack, pBehaviour, pStats),
 			mAbtor				(pDomStack),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
@@ -117,16 +116,17 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		void reset() {
 			mStatsAcc.reset();
-			//mAbtSearch.reset();
+			mAbtSearch.reset();
 		}
 		
 		void clearCache() {
 			mCache.clear();
+			mAbtSearch.clearCache();
 		}
 		
 		void submitStats() {
 			mStatsAcc.submit();
-			//mAbtSearch.submitStats();
+			mAbtSearch.submitStats();
 		}
 		
 		/*
@@ -168,7 +168,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				
 				if(miss) {
 					ent->exact = false;
-					ent->uh = 0;
+					ent->uh = mAbtSearch.doSearch(s0);
 					mStatsAcc.s_cacheMiss();
 					mStatsAcc.l_cacheAdd();
 				}
@@ -248,7 +248,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				ent->exact = true;
 			}
 			
-			mBehaviour.informAbtPath(goalNode->g, goalNode->depth);
+			mBehaviour.informPath(L, goalNode->g, goalNode->depth);
 			
 			mStatsAcc.s_openListSize(mOpenList.size());
 			mStatsAcc.s_closedListSize(mClosedList.getFill());
@@ -333,9 +333,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 				
 				if(miss) {
 					ent->exact = false;
-					//AbtSearchResult<Cost> res = mAbtSearch.doSearch(edge.state());
-					
-					ent->uh = 0;
+					ent->uh = mAbtSearch.doSearch(edge.state());
 					mStatsAcc.l_cacheAdd();
 				}
 				
@@ -360,10 +358,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 		
 
-		UGSABehaviour<BaseDomain>& mBehaviour;
+		UGSABehaviour<Bound>& mBehaviour;
 
 		StatsAcc				mStatsAcc;
-		//AbtSearch				mAbtSearch;
+		AbtSearch				mAbtSearch;
 		BaseAbstractor			mAbtor;
 		const Domain			mDomain;
 		
@@ -379,10 +377,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	template<typename D, unsigned Bound, typename StatsManager>
 	struct UGSAv3_Abt<D, Bound, Bound, StatsManager> {
 		
-		UGSAv3_Abt(D& pDomStack, UGSABehaviour<typename D::template Domain<0>::Cost>& pBehaviour, StatsManager& pStats) {}
+		UGSAv3_Abt(D& pDomStack, UGSABehaviour<Bound>& pBehaviour, StatsManager& pStats) {}
 		
 		Util_t doSearch(typename D::template Domain<Bound-1>::State const&) {return 0;}
 		void reset() {}
+		void clearCache() {}
 		void submitStats() {}
 	};
 	

@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <iostream>
 #include <vector>
+#include <array>
 #include <cmath>
+#include <string>
 #include "search/closedlist.hpp"
 #include "search/nodepool.hpp"
 #include "util/exception.hpp"
@@ -172,47 +174,65 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	};
 	
 	
-	template<typename = void>
+	template<unsigned Bound>
 	struct AbtEdgeCorrection {
 		
-		void informAbtPath(flt_t pAcost, flt_t pAdist) {
-			mXAcc += pAdist / pAcost;
-			mNsamplesAbt++;
+		void informPath(unsigned pLvl, flt_t pCost, flt_t pDist) {			
+			if(pLvl == 0)
+				mPathRatiosAcc[0] += pDist / pCost;
+			
+			else
+				mPathRatiosAcc[pLvl] += pCost / pDist;
+
+			mSampleCount[pLvl] += 1;
 		}
 		
-		void informBasePath(flt_t pBcost, flt_t pBdist) {
-			mYAcc += pBcost / pBdist;
-			mNsamplesBase++;
-		}
-		
-		flt_t getAbtDistCorrection() {
-			return (mXAcc / mNsamplesAbt) * (mYAcc / mNsamplesBase);
+		flt_t getDistCorrection(unsigned pLvl) {
+			slow_assert(pLvl > 0);
+			flt_t f = (mPathRatiosAcc[0] / mSampleCount[0]) * (mPathRatiosAcc[pLvl] / mSampleCount[pLvl]);
+			return f;
 		}
 		
 		void reset() {
-			mXAcc = mYAcc = 1;
-			mNsamplesAbt = mNsamplesBase = 1;
+			mPathRatiosAcc.fill(1);
+			mSampleCount.fill(1);
 		}
 		
 		Json report() {
-			Json j;
-			j["Abt cost/dist"] = 1.0 / (mXAcc / mNsamplesAbt);
-			j["Base cost/dist"] = mYAcc / mNsamplesBase;
-			j["Abt samples"] = mNsamplesAbt;
-			j["Base samples"] = mNsamplesBase;
-			j["abt dist correction"] = getAbtDistCorrection();
-			return j;
+			Json jReport, jCostDist, jCorrection, jSamples;
 			
+			for(unsigned i=0; i<Bound; i++) {
+				flt_t r = mPathRatiosAcc[0] / mSampleCount[0];
+				
+				if(i == 0)
+					r = 1.0/r;
+				
+				std::string key = std::to_string(i);
+				
+				jCostDist[key] = r;
+				jCorrection[key] = getDistCorrection(i);
+				jSamples[key] = mSampleCount[i];
+			}
+			
+			jReport["cost/dist"] = jCostDist;
+			jReport["dist correction"] = jCorrection;
+			jReport["samples"] = jSamples;
+			
+			return jReport;
 		}
 		
+		AbtEdgeCorrection() {
+			//reset();
+		}
+
 		private:
-		flt_t mXAcc, mYAcc;
-		unsigned mNsamplesAbt, mNsamplesBase;
-	
+		std::array<flt_t, Bound> mPathRatiosAcc;
+		std::array<flt_t, Bound> mSampleCount;	
 	};
 	
-	template<typename = void>
-	struct UGSABehaviour : public AbtEdgeCorrection<>, public ComputeAvgBF<> {
+	
+	template<unsigned Bound>
+	struct UGSABehaviour : public AbtEdgeCorrection<Bound>, public ComputeAvgBF<> {
 
 		UGSABehaviour(Util_t pwf, Util_t pwt) :
 			wf(pwf), wt(pwt)
@@ -223,11 +243,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		Util_t compute_ug(unsigned pLvl, flt_t pG, unsigned pDistance) {
 			
 			return 	wf * pG + 
-					wt * pow(this->getAvgBF(), this->getAbtDistCorrection() * pDistance);
+					wt * pow(this->getAvgBF(), this->getDistCorrection(pLvl) * pDistance);
 		}
 		
 		bool shouldUpdate() {
-			return false;
 			unsigned exp = this->getTotalExpansions();
 			
 			if(exp <= 10)
@@ -242,14 +261,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		
 		
 		void reset() {
-			AbtEdgeCorrection<>::reset();
+			AbtEdgeCorrection<Bound>::reset();
 			ComputeAvgBF<>::reset();
 			mLastExpd = 0;
 			mNextExpd = 16;
 		}
 		
 		Json report() {
-			Json j = AbtEdgeCorrection<>::report();
+			Json j = AbtEdgeCorrection<Bound>::report();
 			j["avg bf"] = this->getAvgBF();
 			return j;
 			

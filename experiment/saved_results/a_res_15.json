@@ -1,0 +1,464 @@
+{
+    "Astar_base15": {
+        "(1, 0)": {
+            "0": {
+                "algo": {
+                    "Node size": 32, 
+                    "Wrapped Node Size": 48, 
+                    "closed fill": 5850619, 
+                    "closed table size": 25600000, 
+                    "dups": 494940, 
+                    "expd": 3267769, 
+                    "gend": 6345558, 
+                    "open capacity": 3200000, 
+                    "open size": 2582849, 
+                    "reopnd": 0
+                }, 
+                "cputime": 10.032, 
+                "exptime_cpu": 3.06998444504492e-06, 
+                "exptime_wall": 3.06964963833123e-06, 
+                "resources": {
+                    "cputime": 10.032, 
+                    "kernel time (s)": 0.244, 
+                    "max rss (MB)": 563.208, 
+                    "user time (s)": 9.788
+                }, 
+                "result": "good", 
+                "solution cost": 58, 
+                "solution length": 58, 
+                "utility": 58, 
+                "utility_cpu": 58, 
+                "utility_wall": 58, 
+                "walltime": 10.030905929
+            }, 
+            "1": {
+                "algo": {
+                    "Node size": 32, 
+                    "Wrapped Node Size": 48, 
+                    "closed fill": 11784639, 
+                    "closed table size": 51200000, 
+                    "dups": 1322016, 
+                    "expd": 6641986, 
+                    "gend": 13106654, 
+                    "open capacity": 6400000, 
+                    "open size": 5142652, 
+                    "reopnd": 0
+                }, 
+                "cputime": 22.852, 
+                "exptime_cpu": 3.44053721281556e-06, 
+                "exptime_wall": 3.44041416513073e-06, 
+                "resources": {
+                    "cputime": 22.852, 
+                    "kernel time (s)": 0.564, 
+                    "max rss (MB)": 1119.544, 
+                    "user time (s)": 22.288
+                }, 
+                "result": "good", 
+                "solution cost": 55, 
+                "solution length": 55, 
+                "utility": 55, 
+                "utility_cpu": 55, 
+                "utility_wall": 55, 
+                "walltime": 22.851182719
+            }, 
+            "2": {
+                "algo": {
+                    "Node size": 32, 
+                    "Wrapped Node Size": 48, 
+                    "closed fill": 2424650, 
+                    "closed table size": 12800000, 
+                    "dups": 186262, 
+                    "expd": 1325617, 
+                    "gend": 2610911, 
+                    "open capacity": 1600000, 
+                    "open size": 1099032, 
+                    "reopnd": 0
+                }, 
+                "cputime": 4.168, 
+                "exptime_cpu": 3.14419624974634e-06, 
+                "exptime_wall": 3.14526534210107e-06, 
+                "resources": {
+                    "cputime": 4.168, 
+                    "kernel time (s)": 0.12, 
+                    "max rss (MB)": 283.564, 
+                    "user time (s)": 4.048
+                }, 
+                "result": "good", 
+                "solution cost": 51, 
+                "solution length": 51, 
+                "utility": 51, 
+                "utility_cpu": 51, 
+                "utility_wall": 51, 
+                "walltime": 4.169417207
+            }, 
+            "3": {
+                "algo": {
+                    "Node size": 32, 
+                    "Wrapped Node Size": 48, 
+                    "closed fill": 17069963, 
+                    "closed table size": 102400000, 
+                    "dups": 1939009, 
+                    "expd": 9491695, 
+                    "gend": 19008971, 
+                    "open capacity": 12800000, 
+                    "open size": 7578267, 
+                    "reopnd": 0
+                }, 
+                "cputime": 35.94, 
+                "exptime_cpu": 3.7864680649768e-06, 
+                "exptime_wall": 3.7867450650279e-06, 
+                "resources": {
+                    "cputime": 35.94, 
+                    "kernel time (s)": 1.032, 
+                    "max rss (MB)": 2214.308, 
+                    "user time (s)": 34.908
+                }, 
+                "result": "good", 
+                "solution cost": 54, 
+                "solution length": 54, 
+                "utility": 54, 
+                "utility_cpu": 54, 
+                "utility_wall": 54, 
+                "walltime": 35.9426292
+            }, 
+            "4": {
+                "algo": {
+                    "Node size": 32, 
+                    "Wrapped Node Size": 48, 
+                    "closed fill": 5511392, 
+                    "closed table size": 25600000, 
+                    "dups": 483710, 
+                    "expd": 3079040, 
+                    "gend": 5995101, 
+                    "open capacity": 3200000, 
+                    "open size": 2432351, 
+                    "reopnd": 0
+                }, 
+                "cputime": 9.572, 
+                "exptime_cpu": 3.10876117231345e-06, 
+                "exptime_wall": 3.10855270733735e-06, 
+                "resources": {
+                    "cputime": 9.572, 
+                    "kernel time (s)": 0.24, 
+                    "max rss (MB)": 563.084, 
+                    "user time (s)": 9.332
+                }, 
+                "result": "good", 
+                "solution cost": 56, 
+                "solution length": 56, 
+                "utility": 56, 
+                "utility_cpu": 56, 
+                "utility_wall": 56, 
+                "walltime": 9.571358128
+            }, 
+            "5": {
+                "algo": {
+                    "Node size": 32, 
+                    "Wrapped Node Size": 48, 
+                    "closed fill": 3990900, 
+                    "closed table size": 12800000, 
+                    "dups": 365373, 
+                    "expd": 2203842, 
+                    "gend": 4356272, 
+                    "open capacity": 3200000, 
+                    "open size": 1787057, 
+                    "reopnd": 0
+                }, 
+                "cputime": 6.596, 
+                "exptime_cpu": 2.99295503035154e-06, 
+                "exptime_wall": 2.99389183843488e-06, 
+                "resources": {
+                    "cputime": 6.596, 
+                    "kernel time (s)": 0.132, 
+                    "max rss (MB)": 316.896, 
+                    "user time (s)": 6.464
+                }, 
+                "result": "good", 
+                "solution cost": 53, 
+                "solution length": 53, 
+                "utility": 53, 
+                "utility_cpu": 53, 
+                "utility_wall": 53, 
+                "walltime": 6.598064577
+            }, 
+            "6": {
+                "algo": {
+                    "Node size": 32, 
+                    "Wrapped Node Size": 48, 
+                    "closed fill": 9134289, 
+                    "closed table size": 51200000, 
+                    "dups": 913355, 
+                    "expd": 5026079, 
+                    "gend": 10047643, 
+                    "open capacity": 6400000, 
+                    "open size": 4108209, 
+                    "reopnd": 0
+                }, 
+                "cputime": 17.26, 
+                "exptime_cpu": 3.43408848129924e-06, 
+                "exptime_wall": 3.43389014120152e-06, 
+                "resources": {
+                    "cputime": 17.26, 
+                    "kernel time (s)": 0.524, 
+                    "max rss (MB)": 1120.028, 
+                    "user time (s)": 16.736
+                }, 
+                "result": "good", 
+                "solution cost": 52, 
+                "solution length": 52, 
+                "utility": 52, 
+                "utility_cpu": 52, 
+                "utility_wall": 52, 
+                "walltime": 17.259003127
+            }, 
+            "7": {
+                "result": "OOM"
+            }, 
+            "8": {
+                "algo": {
+                    "Node size": 32, 
+                    "Wrapped Node Size": 48, 
+                    "closed fill": 931504, 
+                    "closed table size": 3200000, 
+                    "dups": 77596, 
+                    "expd": 500356, 
+                    "gend": 1009099, 
+                    "open capacity": 800000, 
+                    "open size": 431147, 
+                    "reopnd": 0
+                }, 
+                "cputime": 1.344, 
+                "exptime_cpu": 2.68608750569594e-06, 
+                "exptime_wall": 2.68990191583593e-06, 
+                "resources": {
+                    "cputime": 1.344, 
+                    "kernel time (s)": 0.008, 
+                    "max rss (MB)": 78.272, 
+                    "user time (s)": 1.336
+                }, 
+                "result": "good", 
+                "solution cost": 44, 
+                "solution length": 44, 
+                "utility": 44, 
+                "utility_cpu": 44, 
+                "utility_wall": 44, 
+                "walltime": 1.345908563
+            }, 
+            "9": {
+                "result": "OOM"
+            }
+        }
+    }, 
+    "HAstar_abt15": {
+        "(1, 0)": {
+            "0": {
+                "result": "OOM"
+            }, 
+            "1": {
+                "result": "OOM"
+            }, 
+            "2": {
+                "result": "OOM"
+            }, 
+            "3": {
+                "result": "OOM"
+            }, 
+            "4": {
+                "result": "OOM"
+            }, 
+            "5": {
+                "algo": {
+                    "Level 1": {
+                        "nExactCached": 1941306, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 6522953, 
+                        "total expd": 20286718
+                    }, 
+                    "Level 2": {
+                        "nExactCached": 1331820, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 2646966, 
+                        "total expd": 14505356
+                    }, 
+                    "Level 3": {
+                        "nExactCached": 324226, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 477434, 
+                        "total expd": 4640856
+                    }, 
+                    "Level 4": {
+                        "nExactCached": 42248, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 43596, 
+                        "total expd": 548996
+                    }, 
+                    "Level 5": {
+                        "nExactCached": 3360, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 3360, 
+                        "total expd": 35471
+                    }, 
+                    "Level 6": {
+                        "nExactCached": 240, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 240, 
+                        "total expd": 1804
+                    }, 
+                    "Level 7": {
+                        "nExactCached": 16, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 16, 
+                        "total expd": 59
+                    }, 
+                    "expd": 52627381, 
+                    "level 0": {
+                        "Node size": 32, 
+                        "Wrapped Node Size": 48, 
+                        "closed fill": 24163481, 
+                        "closed table size": 102400000, 
+                        "dups": 3726651, 
+                        "expd": 12608121, 
+                        "gend": 27890131, 
+                        "open capacity": 12800000, 
+                        "open size": 11560746, 
+                        "reopnd": 5387
+                    }
+                }, 
+                "cputime": 88.952, 
+                "exptime_cpu": 1.69022281386186e-06, 
+                "exptime_wall": 1.68225931653335e-06, 
+                "resources": {
+                    "cputime": 88.952, 
+                    "kernel time (s)": 1.788, 
+                    "max rss (MB)": 3349.324, 
+                    "user time (s)": 87.164
+                }, 
+                "result": "good", 
+                "solution cost": 53, 
+                "solution length": 53, 
+                "utility": 53, 
+                "utility_cpu": 53, 
+                "utility_wall": 53, 
+                "walltime": 88.532901992
+            }, 
+            "6": {
+                "result": "OOM"
+            }, 
+            "7": {
+                "result": "OOM"
+            }, 
+            "8": {
+                "algo": {
+                    "Level 1": {
+                        "nExactCached": 228874, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 700986, 
+                        "total expd": 1440522
+                    }, 
+                    "Level 2": {
+                        "nExactCached": 334428, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 971873, 
+                        "total expd": 3953008
+                    }, 
+                    "Level 3": {
+                        "nExactCached": 159759, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 314944, 
+                        "total expd": 2257818
+                    }, 
+                    "Level 4": {
+                        "nExactCached": 33448, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 42096, 
+                        "total expd": 468648
+                    }, 
+                    "Level 5": {
+                        "nExactCached": 3347, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 3360, 
+                        "total expd": 33505
+                    }, 
+                    "Level 6": {
+                        "nExactCached": 240, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 240, 
+                        "total expd": 2256
+                    }, 
+                    "Level 7": {
+                        "nExactCached": 16, 
+                        "nLocalSearches": 0, 
+                        "nTotalCached": 16, 
+                        "total expd": 30
+                    }, 
+                    "expd": 10332326, 
+                    "level 0": {
+                        "Node size": 32, 
+                        "Wrapped Node Size": 48, 
+                        "closed fill": 4244077, 
+                        "closed table size": 12800000, 
+                        "dups": 551277, 
+                        "expd": 2176539, 
+                        "gend": 4795353, 
+                        "open capacity": 3200000, 
+                        "open size": 2069272, 
+                        "reopnd": 1735
+                    }
+                }, 
+                "cputime": 13.216, 
+                "exptime_cpu": 1.27909243281716e-06, 
+                "exptime_wall": 1.23836511314103e-06, 
+                "resources": {
+                    "cputime": 13.216, 
+                    "kernel time (s)": 0.584, 
+                    "max rss (MB)": 1372.408, 
+                    "user time (s)": 12.632
+                }, 
+                "result": "good", 
+                "solution cost": 44, 
+                "solution length": 44, 
+                "utility": 44, 
+                "utility_cpu": 44, 
+                "utility_wall": 44, 
+                "walltime": 12.795192056
+            }, 
+            "9": {
+                "result": "OOM"
+            }
+        }
+    }, 
+    "UGSAv3_abt15": {
+        "(1, 0)": {
+            "0": {
+                "result": "OOT"
+            }, 
+            "1": {
+                "result": "OOT"
+            }, 
+            "2": {
+                "result": "OOT"
+            }, 
+            "3": {
+                "result": "OOT"
+            }, 
+            "4": {
+                "result": "OOT"
+            }, 
+            "5": {
+                "result": "OOT"
+            }, 
+            "6": {
+                "result": "OOT"
+            }, 
+            "7": {
+                "result": "OOT"
+            }, 
+            "8": {
+                "result": "OOT"
+            }, 
+            "9": {
+                "result": "OOT"
+            }
+        }
+    }
+}

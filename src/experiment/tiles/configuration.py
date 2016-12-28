@@ -13,14 +13,14 @@ import gen_problems
 
 RES_CACHE_DIR = "./rescache/"
 
-WORKER_MEM = 3000
-TIME_LIMIT = 30
+WORKER_MEM = 7000
+TIME_LIMIT = 600
 
 def setNWorkers():
 	global N_WORKERS
 	meminfo = dict((i.split()[0].rstrip(':'),int(i.split()[1])) for i in open('/proc/meminfo').readlines())
 	mem_mib = meminfo['MemTotal'] / 1024
-	N_WORKERS = 1 + mem_mib / WORKER_MEM
+	N_WORKERS = max(1, mem_mib / WORKER_MEM)
 
 setNWorkers()
 
@@ -41,73 +41,90 @@ def makeAlgDomName(alg, dom):
 
 
 
-def execWorker(algdomQueue, resDict, lck, probfile, doDump):
+def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
+	logFileObj = open(RES_CACHE_DIR + str(os.getpid()) + ".out", "w")
+	sys.stdout = logFileObj
+	sys.stderr = logFileObj
+	
+	
 	with open(probfile) as f:
 		probset = json.load(f)
 
 	while True:
-		ad = algdomQueue.get()
-		if ad is None:
+		adp = algdomprobQueue.get()
+		if adp is None:
+			print "Finished"
 			break
 		
-		for (wf, wt) in ad["weights"]:
-
+		for (wf, wt) in adp["weights"]:
 
 			probsetitems = probset.iteritems()
-				
-			for (k,pr) in probsetitems:
-				
-				execParams = {}
-				execParams["name"] = ad["name"]
-				
-				execParams["domain conf"] = pr
-				execParams["algorithm conf"] = {"wf" : wf, "wt" : wt}
-				
-				execParams["wf"] = wf
-				execParams["wt"] = wt
-				
-				execParams["time limit"] = TIME_LIMIT
-				execParams["memory limit"] = WORKER_MEM
+			
+			probkey = adp["probkey"]
+			probdesc = probset[probkey]
+			
 
-				if doDump:
-					res = execParams
-				
-				else:
-					proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-				
-					searcherOut = proc.communicate(input=bytearray(json.dumps(execParams)))[0]
+			execParams = {}
+			execParams["name"] = adp["name"]
+			
+			execParams["domain conf"] = probdesc
+			execParams["algorithm conf"] = {"wf" : wf, "wt" : wt}
+			
+			execParams["wf"] = wf
+			execParams["wt"] = wt
+			
+			execParams["time limit"] = TIME_LIMIT
+			execParams["memory limit"] = WORKER_MEM
 
-					try:
-						res = json.loads(searcherOut)
-					except ValueError as e:
-						print searcherOut
-						print e
-						raise e
+			if doDump:
+				res = execParams
+			
+			else:
+				print "starting", adp["name"], {"wf" : wf, "wt" : wt}, probfile, k
+				logFileObj.flush()
 				
-				lck.acquire()
-				
+				proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+			
+				searcherOut = proc.communicate(input=bytearray(json.dumps(execParams)))[0]
+
 				try:
-					if ad["name"] not in resDict:
-						resDict[ad["name"]] = {}
-					
-					forName = resDict[ad["name"]]
-
-					if str((wf, wt)) not in forName:
-						forName[str((wf, wt))] = {}
-					
-					forName[str((wf, wt))][k] = res
-					
-					resDict[ad["name"]] = forName
-				
-				except Exception as e:
-					print ad["name"] + "_" + str((wf, wt)).replace(" ", "_") + "_" + k
-					print e.__class__.__name__
+					res = json.loads(searcherOut)
+				except ValueError as e:
+					print searcherOut
 					print e
+					logFileObj.flush()
+					raise e
+			
+			lck.acquire()
+			
+			try:
+				print "Writing", adp["name"], {"wf" : wf, "wt" : wt}, probfile, k
+				logFileObj.flush()
 				
-				lck.release()
+				if adp["name"] not in resDict:
+					resDict[adp["name"]] = {}
 				
-				with open(RES_CACHE_DIR + ad["name"] + "_" + str((wf, wt)).replace(" ", "_") + "_" + k + ".json", "w") as f:
-					json.dump(res, f, indent=4, sort_keys=True)
+				forName = resDict[adp["name"]]
+
+				if str((wf, wt)) not in forName:
+					forName[str((wf, wt))] = {}
+				
+				forName[str((wf, wt))][probkey] = res
+				
+				resDict[adp["name"]] = forName
+				print "Wrote", adp["name"], {"wf" : wf, "wt" : wt}, probfile, k
+				logFileObj.flush()
+				
+			except Exception as e:
+				print adp["name"] + "_" + str((wf, wt)).replace(" ", "_") + "_" + k
+				print e.__class__.__name__
+				print e
+				logFileObj.flush()
+			
+			lck.release()
+			
+			with open(RES_CACHE_DIR + adp["name"] + "_" + str((wf, wt)).replace(" ", "_") + "_" + probkey + ".json", "w") as f:
+				json.dump(res, f, indent=4, sort_keys=True)
 
 
 
@@ -153,11 +170,10 @@ if __name__ == "__main__":
 	elif sys.argv[1] == "exec":
 		print "Searching with", N_WORKERS, "workers on", multiprocessing.cpu_count(), "processors."
 		
-		if not os.path.exists(RES_CACHE_DIR):
-			os.makedirs(RES_CACHE_DIR)
-		
-		rmProc = subprocess.Popen(["rm", "-rf", RES_CACHE_DIR+"*"])
+		rmProc = subprocess.Popen(["rm", "-rf", RES_CACHE_DIR])
 		rmProc.wait()
+
+		os.makedirs(RES_CACHE_DIR)
 		
 		
 		inprobfile = sys.argv[2]
@@ -173,22 +189,31 @@ if __name__ == "__main__":
 		
 		assert(inprobcls is not None)
 		
+		
+		with open(inprobfile) as f:
+			probset = json.load(f)
 
-		algdoms = [ { 	"alg" : a["class"], 
+		algdomsprobs = [ { 	
+						"alg" : a["class"], 
 						"dom" : d["class"], 
 						"name" : makeAlgDomName(a,d), 
-						"weights": a["weights"] } 
-						for a in ALGS for d in DOMS 
+						"weights": a["weights"],
+						"probkey": k
+						} 
+						for a in ALGS for d in DOMS for k in probset.iterkeys()
 						if a["abt"] == d["abt"] and d["probcls"] == inprobcls ]
 		
-		print "Executing problems for", len(algdoms), "alg/doms"
+		print "Executing problems for", len(algdomsprobs), "alg/doms/probs"
+		
+		
+
 		
 		manager = multiprocessing.Manager()
 		resultsDict = manager.dict()
 		taskQueue = manager.Queue()
 		dictLock = manager.Lock()
 		
-		for i in algdoms:
+		for i in algdomsprobs:
 			taskQueue.put(i)
 		
 		for i in range(N_WORKERS):

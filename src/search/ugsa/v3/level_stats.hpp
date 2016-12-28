@@ -108,8 +108,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			void submit() {
 				Json j;
 				j["expd"] = accPrettyStr(mAccExpd);
-				j["open sz"] = accPrettyStr(mAccOpen);
-				j["closed sz"] = accPrettyStr(mAccClosed);
+				if(L!=0) {
+					j["open sz"] = accPrettyStr(mAccOpen);
+					j["closed sz"] = accPrettyStr(mAccClosed);
+				}
 				j["Cache improved"] = accPrettyStr(mAccCacheImprove);
 				j["Cache added"] = accPrettyStr(mAccCacheAdd);
 				j["Cache made exact"] = accPrettyStr(mAccCacheMadeExact);

@@ -51,21 +51,22 @@ namespace mjon661 {
 		Permutation(base_t const& o)
 			: base_t(o)
 		{
-			testCond(valid(), "Input not a permutation");
+			slow_assert(testCond(valid(), "Input not a permutation"));
 		}
 		
 		template<typename InputIt>
 		void setValues(InputIt first, InputIt last) {
 			for(int i=0; i<Sz; i++) {
-				testCond(first != last, std::string("Input too short : ") + std::to_string(i) + " : " + std::to_string(N) + " : " + std::to_string(Sz));
+				slow_assert(testCond(first != last, 
+					std::string("Input too short : ") + std::to_string(i) + " : " + std::to_string(N) + " : " + std::to_string(Sz)));
 				
 				(*this)[i] = *first;
 				
 				++first;
 			}
 			
-			testCond(first == last, "Input too long");
-			testCond(valid(), "Input not a permutation");
+			slow_assert(testCond(first == last, "Input too long"));
+			slow_assert(testCond(valid(), "Input not a permutation"));
 		}
 
 
@@ -131,9 +132,10 @@ namespace mjon661 {
 		
 		private:
 		
-		void testCond(bool b, std::string const& pStr) const {
+		bool testCond(bool b, std::string const& pStr) const {
 			if(!b)
 				throw std::invalid_argument(pStr);
+			return b;
 		}
 		
 	};

@@ -34,14 +34,14 @@ namespace mjon661 { namespace tiles {
 			base_t(o)
 		{
 			initBlankPos();
-			fast_assert(base_t::valid());
+			slow_assert(base_t::valid());
 		}
 		
 		BoardStateV(std::vector<tile_t> const& pVec) :
 			base_t(pVec.begin(), pVec.end())
 		{
 			initBlankPos();
-			fast_assert(base_t::valid());
+			slow_assert(base_t::valid());
 		}
 		
 		packed_t getPacked() const {

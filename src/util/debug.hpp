@@ -19,26 +19,31 @@
 
 #ifndef DEBUGLEVEL
 #define DEBUGLEVEL DEBUGFAST
-#pragma message "DEFAULT DEBUGLEVEL= " #DEBUGLEVEL " USED"
 #endif
 
+#if DEBUGLEVEL==0
+#pragma message "no asserts"
+#endif
 
 #if DEBUGLEVEL>=DEBUGFAST
 #define fast_assert(cond,...) (cond) ? ((void)0) : ::mjon661::debugimpl::assertfailimpl(__FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__)
+#pragma message "fast_assert"
 #else
-#define fast_assert(cond,...) ((void)(cond))
+#define fast_assert(cond,...)  while(false) { (void)(cond); }
 #endif
 
 #if DEBUGLEVEL>=DEBUGSLOW
 #define slow_assert(cond,...) (cond) ? ((void)0) : ::mjon661::debugimpl::assertfailimpl(__FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__)
+#pragma message "slow_assert"
 #else
-#define slow_assert(cond,...) ((void)(cond))
+#define slow_assert(cond,...) while(false) { (void)(cond); }
 #endif
 
 #if DEBUGLEVEL>=DEBUGGLACIAL
 #define glacial_assert(cond,...) (cond) ? ((void)0) : ::mjon661::debugimpl::assertfailimpl(__FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__)
+#pragma message "glacial_assert"
 #else
-#define glacial_assert(cond,...) ((void)(cond))
+#define glacial_assert(cond,...) while(false) { (void)(cond); }
 #endif
 
 #define gen_assert(cond,...) (cond) ? ((void)0) : ::mjon661::debugimpl::assertfailimpl(__FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__)

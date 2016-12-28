@@ -12,7 +12,17 @@ import gen_problems
 
 
 RES_CACHE_DIR = "./rescache/"
-N_WORKERS = 7#int(multiprocessing.cpu_count() * 1.5)
+
+WORKER_MEM = 3000
+TIME_LIMIT = 30
+
+def setNWorkers():
+	global N_WORKERS
+	meminfo = dict((i.split()[0].rstrip(':'),int(i.split()[1])) for i in open('/proc/meminfo').readlines())
+	mem_mib = meminfo['MemTotal'] / 1024
+	N_WORKERS = 1 + mem_mib / WORKER_MEM
+
+setNWorkers()
 
 def _bstr(b):
 	return "true" if b else "false"
@@ -56,8 +66,8 @@ def execWorker(algdomQueue, resDict, lck, probfile, doDump):
 				execParams["wf"] = wf
 				execParams["wt"] = wt
 				
-				execParams["time limit"] = 25
-				execParams["memory limit"] = 2100
+				execParams["time limit"] = TIME_LIMIT
+				execParams["memory limit"] = WORKER_MEM
 
 				if doDump:
 					res = execParams
@@ -76,18 +86,23 @@ def execWorker(algdomQueue, resDict, lck, probfile, doDump):
 				
 				lck.acquire()
 				
-				
-				if ad["name"] not in resDict:
-					resDict[ad["name"]] = {}
-				
-				forName = resDict[ad["name"]]
+				try:
+					if ad["name"] not in resDict:
+						resDict[ad["name"]] = {}
+					
+					forName = resDict[ad["name"]]
 
-				if str((wf, wt)) not in forName:
-					forName[str((wf, wt))] = {}
+					if str((wf, wt)) not in forName:
+						forName[str((wf, wt))] = {}
+					
+					forName[str((wf, wt))][k] = res
+					
+					resDict[ad["name"]] = forName
 				
-				forName[str((wf, wt))][k] = res
-				
-				resDict[ad["name"]] = forName
+				except Exception as e:
+					print ad["name"] + "_" + str((wf, wt)).replace(" ", "_") + "_" + k
+					print e.__class__.__name__
+					print e
 				
 				lck.release()
 				
@@ -120,7 +135,7 @@ DOMS = [
 
 PROBFILES = {
 		8 : (3,3,10,"probs_8.json"),
-		16 : (4,4,10,"probs_15.json")
+		15 : (4,4,10,"probs_15.json")
 			}
 
 
@@ -165,6 +180,8 @@ if __name__ == "__main__":
 						"weights": a["weights"] } 
 						for a in ALGS for d in DOMS 
 						if a["abt"] == d["abt"] and d["probcls"] == inprobcls ]
+		
+		print "Executing problems for", len(algdoms), "alg/doms"
 		
 		manager = multiprocessing.Manager()
 		resultsDict = manager.dict()

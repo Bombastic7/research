@@ -174,16 +174,8 @@ void run_prob_from_set(mjon661::Json const& jExecDescSet, std::string const& key
 
 	codeStr += """
 int main(int argc, const char* argv[]) {
-
-	if(argc == 1) {
-		std::cout << "Usage:\\n";
-		std::cout << "-s 		| Get input from stdin\\n";
-		std::cout << "<exec>	| for file input\\n";
-		std::cout << "<probs> <probkey> <name> [<time>] [<mem>]\\n";
-		return 2;
-	}
 	
-	if(argc >= 2) {
+	if(argc == 2) {
 		if(std::string(argv[1]) == "-s") {
 			mjon661::Json j;
 			std::cin >> j;
@@ -203,30 +195,35 @@ int main(int argc, const char* argv[]) {
 		
 			if(argc == 2)
 				mjon661::selectAll(j);
-		
-			else if(argc >= 4) {
-				mjon661::Json execdesc, algconf;
-				
-				algconf["wt"] = 0;
-				algconf["wf"] = 1;
-				
-				execdesc["domain conf"] = j[argv[2]];
-				execdesc["algorithm conf"] = algconf;
-				execdesc["name"] = argv[3];
-				execdesc["wt"] = 0;
-				execdesc["wf"] = 1;
-				
-				if(argc >= 5)
-					execdesc["time limit"] = strtod(argv[4], nullptr);
-				if(argc >= 6)
-					execdesc["memory limit"] = strtod(argv[5], nullptr);
-				
-				mjon661::selectAll(execdesc);
-			}
 		}
-		
 	}
-
+	else if(argc >= 3) {
+		std::ifstream ifs(argv[1]);
+		
+			if(!ifs) {
+				std::cout << "Could not open problem file\\n";
+				return 2;
+			}
+		
+			mjon661::Json jInput, jExec;
+		
+			ifs >> jInput;
+			
+			jExec = jInput;
+			
+			for(int i=2; i<argc; i++) {
+				jExec = jExec.at(argv[i]);
+			}
+			
+			mjon661::selectAll(jExec);
+	}
+	else {
+		std::cout << "Usage:\\n";
+		std::cout << "-s                     | Get input from stdin\\n";
+		std::cout << "<exec>                 | for file input\\n";
+		std::cout << "<execset> <key>[...]   |\\n";
+		return 2;
+	}
 }
 """
 

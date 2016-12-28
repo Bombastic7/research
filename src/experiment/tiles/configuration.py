@@ -138,21 +138,24 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 ALGS = [
 		#{"name" : "Astar", "class" : "algorithm::Astar", "abt" : False, "weights" : [(1,0)]},
 		{"name" : "HAstar", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "abt" : True, "weights" : [(1,0)]},
-		{"name" : "UGSAv3", "class" : "algorithm::ugsav3::UGSAv3_StatsLevel", "abt" : True, "weights" : [(1,0)]},
+		{"name" : "UGSAv3", "class" : "algorithm::ugsav3::UGSAv3_StatsLevel", "abt" : True, "weights" : [(1,0),(1,1),(10,1),(1,10)]},
 		]
 
 
 
 DOMS = [
-		{"name" : "base8", "class" : tiles_stack(3,3,False,True,0), "abt": False, "probcls" : 8},
+		#{"name" : "base8", "class" : tiles_stack(3,3,False,True,0), "abt": False, "probcls" : 8},
 		{"name" : "abt8", "class" : tiles_stack(3,3,False,False,5), "abt": True, "probcls" : 8},
-		{"name" : "base15", "class" : tiles_stack(4,4,False,True,0), "abt": False, "probcls" : 15},
-		{"name" : "abt15", "class" : tiles_stack(4,4,False,False,7), "abt": True, "probcls" : 15}
+		#{"name" : "base15", "class" : tiles_stack(4,4,False,True,0), "abt": False, "probcls" : 15},
+		{"name" : "abt15", "class" : tiles_stack(4,4,False,False,7), "abt": True, "probcls" : 15},
+		
+		{"name" : "abt8w", "class" : tiles_stack(3,3,True,False,5), "abt": True, "probcls" : 8},
+		{"name" : "abt15w", "class" : tiles_stack(4,4,True,False,7), "abt": True, "probcls" : 15}
 		]
 
 PROBFILES = {
-		8 : (3,3,10,"probs_8.json"),
-		15 : (4,4,10,"probs_15.json")
+		8 : (3,3,3,"probs_8.json"),
+		15 : (4,4,3,"probs_15.json")
 			}
 
 

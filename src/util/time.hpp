@@ -21,4 +21,6 @@ namespace mjon661 {
 		Clock::time_point mStartTime, mEndTime;
 		StdChronoDuration mStdChronoDuration;
 	};
+	
+
 }

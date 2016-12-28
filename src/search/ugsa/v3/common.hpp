@@ -20,15 +20,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	using flt_t = float;
 
 
-	template<typename Cost>
-	struct AbtSearchResult {
-		Util_t ug;
-		Cost g;
-		unsigned depth;
-		bool hasPathInfo;
-	};
-
-
 
 
 	template<typename Domain, typename CacheEntry>
@@ -115,6 +106,60 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 
 
 
+	template<typename = void>
+	struct ComputeExpansionTime {
+		void informNodeExpansion() {
+			if(!mRunning) {
+				mTimer.start();
+				mRunning = true;
+			}
+			
+			mExpThisPhase++;
+			
+			if(mExpThisPhase >= mNextCalc) {
+				mTimer.stop();
+				mTimer.start();
+				mExpTime = mTimer.seconds() / mExpThisPhase;
+				mNextCalc *= 2;
+				mExpThisPhase = 0;
+				mNphases++;
+			}
+		}
+		
+		flt_t getExpansionTime() {
+			return mExpTime;
+		}
+		
+		void reset() {
+			mExpThisPhase = mNphases = 0;
+			mExpTime = 0;
+			mNextCalc = 16;
+			mTimer.stop();
+			mRunning = false;
+		}
+		
+		Json report() {
+			Json j;
+			j["phase count"] = mNphases;
+			j["expd this phase"] = mExpThisPhase;
+			j["exp time"] = mExpTime;
+			j["next calc"] = mNextCalc;
+			return j;
+		}
+		
+		ComputeExpansionTime() {
+			//reset();
+		}
+		
+		
+		private:
+		unsigned mExpThisPhase, mNextCalc, mNphases;
+		flt_t mExpTime;
+		Timer mTimer;
+		bool mRunning;
+	};
+
+
 	
 	template<typename = void>
 	struct ComputeAvgBF {
@@ -183,7 +228,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 					return;
 				mPathRatiosAcc[0] += pDist / pCost;
 			}
-			else
+			else {
 				if(pDist == 0)
 					return;
 				mPathRatiosAcc[pLvl] += pCost / pDist;
@@ -195,7 +240,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		flt_t getDistCorrection(unsigned pLvl) {
 			slow_assert(pLvl > 0);
 			flt_t f = (mPathRatiosAcc[0] / mSampleCount[0]) * (mPathRatiosAcc[pLvl] / mSampleCount[pLvl]);
-			slow_assert(isfinite(f) && f > 0);
+			slow_assert(std::isfinite(f) && f > 0);
 			return f;
 		}
 		
@@ -238,7 +283,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	
 	
 	template<unsigned Bound>
-	struct UGSABehaviour : public AbtEdgeCorrection<Bound>, public ComputeAvgBF<> {
+	struct UGSABehaviour : public AbtEdgeCorrection<Bound>, public ComputeAvgBF<>, public ComputeExpansionTime<> {
 
 		UGSABehaviour(Util_t pwf, Util_t pwt) :
 			wf(pwf), wt(pwt)
@@ -249,7 +294,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		Util_t compute_ug(unsigned pLvl, flt_t pG, unsigned pDistance) {
 			
 			return 	wf * pG + 
-					wt * pow(this->getAvgBF(), this->getDistCorrection(pLvl) * pDistance);
+					wt * pow(this->getAvgBF(), this->getDistCorrection(pLvl) * pDistance) * this->getExpansionTime();
 		}
 		
 		bool shouldUpdate() {
@@ -265,10 +310,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			return false;
 		}
 		
+		void informNodeExpansion(unsigned pDepth) {
+			ComputeAvgBF<>::informNodeExpansion(pDepth);
+			ComputeExpansionTime<>::informNodeExpansion();
+		}
+		
 		
 		void reset() {
 			AbtEdgeCorrection<Bound>::reset();
 			ComputeAvgBF<>::reset();
+			ComputeExpansionTime<>::reset();
 			mLastExpd = 0;
 			mNextExpd = 16;
 		}
@@ -276,6 +327,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		Json report() {
 			Json j = AbtEdgeCorrection<Bound>::report();
 			j["avg bf"] = this->getAvgBF();
+			j["exp time"] = ComputeExpansionTime<>::report();
 			return j;
 			
 		}

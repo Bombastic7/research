@@ -6,7 +6,7 @@ import configuration as conf
 
 
 
-def searcher_code(algdom):
+def searcher_code(algdom, headers):
 	
 	codeStr = ""
 	
@@ -32,26 +32,17 @@ def searcher_code(algdom):
 #include "util/debug.hpp"
 #include "util/json.hpp"
 #include "util/time.hpp"
-
-
-#include "domain/tiles/fwd.hpp"
-#include "domain/pancake/fwd.hpp"
-#include "domain/gridnav/fwd.hpp"
-
-#include "search/astar.hpp"
-//#include "search/idastar.hpp"
-//#include "search/bugsy.hpp"
-//#include "search/hastar/generic/hastar.hpp"
-#include "search/hastar/v2/hastar.hpp"
-//#include "search/ugsa/v1/ugsa_v1.hpp"
-//#include "search/ugsa/v2/ugsa_v2.hpp"
-//#include "search/ugsa/v2_bf/ugsa_v2.hpp"
-#include "search/ugsa/v3/ugsa_v3.hpp"
-
 """
+
+	for i in headers:
+		codeStr += """
+#include "{0}\"""".format(i)
+
 
 
 	codeStr += """
+
+
 namespace mjon661 {	
 	template<typename D, template<typename> typename Alg>
 	void execRoutine(Json const& jExecDesc) {
@@ -236,10 +227,12 @@ int main(int argc, const char* argv[]) {
 
 def genSearcher():
 	
-	algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : conf.makeAlgDomName(a,d) } for a in conf.ALGS for d in conf.DOMS if a["abt"] == d["abt"] ]
+	algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : conf.makeAlgDomName(a,d), "headers" : [d["header"], a["header"]] } for a in conf.ALGS for d in conf.DOMS if a["abt"] == d["abt"] ]
+	headers = list(set([j for s in [ i["headers"] for i in algdoms] for j in s]))
+	
 	
 	with open(os.path.dirname(os.path.abspath(__file__)) + "/searcher_auto.cc", "w") as f:
-			f.write(searcher_code(algdoms))
+			f.write(searcher_code(algdoms, headers))
 	
 
 if __name__ == "__main__":

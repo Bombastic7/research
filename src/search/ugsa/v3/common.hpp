@@ -12,7 +12,8 @@
 #include "util/json.hpp"
 #include "util/debug.hpp"
 #include "util/time.hpp"	
-	
+#include "structs/fast_vector.hpp"
+
 
 namespace mjon661 { namespace algorithm { namespace ugsav3 {	
 
@@ -109,33 +110,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	template<typename = void>
 	struct ComputeExpansionTime {
 		void informNodeExpansion() {
-			if(!mRunning) {
-				mTimer.start();
-				mRunning = true;
-			}
-			
 			mExpThisPhase++;
-			
-			if(mExpThisPhase >= mNextCalc) {
-				mTimer.stop();
-				mTimer.start();
-				mExpTime = mTimer.seconds() / mExpThisPhase;
-				mNextCalc *= 2;
-				mExpThisPhase = 0;
-				mNphases++;
-			}
+			if(mExpThisPhase >= mNextCalc)
+				update();
 		}
 		
 		flt_t getExpansionTime() {
 			return mExpTime;
-		}
-		
-		void reset() {
-			mExpThisPhase = mNphases = 0;
-			mExpTime = 0;
-			mNextCalc = 16;
-			mTimer.stop();
-			mRunning = false;
 		}
 		
 		Json report() {
@@ -147,16 +128,41 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 			return j;
 		}
 		
-		ComputeExpansionTime() {
+		void update() {
+			mTimer.stop();
+			mTimer.start();
+			mExpTime = mTimer.seconds() / mExpThisPhase;
+			mExpThisPhase = 0;
+			mNphases++;
+			mNextCalc *= mUpdateFactor;
+		}
+		
+		protected:
+		
+		void start() {
+			mTimer.start();
+		}
+		
+		void reset() {
+			mExpThisPhase = mNphases = 0;
+			mExpTime = 0;
+			mNextCalc = mFirstUpdate;
+			mTimer.stop();
+		}
+		
+		ComputeExpansionTime(unsigned pFirstUpdate = 16, unsigned pUpdateFactor = 4) :
+			mFirstUpdate(pFirstUpdate),
+			mUpdateFactor(pUpdateFactor)
+		{
 			//reset();
 		}
 		
 		
 		private:
-		unsigned mExpThisPhase, mNextCalc, mNphases;
+		unsigned mExpThisPhase, mNphases, mNextCalc;
 		flt_t mExpTime;
 		Timer mTimer;
-		bool mRunning;
+		const unsigned mFirstUpdate, mUpdateFactor;
 	};
 
 
@@ -164,57 +170,73 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	template<typename = void>
 	struct ComputeAvgBF {
 		
-		ComputeAvgBF() :
-			mDepthCount(100),
-			mDepthBF(100)
+		struct DepthCountData {
+			unsigned nInc, nUncached;
+			flt_t bf_cached;
+			
+			DepthCountData() :
+				nInc(0), nUncached(0), bf_cached(0)
+			{}
+		};
+		
+		static const unsigned Refresh_Factor = 10;
+		
+		ComputeAvgBF()
 		{
 			//reset();
 		}
 		
-		void informNodeExpansion(unsigned pDepth) {
+		void informNodeExpansion(unsigned pDepth, bool pForceRefresh = false) {
 			if(pDepth == 0)
 				return;
-			
-			if(pDepth >= mDepthCount.size()) {
-				mDepthCount.resize(mDepthCount.size()*2, 0);
-				mDepthBF.resize(mDepthCount.size()*2, 0);
-			}
-			
-			if(pDepth > mTopDepth) {
-				slow_assert(pDepth == mTopDepth + 1);
-				mTopDepth++;
-			}
 
-			mAvgBFAcc -= mDepthBF[pDepth];
-			mDepthBF[pDepth] = std::pow(++mDepthCount[pDepth], 1.0/pDepth);
-			mAvgBFAcc += mDepthBF[pDepth];
 			
-			mTotalExpansions++;
+			mDirty = true;
+			
+			slow_assert(pDepth <= mDepthCount.size());
+			
+			if(pDepth == mDepthCount.size())
+				mDepthCount.push_back(DepthCountData());
+			
+			DepthCountData& d = mDepthCount[pDepth];
+			
+			d.nUncached++;
+			
+			if(pForceRefresh || d.nUncached >= Refresh_Factor) {
+				mAvgBFAcc -= d.bf_cached;
+				d.nInc += d.nUncached;
+				d.nUncached = 0;
+				d.bf_cached = std::pow(d.nInc, 1.0/pDepth);
+				mAvgBFAcc += d.bf_cached;
+			}
 		}
 		
-		double getAvgBF() {
-			return mAvgBFAcc / mTopDepth;
-		}
-		
-		void reset() {
-			std::fill(mDepthCount.begin(), mDepthCount.end(), 0);
-			std::fill(mDepthBF.begin(), mDepthBF.end(), 0);
-			mDepthCount[0] = 1;
-			mAvgBFAcc = 1;
-			mTopDepth = 1;
-			mTotalExpansions = 0;
+		flt_t getAvgBF() {
+			if(mDirty) {
+				mDirty = false;
+				mAvgBF_cached = mAvgBFAcc / mDepthCount.size();
+			}
+			return mAvgBF_cached;
 		}
 		
 		unsigned getTotalExpansions() {
 			return mTotalExpansions;
 		}
+		
+		void reset() {
+			mDepthCount = std::vector<DepthCountData>(1);
+			mDepthCount[0].nInc = 1;
+			mDepthCount[0].bf_cached = 1;
+			mAvgBFAcc = mAvgBF_cached = 1;
+			mDirty = false;
+			mTotalExpansions = 1;
+		}
+
 
 		private:
-		std::vector<unsigned> mDepthCount;
-		std::vector<flt_t> mDepthBF;
-		
-		flt_t mAvgBFAcc;
-		unsigned mTopDepth;
+		std::vector<DepthCountData> mDepthCount;
+		flt_t mAvgBFAcc, mAvgBF_cached;
+		bool mDirty;
 		unsigned mTotalExpansions;
 	};
 	
@@ -222,7 +244,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 	template<unsigned Bound>
 	struct AbtEdgeCorrection {
 		
-		void informPath(unsigned pLvl, flt_t pCost, flt_t pDist) {			
+		void informPath(unsigned pLvl, flt_t pCost, flt_t pDist) {
+			
 			if(pLvl == 0) {
 				if(pCost == 0)
 					return;
@@ -298,13 +321,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav3 {
 		}
 		
 		bool shouldUpdate() {
+			//return false;//.........
 			unsigned exp = this->getTotalExpansions();
 			
 			if(exp <= 10)
 				return true;
 				
 			if(exp >= mNextExpd) {
-				mNextExpd *= 2;
+				mNextExpd *= 10;
 				return true;
 			}
 			return false;

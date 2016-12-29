@@ -64,9 +64,12 @@ namespace mjon661 {
 			fast_assert(newCap > mCap);
 			
 			Elm_t* newVec = new Elm_t[newCap];
-			std::copy(mVec, mVec + mSize, newVec);
-
-			delete[] mVec;
+			
+			if(mVec) {
+				std::copy(mVec, mVec + mSize, newVec);
+				delete[] mVec;
+			}
+			
 			mVec = newVec;
 			mCap = newCap;
 		}

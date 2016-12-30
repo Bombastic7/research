@@ -8,8 +8,9 @@
 #include "util/debug.hpp"
 #include "util/json.hpp"
 
-#include "search/ugsa/v3/common.hpp"
-
+#include "search/ugsa/v3/defs.hpp"
+#include "search/ugsa/v3/cache.hpp"
+#include "search/ugsa/v3/behavour.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav3 {

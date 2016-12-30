@@ -9,7 +9,8 @@
 #include "util/json.hpp"
 #include "util/exception.hpp"
 
-#include "search/ugsa/v3/common.hpp"
+#include "search/ugsa/v3/defs.hpp"
+#include "search/ugsa/v3/behavour.hpp"
 #include "search/ugsa/v3/abt_search.hpp"
 
 

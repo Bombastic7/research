@@ -6,116 +6,12 @@
 #include "util/json.hpp"
 #include "search/solution.hpp"
 
-#include "search/ugsa/v3/common.hpp"
+#include "search/ugsa/v3/behaviour.hpp"
 #include "search/ugsa/v3/base_search.hpp"
 #include "search/ugsa/v3/level_stats.hpp"
 
 
-namespace mjon661 { namespace algorithm { namespace ugsav3 {
-	
-	/*
-	template<typename = void>
-	struct LevelStatsManager {
-		
-		template<unsigned L, typename = void>
-		struct StatsAcc {
-			void expd() {mExpd++;}
-			void gend() {}
-			void dups() {}
-			void reopnd() {}
-			
-			void end() {			
-				mNSearches++;
-			
-			}
-				
-			StatsAcc(LevelStatsManager<>& pManager) :
-				mManager(pManager)
-			{
-				reset();
-			}
-			
-			void reset() {
-				mExpd = mNSearches = 0;
-			}
-			
-			void submit() {
-				Json j;
-				j["total expd"] = mExpd;
-				j["NSearches"] = mNSearches;
-				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;
-				mManager.mTotExpd += mExpd;
-			}
-			
-			private:
-			LevelStatsManager<>& mManager;
-			unsigned mExpd, mNSearches;
-		};
-		
-		
-		template<typename Ign>
-		struct StatsAcc<0,Ign> {
-			void expd() {mExpd++;}
-			void gend() {mGend++;}
-			void dups() {mDups++;}
-			void reopnd() {mReopnd++;}
-			
-			unsigned getExpd() {
-				return mExpd;
-			}
-			
-			void end() {}
-			
-			void submit() {
-				Json j;
-				j["expd"] = mExpd;
-				j["gend"] = mGend;
-				j["dups"] = mDups;
-				j["reopnd"] = mReopnd;
-				mManager.mReport["Level 0"] = j;
-				mManager.mTotExpd += mExpd;
-			}
-			
-
-			StatsAcc(LevelStatsManager<>& pManager) :
-				mManager(pManager)
-			{
-				reset();
-			}
-			
-			void reset() {
-				mExpd = mGend = mDups = mReopnd = 0;
-			}
-			
-			LevelStatsManager& mManager;
-			unsigned mExpd, mGend, mDups, mReopnd;
-			
-		};
-		
-		
-		LevelStatsManager() :
-			mTotExpd(),
-			mReport()
-		{}
-		
-		Json report() {
-			mReport["expd"] = mTotExpd;
-			return mReport;
-		}
-		
-		
-		void reset() {
-			mTotExpd = 0;
-			mReport = Json();
-		}
-		
-		unsigned mTotExpd;
-		Json mReport;
-	};
-	*/
-	
-	
-	
+namespace mjon661 { namespace algorithm { namespace ugsav3 {	
 	
 	
 	template<typename DomStack, typename StatsManager>

@@ -8,9 +8,9 @@
 
 #include "search/ugsa/v4/behaviour_b.hpp"
 #include "search/ugsa/v4/base_search.hpp"
-//#include "search/ugsa/v4/level_stats.hpp"
+#include "search/ugsa/v4/level_stats.hpp"
 
-#include "search/ugsa/v4/null_stats.hpp"
+//#include "search/ugsa/v4/null_stats.hpp"
 
 namespace mjon661 { namespace algorithm { namespace ugsav4 {
 	
@@ -58,6 +58,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 	
 	
 	template<typename D>
-	using UGSAv4_StatsLevel = UGSAv4<D, NullStatsManager<>>;
+	using UGSAv4_StatsLevel = UGSAv4<D, LevelStatsManager<>>;
 	
 }}}

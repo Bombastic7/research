@@ -100,6 +100,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		UGSABehaviour(Json jConfig) :
 			mPref(std::round((double)jConfig.at("wt") / (double)jConfig.at("wf")))
 		{
+			fast_assert((double)jConfig.at("wf") != 0);
 			reset();
 		}
 		

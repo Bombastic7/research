@@ -74,32 +74,14 @@ namespace mjon661 {
 			algo.execute(sol);
 			timer.stop();
 			
-			jOut["result"] = "good";
+			jOut["_result"] = "good";
 		
 			jOut["solution length"] = sol.operators.size();
-			jOut["solution cost"] = sol.pathCost(dom);
-			jOut["algo"] = algo.report();
+			jOut["_solution_cost"] = sol.pathCost(dom);
+			jOut["_algorithm_report"] = algo.report();
 			jOut["resources"] = resourceReport();
-			jOut["walltime"] = timer.seconds();
-			
-			
-			double cputime = jOut["resources"].at("cputime");
-			double walltime = timer.seconds();
-			double exptimeCpu = cputime / jOut["algo"].at("expd").get<double>();
-			double exptimeWall = walltime / jOut["algo"].at("expd").get<double>();
-			
-			double wf = jExecDesc.at("wf");
-			double wt = jExecDesc.at("wt");
-			
-			double ucpu = wf * sol.pathCost(dom) + wt * cputime;
-			double uwall = wf * sol.pathCost(dom) + wt * walltime;
-			
-			jOut["cputime"] = cputime;
-			jOut["exptime_cpu"] = exptimeCpu;
-			jOut["exptime_wall"] = exptimeWall;
-			jOut["utility"] = ucpu;
-			jOut["utility_wall"] = uwall;
-			jOut["utility_cpu"] = ucpu;
+			jOut["_walltime"] = timer.seconds();
+			jOut["_cputime"] = jOut["resources"].at("cputime");
 			
 			std::cout << jOut.dump(4) << "\\n";
 			
@@ -108,15 +90,15 @@ namespace mjon661 {
 					sol.printSolution(dom, std::cout);
 			
 		} catch(std::bad_alloc const& e) {
-			jOut["result"] = "OOM";
+			jOut["_result"] = "OOM";
 			std::string msg = jOut.dump();
 			write(1, msg.c_str(), msg.size());
 			exit(0);
 		} catch(std::exception const& e) {
-			jOut["result"] = "exception";
+			jOut["_result"] = "exception";
 			
 			std::string errwht(e.what());
-			jOut["error_what"] = errwht;
+			jOut["_error_what"] = errwht;
 			
 			std::string msg = jOut.dump();
 			write(1, msg.c_str(), msg.size());

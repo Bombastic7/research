@@ -20,7 +20,7 @@ namespace mjon661 {
 	void sigHandler(int pSig) {
 		if(pSig == SIGXCPU) {
 			Json j;
-			j["result"] = "OOT";
+			j["_result"] = "OOT";
 			std::string msg = j.dump();
 			write(1, msg.c_str(), msg.size());
 		}

@@ -2,11 +2,11 @@
 
 #include <string>
 
-#include <boost/accumulators/accumulators.hpp>
-#include <boost/accumulators/statistics/mean.hpp>
-#include <boost/accumulators/statistics/min.hpp>
-#include <boost/accumulators/statistics/max.hpp>
-#include <boost/accumulators/statistics/sum.hpp>
+//#include <boost/accumulators/accumulators.hpp>
+//#include <boost/accumulators/statistics/mean.hpp>
+//#include <boost/accumulators/statistics/min.hpp>
+//#include <boost/accumulators/statistics/max.hpp>
+//#include <boost/accumulators/statistics/sum.hpp>
 
 #include "util/debug.hpp"
 #include "util/json.hpp"
@@ -15,7 +15,7 @@
 
 namespace mjon661 { namespace algorithm { namespace ugsav4 {
 	
-	namespace ba = boost::accumulators; 
+	//namespace ba = boost::accumulators; 
 	
 
 	/*
@@ -23,14 +23,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 	 */
 	template<typename = void>
 	struct LevelStatsManager {
-		
-		enum {
-			Iexpd, Igend, Idups, Ireopnd,
-			IcacheMadeExact, IcacheImprove, IcacheAdd,
-			InumSearches, IsolPartial, IsolFull,
-			IcachePartial, IcacheMiss, IcacheHit,
-			Isize
-		};
 		
 		template<unsigned L, typename = void>
 		struct StatsAcc {
@@ -43,8 +35,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			void l_cacheImprove() { mCacheImprove++; }
 			void l_cacheAdd() { mCacheAdd++; }
 			
-			void s_openListSize(unsigned sz) { mAccOpen(sz); }
-			void s_closedListSize(unsigned sz) { mAccClosed(sz); }
+			void s_openListSize(unsigned sz) { /*mAccOpen(sz);*/ }
+			void s_closedListSize(unsigned sz) { /*mAccClosed(sz);*/ }
 			void s_solutionPartial() { mSolPartial++; }
 			void s_solutionFull() { mSolFull++; }
 			void s_cachePartial() { mCachePartial++; }
@@ -52,19 +44,21 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			void s_cacheHit() { mCacheHit++; }
 			
 			void s_end() { 
+				/*
 				mAccExpd(mExpd);
 				mAccCacheImprove(mCacheImprove);
 				mAccCacheAdd(mCacheAdd);
 				mAccCacheMadeExact(mCacheMadeExact);
-				
+				*/
 				mNsearches++;
+				mLevelTotExpd += mExpd;
 				searchCountsReset();
 			}
-			
+			/*
 			using Acc_t = ba::accumulator_set<double, ba::features<ba::tag::min, ba::tag::max, ba::tag::mean, ba::tag::sum>>;
 			
 			Acc_t mAccExpd, mAccOpen, mAccClosed, mAccCacheImprove, mAccCacheAdd, mAccCacheMadeExact;
-			
+			*/
 			unsigned mExpd, mCacheMadeExact, mCacheAdd, mCacheImprove;
 			
 			
@@ -92,22 +86,24 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				mExpd = mNsearches = 0;
 				
 				mL0expd = mL0gend = mL0dups = mL0reopnd = 0;
-				
+				/*
 				mAccExpd = Acc_t();
 				mAccOpen = Acc_t();
 				mAccClosed = Acc_t();
 				mAccCacheImprove = Acc_t();
 				mAccCacheAdd = Acc_t();
 				mAccCacheMadeExact = Acc_t();
+				*/
+				mLevelTotExpd = 0;
 			}
-			
+			/*
 			std::string accPrettyStr(Acc_t const& acc) {
 				return 	std::to_string(ba::min(acc)) + " " + 
 						std::to_string(ba::max(acc)) + " " + 
 						std::to_string(ba::mean(acc)) + " " +
 						std::to_string(ba::sum(acc));
 			}
-			
+			*/
 			void submit() {
 				Json j;
 				if(L == 0) {
@@ -116,23 +112,29 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 					j["dups"] = mL0dups;
 					j["reopnd"] = mL0reopnd;
 					
+					mManager.mReport["expd"] = mL0expd;
+					mManager.mReport["gend"] = mL0gend;
+					mManager.mReport["dups"] = mL0dups;
+					mManager.mReport["reopnd"] = mL0reopnd;
+					
 				}
-				else {
+				else {/*
 					j["expd"] = accPrettyStr(mAccExpd);
 					j["open sz"] = accPrettyStr(mAccOpen);
 					j["closed sz"] = accPrettyStr(mAccClosed);
 					j["Cache improved"] = accPrettyStr(mAccCacheImprove);
 					j["Cache added"] = accPrettyStr(mAccCacheAdd);
-					j["Cache made exact"] = accPrettyStr(mAccCacheMadeExact);
+					j["Cache made exact"] = accPrettyStr(mAccCacheMadeExact);*/
 					j["NSearches"] = mNsearches;
 				}
 				
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;
-				mManager.mTotExpd += ba::sum(mAccExpd);
+				mManager.mTotExpd += mLevelTotExpd;// += ba::sum(mAccExpd);
 			}
 			
 			private:
 			LevelStatsManager<>& mManager;
+			unsigned mLevelTotExpd;
 
 		};
 

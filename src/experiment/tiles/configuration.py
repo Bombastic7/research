@@ -56,6 +56,9 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 			print "Finished"
 			break
 		
+		cachedResult = None
+		
+		
 		for (wf, wt) in adp["weights"]:
 
 			probsetitems = probset.iteritems()
@@ -83,17 +86,24 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 				print "starting", adp["name"], {"wf" : wf, "wt" : wt}, probfile, probkey
 				logFileObj.flush()
 				
-				proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-			
-				searcherOut = proc.communicate(input=bytearray(json.dumps(execParams)))[0]
+				if not adp["util_aware"] and cachedResult is not None:
+					res = cachedResult
+					print "using cached result"
+				
+				else:
+					proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+				
+					searcherOut = proc.communicate(input=bytearray(json.dumps(execParams)))[0]
 
-				try:
-					res = json.loads(searcherOut)
-				except ValueError as e:
-					print searcherOut
-					print e
-					logFileObj.flush()
-					raise e
+					try:
+						res = json.loads(searcherOut)
+						cachedResult = res
+					
+					except ValueError as e:
+						print searcherOut
+						print e
+						logFileObj.flush()
+						raise e
 			
 			lck.acquire()
 			
@@ -132,28 +142,25 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 
 
 		
-
+WEIGHTS = [(1,0),(1,1),(10,1),(1,10)]
 
 
 ALGS = [
-		#{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "weights" : [(1,0)]},
+		{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "util_aware" : False},
+		{"name" : "Bugsy", "class" : "algorithm::Bugsy", "header" : "search/bugsy.hpp", "abt" : False, "util_aware" : True},
 		#{"name" : "HAstar", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "weights" : [(1,0)]},
-		{"name" : "UGSAv4", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "weights" : [(1,0),(1,1),(10,1),(1,10)]},
+		{"name" : "UGSAv4", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True},
 		#{"name" : "AstarExp", "class" : "algorithm::AstarExperiment", "header" : "search/astar_experiment.hpp", "abt" : False, "weights" : [(1,0)]},
 		]
 
 
 
 DOMS = [
-		#{"name" : "base8", "class" : tiles_stack(3,3,False,True,0),"header" : "domain/tiles/fwd.hpp", "abt": False, "probcls" : 8},
-		{"name" : "abt8", "class" : tiles_stack(3,3,False,False,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
-		#{"name" : "base15", "class" : tiles_stack(4,4,False,True,0), "header" : "domain/tiles/fwd.hpp", "abt": False, "probcls" : 15},
-		#{"name" : "abt15", "class" : tiles_stack(4,4,False,False,7), "abt": True, "probcls" : 15},
+		{"name" : "8h_5", "class" : tiles_stack(3,3,False,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
+		#{"name" : "15h_7", "class" : tiles_stack(4,4,False,True,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15},
 		
-		#{"name" : "base8w", "class" : tiles_stack(3,3,True,True,0), "header" : "domain/tiles/fwd.hpp", "abt": False, "probcls" : 8},
-		#{"name" : "base15w", "class" : tiles_stack(4,4,True,True,0), "header" : "domain/tiles/fwd.hpp", "abt": False, "probcls" : 15},
-		{"name" : "abt8w", "class" : tiles_stack(3,3,True,False,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
-		#{"name" : "abt15w", "class" : tiles_stack(4,4,True,False,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15}
+		{"name" : "8hw_5", "class" : tiles_stack(3,3,True,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
+		#{"name" : "15hw_7", "class" : tiles_stack(4,4,True,True,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15}
 		]
 
 PROBFILES = {
@@ -203,11 +210,12 @@ if __name__ == "__main__":
 						"alg" : a["class"], 
 						"dom" : d["class"], 
 						"name" : makeAlgDomName(a,d), 
-						"weights": a["weights"],
+						"weights": WEIGHTS,
+						"util_aware" : a["util_aware"],
 						"probkey": k
 						} 
 						for a in ALGS for d in DOMS for k in probset.iterkeys()
-						if a["abt"] == d["abt"] and d["probcls"] == inprobcls ]
+						if not a["abt"] or d["abt"] and d["probcls"] == inprobcls ]
 		
 		print "Executing problems for", len(algdomsprobs), "alg/doms/probs"
 		

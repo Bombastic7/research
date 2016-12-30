@@ -209,7 +209,7 @@ int main(int argc, const char* argv[]) {
 
 def genSearcher():
 	
-	algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : conf.makeAlgDomName(a,d), "headers" : [d["header"], a["header"]] } for a in conf.ALGS for d in conf.DOMS if a["abt"] == d["abt"] ]
+	algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : conf.makeAlgDomName(a,d), "headers" : [d["header"], a["header"]] } for a in conf.ALGS for d in conf.DOMS if not a["abt"] or d["abt"] ]
 	headers = list(set([j for s in [ i["headers"] for i in algdoms] for j in s]))
 	
 	

@@ -262,17 +262,14 @@ namespace mjon661 { namespace algorithm {
 		}
 		
 		Json report() {
-			Json j;
+			Json j = mBehaviour.report();
 			j["Node size"] = sizeof(Node);
 			j["Wrapped Node Size"] = sizeof(typename ClosedList_t::Wrapped_t);
 			j["closed fill"] = mClosedList.getFill();
 			j["closed table size"] = mClosedList.size();
 			j["open size"] = mOpenList.size();
 			j["open capacity"] = mOpenList.capacity();
-			
 			j["bugsy config"] = mConfig.report();
-			j["bugsy behaviour"] = mBehaviour.report();
-			j["expd"] = j["bugsy behaviour"]["expd"];
 			return j;
 		}
 		

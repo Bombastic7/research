@@ -2,7 +2,9 @@
 
 import json
 import sys
+from ast import literal_eval
 
+import configuration
 
 
 def doMain():
@@ -14,37 +16,60 @@ def doMain():
 	
 	analyseDict = {}
 	
-	for (adk, adv) in resultset.iteritems():
-		for (wk, wv) in adv.iteritems():
-			
-			analyseDict[wk] = {}
-						
-			for (pk, res) in wv.iteritems():
-				
-				if pk not in analyseDict[wk]:
-					analyseDict[wk][pk] = {"util_real" : [], "util_gend" : [], "util_expd" : []}
-				
-				wf = str(wk)[0]
-				wt = str(wk)[1]
-				
-				util_real = wf * res["_solution_cost"] + wt * res["_cputime"]
-				util_gend = wf * res["_solution_cost"] + wt * res["_algorithm_report"]["gend"]
-				util_expd = wf * res["_solution_cost"] + wt * res["_algorithm_report"]["expd"]
-				
-				analyseDict[wk][pk]["util_real"].append((adk, util_real)
-				analyseDict[wk][pk]["util_gend"].append((adk, util_gend)
-				analyseDict[wk][pk]["util_expd"].append((adk, util_expd)
-				
 
 	
 	
-		for wk in analyseDict.iterkeys():
-			for pk in analyseDict[wk].iterkeys():
+	for d in configuration.DOMS:
+		
+		analyseDict[d["name"]] = {}
+
+		for w in configuration.WEIGHTS:
+
+			analyseDict[d["name"]][str(w)] = {}
+			
+			for a in configuration.ALGS:
 				
-				analyseDict[wk][pk]["util_real"].sort()
-				analyseDict[wk][pk]["util_gend"].sort()
-				analyseDict[wk][pk]["util_expd"].sort()
+				if a["abt"] and not d["abt"]:
+					continue
 				
+				for (pk, res) in resultSet[configuration.makeAlgDomName(a,d)][str(w)].iteritems():
+					
+			
+					if pk not in analyseDict[d["name"]][str(w)]:
+							analyseDict[d["name"]][str(w)][pk] =  {"util_real" : [], "util_gend" : [], "util_expd" : [], "solcost":[]}
+					
+					(wf, wt) = w
+					
+						
+					if "_solution_cost" in res:
+						util_real = wf * res["_solution_cost"] + wt * res["_cputime"]
+						util_gend = wf * res["_solution_cost"] + wt * res["_algorithm_report"]["gend"]
+						util_expd = wf * res["_solution_cost"] + wt * res["_algorithm_report"]["expd"]
+					
+					else:
+						util_real = sys.maxint
+						util_gend = sys.maxint
+						util_expd = sys.maxint
+					
+					analyseDict[d["name"]][str(w)][pk]["util_real"].append((util_real, a["name"]))
+					analyseDict[d["name"]][str(w)][pk]["util_gend"].append((util_gend, a["name"]))
+					analyseDict[d["name"]][str(w)][pk]["util_expd"].append((util_expd, a["name"]))
+					
+					if "_solution_cost" in res:
+						analyseDict[d["name"]][str(w)][pk]["solcost"].append((res["_solution_cost"], a["name"]))
+					else:
+						analyseDict[d["name"]][str(w)][pk]["solcost"].append((sys.maxint, a["name"]))
+
+	
+	
+		for d in analyseDict.iterkeys():
+			for wk in analyseDict[d].iterkeys():
+				for pk in analyseDict[d][wk].iterkeys():
+					
+					analyseDict[d][wk][pk]["util_real"].sort()
+					analyseDict[d][wk][pk]["util_gend"].sort()
+					analyseDict[d][wk][pk]["util_expd"].sort()
+					analyseDict[d][wk][pk]["solcost"].sort()
 
 					
 	with open(sys.argv[2], "w") as f:

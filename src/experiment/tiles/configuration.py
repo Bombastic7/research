@@ -137,20 +137,23 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 
 ALGS = [
 		#{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "weights" : [(1,0)]},
-		{"name" : "HAstar", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "weights" : [(1,0)]},
-		{"name" : "UGSAv3", "class" : "algorithm::ugsav3::UGSAv3_StatsLevel", "header" : "search/ugsa/v3/ugsa_v3.hpp", "abt" : True, "weights" : [(1,0),(1,1),(10,1),(1,10)]},
+		#{"name" : "HAstar", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "weights" : [(1,0)]},
+		{"name" : "UGSAv4", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "weights" : [(1,0),(1,1),(10,1),(1,10)]},
+		#{"name" : "AstarExp", "class" : "algorithm::AstarExperiment", "header" : "search/astar_experiment.hpp", "abt" : False, "weights" : [(1,0)]},
 		]
 
 
 
 DOMS = [
-		#{"name" : "base8", "class" : tiles_stack(3,3,False,True,0), "abt": False, "probcls" : 8},
+		#{"name" : "base8", "class" : tiles_stack(3,3,False,True,0),"header" : "domain/tiles/fwd.hpp", "abt": False, "probcls" : 8},
 		{"name" : "abt8", "class" : tiles_stack(3,3,False,False,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
-		#{"name" : "base15", "class" : tiles_stack(4,4,False,True,0), "abt": False, "probcls" : 15},
+		#{"name" : "base15", "class" : tiles_stack(4,4,False,True,0), "header" : "domain/tiles/fwd.hpp", "abt": False, "probcls" : 15},
 		#{"name" : "abt15", "class" : tiles_stack(4,4,False,False,7), "abt": True, "probcls" : 15},
 		
-		#{"name" : "abt8w", "class" : tiles_stack(3,3,True,False,5), "abt": True, "probcls" : 8},
-		#{"name" : "abt15w", "class" : tiles_stack(4,4,True,False,7), "abt": True, "probcls" : 15}
+		#{"name" : "base8w", "class" : tiles_stack(3,3,True,True,0), "header" : "domain/tiles/fwd.hpp", "abt": False, "probcls" : 8},
+		#{"name" : "base15w", "class" : tiles_stack(4,4,True,True,0), "header" : "domain/tiles/fwd.hpp", "abt": False, "probcls" : 15},
+		{"name" : "abt8w", "class" : tiles_stack(3,3,True,False,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
+		#{"name" : "abt15w", "class" : tiles_stack(4,4,True,False,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15}
 		]
 
 PROBFILES = {

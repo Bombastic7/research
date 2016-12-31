@@ -60,7 +60,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		CacheStore(Domain const& pDomain) :
 			mStore(StoreOps(pDomain), StoreOps(pDomain)),
-			mPool()
+			mPool(),
 		{}
 		
 		CacheEntry* retrieve(PackedState const& pkd) {
@@ -68,7 +68,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			return ent;
 		}
 		
-		bool get(PackedState const& pkd, CacheEntry*& ent) {
+		bool get(PackedState const& pkd, CacheEntry*& ent) {			
 			bool retNew = false;
 			
 			ent = mStore.find(pkd);
@@ -102,4 +102,23 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 	};
 	
 	
+	template<typename = void>
+	struct AlgoConf {
+		
+		AlgoConf(Json const& j) {
+			if(j.count("do_caching") && !((bool)j.at("do_caching")))
+				doCaching = false;
+			else
+				doCaching = true;
+		}
+		
+		void report() {
+			Json j;
+			j["do_caching"] = doCaching;
+			return j;
+			
+		}
+		
+		bool doCaching;
+	};
 }}}

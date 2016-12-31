@@ -146,7 +146,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		{}
 		
 		Json report() {
-			mReport["tot_expd"] = mTotExpd;
+			mReport["total_expd"] = mTotExpd;
 			return mReport;
 		}
 		

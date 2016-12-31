@@ -142,13 +142,13 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 
 
 		
-WEIGHTS = [(1,0),(1,1),(10,1),(1,10)]
+WEIGHTS = [(1,0),(1,1),(1,5),(1,10), (1,100), (1,1000)]
 
 
 ALGS = [
 		{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "util_aware" : False},
 		{"name" : "Bugsy", "class" : "algorithm::Bugsy", "header" : "search/bugsy.hpp", "abt" : False, "util_aware" : True},
-		#{"name" : "HAstar", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "weights" : [(1,0)]},
+		{"name" : "HAstar1", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
 		{"name" : "UGSAv4", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True},
 		#{"name" : "AstarExp", "class" : "algorithm::AstarExperiment", "header" : "search/astar_experiment.hpp", "abt" : False, "weights" : [(1,0)]},
 		]

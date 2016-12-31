@@ -171,8 +171,8 @@ namespace mjon661 { namespace algorithm {
 		
 		Json report() {
 			Json j;
-			j["expd"] = mStats.expd;
-			j["gend"] = mStats.gend;
+			j["_all_expd"] = mStats.expd;
+			j["_all_gend"] = mStats.gend;
 			j["dups"] = mStats.dups;
 			j["reopnd"] = mStats.reopnd;
 			j["Node size"] = sizeof(Node);

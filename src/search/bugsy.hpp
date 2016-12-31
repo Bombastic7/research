@@ -88,8 +88,8 @@ namespace mjon661 { namespace algorithm {
 			
 			Json report() {
 				Json j;
-				j["expd"] = expd;
-				j["gend"] = gend;
+				j["_all_expd"] = expd;
+				j["_all_gend"] = gend;
 				j["dups"] = dups;
 				j["reopnd"] = reopnd;
 				j["nresorts"] = nresorts;

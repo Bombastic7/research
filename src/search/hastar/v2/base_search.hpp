@@ -86,9 +86,9 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		
 
-		HAstar_Base(D& pDomStack, StatsManager& pStats) :
+		HAstar_Base(D& pDomStack, StatsManager& pStats, AlgoConf<> const& pConf) :
 			mStatsAcc			(pStats),
-			mAbtSearch			(pDomStack, pStats),
+			mAbtSearch			(pDomStack, pStats, pConf),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
@@ -109,29 +109,6 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			mStatsAcc.submit();
 			mAbtSearch.submitStats();
 		}
-		
-		/*
-		Json report() {
-			Json jAll, j;
-			j["expd"] = mStats.expd;
-			j["gend"] = mStats.gend;
-			j["dups"] = mStats.dups;
-			j["reopnd"] = mStats.reopnd;
-			j["Node size"] = sizeof(Node);
-			j["Wrapped Node Size"] = sizeof(typename ClosedList_t::Wrapped_t);
-			j["closed fill"] = mClosedList.getFill();
-			j["closed table size"] = mClosedList.size();
-			j["open size"] = mOpenList.size();
-			j["open capacity"] = mOpenList.capacity();
-			j["config"] = mConfig.report();
-			j["behaviour"] = mBehaviour.report();
-			jAll["level 0"] = j;
-			mAbtSearch.addToReportRec(jAll);
-			
-			return jAll;
-		}
-		*/
-		
 		
 		
 		void doSearch(Solution<Domain>& pSolution) {

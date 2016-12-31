@@ -98,7 +98,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		
 
-		HAstar_Abt(D& pDomStack, StatsManager& pStats) :
+		HAstar_Abt(D& pDomStack, StatsManager& pStats, AlgoConf<> const& pConf) :
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, pStats),
 			mAbtor				(pDomStack),
@@ -107,7 +107,8 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mCache				(mDomain),
-			mBestExactNode		(nullptr)
+			mBestExactNode		(nullptr),
+			mConf				(pConf)
 		{}
 
 		
@@ -152,31 +153,39 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				
 				mDomain.packState(s0, pkd0);
 				
-				CacheEntry* ent = mCache.retrieve(pkd0);
+				Cost fval;
 				
-				if(ent && ent->exact) {
-					mStatsAcc.s_cacheHit();
-					mStatsAcc.s_end();
-					return ent->h;				
-				}
+				if(mConf.doCaching) {
+					CacheEntry* ent = mCache.retrieve(pkd0);
 				
-				bool miss = mCache.get(pkd0, ent);
-				
-				
-				if(miss) {
-					ent->exact = false;
-					ent->h = mAbtSearch.doSearch(s0);
-					mStatsAcc.s_cacheMiss();
-					mStatsAcc.l_cacheAdd();
+					if(ent && ent->exact) {
+						mStatsAcc.s_cacheHit();
+						mStatsAcc.s_end();
+						return ent->h;				
+					}
+					
+					bool miss = mCache.get(pkd0, ent);
+					
+					if(miss) {
+						ent->exact = false;
+						ent->h = mAbtSearch.doSearch(s0);
+						fval = ent->h;
+						mStatsAcc.s_cacheMiss();
+						mStatsAcc.l_cacheAdd();
+					}
+					else
+						mStatsAcc.s_cachePartial();
 				}
 				else
-					mStatsAcc.s_cachePartial();
+					fval = mAbtSearch.doSearch(s0);				
 				
+
+
 				Node* n0 = mNodePool.construct();
 				
 				n0->pkd =		pkd0;
 				n0->g = 		Cost(0);
-				n0->f = 		ent->h;
+				n0->f = 		fval;
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
@@ -212,37 +221,38 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				expand(n, s);
 			}
 			
-			for(auto it = mClosedList.begin(); it != mClosedList.end(); ++it) {
-				Node* n = *it;
-				
-				if(mOpenList.contains(n))
-					continue;
-				
-				CacheEntry* ent = mCache.retrieve(n->pkd);
-				slow_assert(ent);
+			if(mConf.doCaching) {
+				for(auto it = mClosedList.begin(); it != mClosedList.end(); ++it) {
+					Node* n = *it;
+					
+					if(mOpenList.contains(n))
+						continue;
+					
+					CacheEntry* ent = mCache.retrieve(n->pkd);
+					slow_assert(ent);
 
-				if(ent->exact)
-					continue;
+					if(ent->exact)
+						continue;
 
-				Cost pg = retCost - n->g;
+					Cost pg = retCost - n->g;
+					
+					if(ent->h < pg) {
+						ent->h = pg;
+						mStatsAcc.l_cacheImprove();
+					}
+				}
 				
-				if(ent->h < pg) {
-					ent->h = pg;
-					mStatsAcc.l_cacheImprove();
+				
+				for(Node* n = goalNode; n != nullptr; n = n->parent) {
+					CacheEntry* ent = mCache.retrieve(n->pkd);
+					slow_assert(ent);
+					
+					if(!ent->exact)
+						mStatsAcc.l_cacheMadeExact();
+					
+					ent->exact = true;
 				}
 			}
-			
-			
-			for(Node* n = goalNode; n != nullptr; n = n->parent) {
-				CacheEntry* ent = mCache.retrieve(n->pkd);
-				slow_assert(ent);
-				
-				if(!ent->exact)
-					mStatsAcc.l_cacheMadeExact();
-				
-				ent->exact = true;
-			}
-			
 
 			mStatsAcc.s_openListSize(mOpenList.size());
 			mStatsAcc.s_closedListSize(mClosedList.getFill());
@@ -302,14 +312,16 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 					
 					mOpenList.pushOrUpdate(kid_dup);
 					
-					CacheEntry* ent = mCache.retrieve(kid_pkd);
-					slow_assert(ent);
-					
-					if(ent->exact) {
-						slow_assert(mBestExactNode);
+					if(mConf.doCaching) {
+						CacheEntry* ent = mCache.retrieve(kid_pkd);
+						slow_assert(ent);
 						
-						if(mBestExactNode->f > kid_dup->f)
-							mBestExactNode = kid_dup;
+						if(ent->exact) {
+							slow_assert(mBestExactNode);
+							
+							if(mBestExactNode->f > kid_dup->f)
+								mBestExactNode = kid_dup;
+						}
 					}
 				}
 			} else {
@@ -317,25 +329,31 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				Node* kid_node 		= mNodePool.construct();
 				
 				CacheEntry* ent;
-				bool miss = mCache.get(kid_pkd, ent);
+				Cost hval;
 				
-				if(miss) {
-					ent->exact = false;
-					ent->h = mAbtSearch.doSearch(edge.state());
-					mStatsAcc.l_cacheAdd();
-				}
+				if(mConf.doCaching) {
+					bool miss = mCache.get(kid_pkd, ent);
+				
+					if(miss) {
+						ent->exact = false;
+						ent->h = mAbtSearch.doSearch(edge.state());
+						fval = ent->h;
+						mStatsAcc.l_cacheAdd();
+					}
+				} else
+					hval = mAbtSearch.doSearch(edge.state());
 				
 				kid_node->g 		= kid_g;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
-				kid_node->f			= kid_g + ent->h;
+				kid_node->f			= kid_g + hval;
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
 				
-				if(ent->exact && (!mBestExactNode || mBestExactNode->f > kid_node->f)) {
+				if(mConf.doCaching && ent->exact && (!mBestExactNode || mBestExactNode->f > kid_node->f)) {
 					mBestExactNode = kid_node;
 				}
 			}
@@ -356,13 +374,15 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		CacheStore_t			mCache;
 		Node*					mBestExactNode;
+		
+		AlgoConf<>				mConf;
 	};
 	
 	
 	template<typename D, unsigned Bound, typename StatsManager>
 	struct HAstar_Abt<D, Bound, Bound, StatsManager> {
 		
-		HAstar_Abt(D& pDomStack, StatsManager& pStats) {}
+		HAstar_Abt(D& pDomStack, StatsManager& pStats, AlgoConf<> const&) {}
 		
 		typename D::template Domain<Bound-1>::Cost doSearch(typename D::template Domain<Bound-1>::State const&) {return 0;}
 		void reset() {}

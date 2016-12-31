@@ -97,6 +97,29 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 
 					try:
 						res = json.loads(searcherOut)
+						
+						if res["_result"] == "good":
+							res["util_real"] = res["_solution_cost"] * wf + res["_cputime"] * wt
+							
+							if "_base_expd" in res["_algorithm_report"]:
+								baseExpd = res["_algorithm_report"]["_base_expd"]
+								baseGend = res["_algorithm_report"]["_base_gend"]
+							else:
+								baseExpd = res["_algorithm_report"]["_all_expd"]
+								baseGend = res["_algorithm_report"]["_all_gend"]
+								
+							res["util_base_expd"] = res["_solution_cost"] * wf + baseExpd * wt
+							res["util_base_gend"] = res["_solution_cost"] * wf + baseGend * wt
+							res["util_all_expd"] = res["_solution_cost"] * wf + res["_algorithm_report"]["_all_expd"] * wt
+							res["util_all_gend"] = res["_solution_cost"] * wf + res["_algorithm_report"]["_all_gend"] * wt
+					
+						else:
+							res["util_real"] = 0
+							res["util_base_expd"] = 0
+							res["util_base_gend"] = 0
+							res["util_all_expd"] = 0
+							res["util_all_gend"] = 0
+						
 						cachedResult = res
 					
 					except ValueError as e:
@@ -152,16 +175,16 @@ ALGS = [
 		{"name" : "HAstar1", "class" : "algorithm::hastarv2::HAstar_StatsSimple", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
 		{"name" : "HAstar1_nc", "class" : "algorithm::hastarv2::HAstar_StatsSimple", "conf" : {"do_caching":False}, "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
 		
-		{"name" : "UGSAv4_st_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+		{"name" : "UGSAv4_st_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
 			"conf" : {"use_all_frontier":False, "use_hbf_ref_init":False}},
 		
-		{"name" : "UGSAv4_st_hbfinit", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+		{"name" : "UGSAv4_st_hbfinit", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
 			"conf" : {"use_all_frontier":False, "use_hbf_ref_init":True}},
 		
-		{"name" : "UGSAv4_af_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+		{"name" : "UGSAv4_af_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
 			"conf" : {"use_all_frontier":True, "use_hbf_ref_init":False}},
 		
-		{"name" : "UGSAv4_af_hbfinit", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+		{"name" : "UGSAv4_af_hbfinit", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
 			"conf" : {"use_all_frontier":True, "use_hbf_ref_init":True}},
 		
 		#{"name" : "UGSAv4_af", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "conf" : {"use_all_frontier":True}, "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True},
@@ -178,10 +201,14 @@ DOMS = [
 		#{"name" : "15hw_7", "class" : tiles_stack(4,4,True,True,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15}
 		]
 
+NPROBLEMS = 3
+
 PROBFILES = {
-		8 : (3,3,3,"probs_8.json"),
-		15 : (4,4,3,"probs_15.json")
+		8 : (3,3,NPROBLEMS,"probs_8.json"),
+		15 : (4,4,NPROBLEMS,"probs_15.json")
 			}
+
+VALUESOFINTEREST = ["util_real", "util_base_expd", "util_base_gend", "util_all_expd", "util_all_gend"]
 
 
 

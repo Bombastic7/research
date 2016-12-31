@@ -187,7 +187,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			Json j;
 			j["hbf"] = this->computeHBF();
 			j["used k pref"] = mPref;
-			k["used hbf ref init"] = pConf.use_hbf_ref_init;
+			j["used hbf ref init"] = mConf.use_hbf_ref_init;
 			j["used all frontier"] = mConf.useAllFrontier;
 			j["clips"] = mClipCount;
 			return j;

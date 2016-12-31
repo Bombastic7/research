@@ -28,7 +28,9 @@ TILES_EXP_FILES:=\
 	$(BUILDDIR)/experiment/tiles/searcher\
 	$(BUILDDIR)/experiment/tiles/configuration.py\
 	$(BUILDDIR)/experiment/tiles/gen_problems.py\
-	$(BUILDDIR)/experiment/tiles/analyse.py
+	$(BUILDDIR)/experiment/tiles/analyse.py\
+	$(BUILDDIR)/experiment/tiles/plot_problem_bars.py
+
 
 BINS+=$(TILES_EXP_FILES)
 

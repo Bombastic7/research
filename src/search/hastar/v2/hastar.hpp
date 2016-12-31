@@ -9,6 +9,7 @@
 #include "search/hastar/v2/common.hpp"
 #include "search/hastar/v2/base_search.hpp"
 #include "search/hastar/v2/level_stats.hpp"
+#include "search/hastar/v2/simple_stats.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace hastarv2 {

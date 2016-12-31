@@ -149,7 +149,9 @@ ALGS = [
 		{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "util_aware" : False},
 		{"name" : "Bugsy", "class" : "algorithm::Bugsy", "header" : "search/bugsy.hpp", "abt" : False, "util_aware" : True},
 		{"name" : "HAstar1", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
-		{"name" : "UGSAv4", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True},
+		{"name" : "HAstar1_nc", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "conf" : {"do_caching":False}, "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
+		{"name" : "UGSAv4_st", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True},
+		{"name" : "UGSAv4_af", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "conf" : {"use_all_frontier":True}, "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True},
 		#{"name" : "AstarExp", "class" : "algorithm::AstarExperiment", "header" : "search/astar_experiment.hpp", "abt" : False, "weights" : [(1,0)]},
 		]
 

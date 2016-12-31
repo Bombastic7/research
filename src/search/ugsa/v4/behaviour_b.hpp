@@ -89,6 +89,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		std::array<unsigned, F_Range> mLevelCount;
 		
 	};
+	
+	
+	
 
 
 	
@@ -97,10 +100,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 		using Cost = int;
 		
-		UGSABehaviour(Json jConfig) :
-			mPref(std::round((double)jConfig.at("wt") / (double)jConfig.at("wf")))
+		UGSABehaviour(AlgoConf<> const& pConf) :
+			mConf(pConf)
 		{
-			fast_assert((double)jConfig.at("wf") != 0);
 			reset();
 		}
 		
@@ -118,7 +120,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 		unsigned compute_effectiveEdge(unsigned pLvl, Cost pG, unsigned pSz) {
-			return compute_singleTree(pLvl, pG);
+			if(mConf.useAllFrontier)
+				return compute_allFrontier(pLvl, pG, pSz);
+			else
+				return compute_singleTree(pLvl, pG);
 		}
 		
 		void reset() {
@@ -128,9 +133,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		Json report() {
 			Json j;
 			j["hbf"] = this->computeHBF();
+			j["used k pref"] = mPref;
+			j["used all frontier"] = mConf.useAllFrontier;
 			return j;
 		}
 		
 		const unsigned mPref;
+		AlgoConf<> const& mConf;
 	};
 }}}

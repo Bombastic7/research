@@ -100,7 +100,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 
 		HAstar_Abt(D& pDomStack, StatsManager& pStats, AlgoConf<> const& pConf) :
 			mStatsAcc			(pStats),
-			mAbtSearch			(pDomStack, pStats),
+			mAbtSearch			(pDomStack, pStats, pConf),
 			mAbtor				(pDomStack),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
@@ -126,22 +126,6 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			mStatsAcc.submit();
 			mAbtSearch.submitStats();
 		}
-		
-		/*
-		void addToReport(Json& jR) {
-			
-			Json jAll, j;
-			j["Node size"] = sizeof(Node);
-			j["Wrapped Node Size"] = sizeof(typename ClosedList_t::Wrapped_t);
-			j["closed fill"] = mClosedList.getFill();
-			j["closed table size"] = mClosedList.size();
-			j["open size"] = mOpenList.size();
-			j["open capacity"] = mOpenList.capacity();
-			jR[std::string("Level ") + std::to_string(L)] = j;
-			
-			mAbtSearch.addToReport(jR);
-		}
-		*/
 		
 		
 		
@@ -173,8 +157,10 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 						mStatsAcc.s_cacheMiss();
 						mStatsAcc.l_cacheAdd();
 					}
-					else
+					else {
+						fval = ent->h;
 						mStatsAcc.s_cachePartial();
+					}
 				}
 				else
 					fval = mAbtSearch.doSearch(s0);				
@@ -328,7 +314,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				
 				Node* kid_node 		= mNodePool.construct();
 				
-				CacheEntry* ent;
+				CacheEntry* ent = nullptr;
 				Cost hval;
 				
 				if(mConf.doCaching) {
@@ -337,10 +323,14 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 					if(miss) {
 						ent->exact = false;
 						ent->h = mAbtSearch.doSearch(edge.state());
-						fval = ent->h;
+						hval = ent->h;
 						mStatsAcc.l_cacheAdd();
 					}
-				} else
+					else
+						hval = ent->h;
+				
+				} 
+				else
 					hval = mAbtSearch.doSearch(edge.state());
 				
 				kid_node->g 		= kid_g;

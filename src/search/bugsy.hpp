@@ -112,6 +112,7 @@ namespace mjon661 { namespace algorithm {
 				Json j;
 				j["wf"] = wf;
 				j["wt"] = wt;
+				j["used normalised exptime"] = mUseNormalisedExptime;
 				return j;
 			}
 			
@@ -121,7 +122,14 @@ namespace mjon661 { namespace algorithm {
 			{
 				if(!validate())
 					throw ConfigException("");
+				
+				if(j.count("normalised_exptime") && (bool)j.at("normalised_exptime"))
+					mUseNormalisedExptime = true;
+				else
+					mUseNormalisedExptime = false;
 			}
+			
+			bool mUseNormalisedExptime;
 		};
 		
 		struct BugsyBehaviour : public SearchStats {
@@ -139,6 +147,10 @@ namespace mjon661 { namespace algorithm {
 				next_accExpDelay = 0;
 				last_expd = 0;
 				next_expd = Next_Resort_Fact;
+				
+				if(mUseNormalisedExptime)
+					last_avgExpTime = 1;
+				
 				mTimer.start();
 			}
 			
@@ -156,7 +168,9 @@ namespace mjon661 { namespace algorithm {
 				mTimer.start();
 				
 				last_avgExpDelay = next_accExpDelay / (SearchStats::expd - last_expd);
-				last_avgExpTime = timeSinceLastUpdate / (SearchStats::expd - last_expd);
+				
+				if(!mUseNormalisedExptime)
+					last_avgExpTime = timeSinceLastUpdate / (SearchStats::expd - last_expd);
 				
 				next_accExpDelay = 0;
 				
@@ -176,15 +190,19 @@ namespace mjon661 { namespace algorithm {
 				return j;
 			}
 			
-			BugsyBehaviour() {
+			BugsyBehaviour(bool pUseNormalisedExptime) :
+				mUseNormalisedExptime(pUseNormalisedExptime)
+			{
 				reset();
 			}
+			
+			const bool mUseNormalisedExptime;
 		};
 		
 		
 		BugsyImpl(D& pDomStack, Json const& jConfig) :
 			mConfig				(jConfig),
-			mBehaviour			(),
+			mBehaviour			(mConfig.mUseNormalisedExptime),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),

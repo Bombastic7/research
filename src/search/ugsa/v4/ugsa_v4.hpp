@@ -4,6 +4,7 @@
 
 #include "util/debug.hpp"
 #include "util/json.hpp"
+#include "util/math.hpp"
 #include "search/solution.hpp"
 
 #include "search/ugsa/v4/behaviour_b.hpp"
@@ -22,7 +23,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		using BaseDomain = typename DomStack::template Domain<0>;
 		using State = typename BaseDomain::State;
 		
-		static const unsigned Used_Abt_Levels = min(Max_Abt_Level, DomStack::Top_Abstract_Level);
+		static const unsigned Used_Abt_Levels = mathutil::min(Max_Abt_Level, DomStack::Top_Abstract_Level);
 		
 		UGSAv4(DomStack& pStack, Json const& jConfig) :
 			mConf(jConfig),

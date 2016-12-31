@@ -25,7 +25,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		using AbtSearch = UGSAv4_Abt<D, Bound, Bound, StatsManager>;
 		
 		using Domain = typename D::template Domain<L>;
-		using Cost = typename Domain::Cost;
+		//using Cost = typename Domain::Cost;
+		using Cost = ucost_t;
 		using Operator = typename Domain::Operator;
 		using OperatorSet = typename Domain::OperatorSet;
 		using State = typename Domain::State;
@@ -128,7 +129,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 
 		
-		Util_t doSearch(BaseState const& pBaseState) {
+		Cost doSearch(BaseState const& pBaseState) {
 			
 			{
 				State s0 = mAbtor(pBaseState);

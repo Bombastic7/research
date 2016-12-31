@@ -60,7 +60,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		CacheStore(Domain const& pDomain) :
 			mStore(StoreOps(pDomain), StoreOps(pDomain)),
-			mPool(),
+			mPool()
 		{}
 		
 		CacheEntry* retrieve(PackedState const& pkd) {
@@ -112,7 +112,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				doCaching = true;
 		}
 		
-		void report() {
+		Json report() {
 			Json j;
 			j["do_caching"] = doCaching;
 			return j;

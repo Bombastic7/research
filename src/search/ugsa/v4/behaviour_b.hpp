@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <array>
+#include <map>
 #include <cmath>
 #include <string>
 #include <type_traits>
@@ -21,72 +22,111 @@
 namespace mjon661 { namespace algorithm { namespace ugsav4 {	
 
 
-	template<typename Cost, int F_Range>
+	template<typename Cost>
 	struct HeuristicBF {
 		
 		static_assert(std::is_integral<Cost>::value, "");
-		static_assert(F_Range > 0, "");
 
 		void informNodeExpansion(Cost, Cost pfval) {
-			slow_assert(pfval > 0 && pfval < F_Range);
-			mLevelCount[(unsigned)pfval]++;	
+			mLevelCount[(unsigned)pfval]++;
+			
+			if(!mInitFvalSet) {
+				mInitFvalSet = true;
+				mInitNodeFval = pfval;
+			}
 		};
 		
 		void informNodeGeneration(Cost, Cost) {}
 		
-		
-		//Memoise?
-		flt_t computeHBF(Cost pFa, Cost pFb) {
-			slow_assert(pFa >= 0 && pFa < F_Range && pFb > 0 && pFb < F_Range);
-			slow_assert(pFa != pFb && pFa != 0);
+
+		flt_t computeHBF_neighbours() {
 			
-			flt_t r = (flt_t)mLevelCount[pFb] / mLevelCount[pFa];
-			flt_t szDifRecip = 1.0 / (pFb - pFa);
-			
-			flt_t bf = std::pow(r, szDifRecip);
-			return bf;
-		}
-		
-		flt_t computeHBF() {
-			flt_t acc = 0;
-			unsigned samples = 0, i=0, j;
-			
-			for(; mLevelCount[i] == 0 && i < F_Range; i++) ;
-			
-			slow_assert(i != F_Range);
-			
-			j = i + 1;
-			
-			for(; mLevelCount[j] == 0 && j < F_Range; j++) ;
-			
-			if(j == F_Range)
+			if(mLevelCount.empty() || mLevelCount.size() == 1)
 				return 0;
+
+			flt_t acc = 0;
+			unsigned samples = 0;
 			
-			while(j < F_Range) {
+			auto it = mLevelCount.begin();
+			unsigned prevFlvl = it->first, prevCount = it->second;
+			++it;
+			
+			for(; it != mLevelCount.end(); ++it) {
+				unsigned flvl = it->first, count = it->second;
 				
-				acc += computeHBF(i, j);
+				flt_t r = (flt_t)count / prevCount;
+				flt_t fDifRecip = 1.0 / (flvl - prevFlvl);
+			
+				flt_t bf = std::pow(r, fDifRecip);
+				acc += bf;
 				samples++;
 				
-				i = j;
-				j++;
-				
-				for(; mLevelCount[j] == 0 && j < F_Range; j++) ;
+				prevFlvl = flvl;
+				prevCount = count;
 			}
 			
 			return acc / samples;
 		}
 		
 		
-		void reset() {
-			mLevelCount.fill(0);
+		
+		flt_t computeHBF_refInit() {
+			
+			if(!mInitFvalSet || mLevelCount.empty() || mLevelCount.size() == 1)
+				return 0;
+			
+			flt_t acc = 0;
+			unsigned samples = 0;
+			
+			auto it = mLevelCount.begin();
+			++it;
+			
+			unsigned initCount = mLevelCount[mInitNodeFval];
+			
+			for(; it != mLevelCount.end(); ++it) {
+				unsigned flvl = it->first, count = it->second;
+				
+				if(count == initCount) {
+					acc += 1;
+					samples++;
+					continue;
+				}
+				
+				flt_t r = (flt_t)count / initCount;
+				flt_t fDifRecip = 1.0 / (flvl - mInitNodeFval);
+			
+				flt_t bf = std::pow(r, fDifRecip);
+				acc += bf;
+				samples++;
+			}
+			
+			return acc / samples;
+		}
+		
+		flt_t computeHBF() {
+			if(mRefInit)
+				return computeHBF_refInit();
+			else
+				return computeHBF_neighbours();			
 		}
 		
 		
-		HeuristicBF() {
+		void reset() {
+			mLevelCount.clear();
+			mInitFvalSet = false;
+		}
+		
+		
+		HeuristicBF(bool pRefInit) :
+			mRefInit(pRefInit)
+		{
 			reset();
 		}
 
-		std::array<unsigned, F_Range> mLevelCount;
+		std::map<Cost, unsigned> mLevelCount;
+		Cost mInitNodeFval;
+		bool mInitFvalSet;
+		const bool mRefInit;
 		
 	};
 	
@@ -96,21 +136,33 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 	
 	template<typename = void>
-	struct UGSABehaviour : public HeuristicBF<int, 1000> {
+	struct UGSABehaviour : public HeuristicBF<ucost_t> {
 		
-		using Cost = int;
+		using Cost = ucost_t;
 		
 		UGSABehaviour(AlgoConf<> const& pConf) :
+			HeuristicBF<ucost_t>(pConf.use_hbf_ref_init),
+			mPref(pConf.kpref),
 			mConf(pConf)
 		{
 			reset();
 		}
 		
-		unsigned compute_singleTree(unsigned pLvl, Cost pG) {
+		unsigned compute_singleTree(unsigned pLvl, ucost_t pG) {
 			slow_assert(pLvl == 1);
 			
-			flt_t remExp = std::pow(this->computeHBF(), pG); //<- dist correction?
-			slow_assert((unsigned)remExp < std::numeric_limits<unsigned>::max() / 10); //10 is arbitrary.
+			flt_t remExpFlt = std::pow(this->computeHBF(), pG); //<- dist correction?
+			
+			ucost_t remExp;
+			
+			if(remExpFlt < 100000000)
+				remExp = remExpFlt;
+			else {
+				remExp = 100000000;
+				mClipCount++;
+			}
+			
+			slow_assert((flt_t)remExp * mPref < std::numeric_limits<ucost_t>::max() / 2, "%f %f %d", this->computeHBF(), remExp, pG );
 			
 			return pG + mPref * remExp;
 		}
@@ -127,18 +179,22 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 		void reset() {
-			HeuristicBF<int, 1000>::reset();
+			HeuristicBF<ucost_t>::reset();
+			mClipCount = 0;
 		}
 		
 		Json report() {
 			Json j;
 			j["hbf"] = this->computeHBF();
 			j["used k pref"] = mPref;
+			k["used hbf ref init"] = pConf.use_hbf_ref_init;
 			j["used all frontier"] = mConf.useAllFrontier;
+			j["clips"] = mClipCount;
 			return j;
 		}
 		
 		const unsigned mPref;
 		AlgoConf<> const& mConf;
+		unsigned mClipCount;
 	};
 }}}

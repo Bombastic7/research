@@ -4,11 +4,12 @@
 
 #include "util/debug.hpp"
 #include "util/json.hpp"
+#include "util/math.hpp"
 #include "search/solution.hpp"
 
 #include "search/hastar/v2/common.hpp"
 #include "search/hastar/v2/base_search.hpp"
-#include "search/hastar/v2/level_stats.hpp"
+//#include "search/hastar/v2/level_stats.hpp"
 #include "search/hastar/v2/simple_stats.hpp"
 
 
@@ -56,13 +57,13 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 	};
 	
-	
+	/*
 	template<typename D>
 	using HAstar_StatsLevel = HAstar<D, LevelStatsManager<>, 1000>;
 	
 	template<typename D>
 	using HAstar_StatsLevel_1lvl = HAstar<D, LevelStatsManager<>, 1>;
-	
+	*/
 	template<typename D>
 	using HAstar_StatsSimple = HAstar<D, SimpleStatsManager<>, 1000>;
 	

@@ -8,15 +8,18 @@ import matplotlib.pyplot as plt
 from configuration import DOMS, ALGS, WEIGHTS, VALUESOFINTEREST, NPROBLEMS, makeAlgDomName
 
 
-def doMain():
+
+def extractValuesOfInterest():
 	
 	with open(sys.argv[1]) as f:
 		resultSet = json.load(f)
 
-	for d in [DOMS[1]]:
+	resDict = {}
+
+	for di in range(len(DOMS)):
+		d = DOMS[di]
 		
 		series = np.empty([len(WEIGHTS), len(VALUESOFINTEREST), len(ALGS), NPROBLEMS])
-		
 		
 		for wi in range(len(WEIGHTS)):
 			for vi in range(len(VALUESOFINTEREST)):
@@ -29,9 +32,19 @@ def doMain():
 							series[wi][vi][ai][pi] = resultSet[makeAlgDomName(ALGS[ai], d)][str(WEIGHTS[wi])][str(pi)][VALUESOFINTEREST[vi]]
 						else:
 							resultSet[makeAlgDomName(ALGS[ai], d)][str(WEIGHTS[wi])][str(pi)][VALUESOFINTEREST[vi]] = 0
+		
+		resDict[di] = series
+
+	return resDict
+
+
 	
-		#print series
-		#print len(series)					
+def doProbPlot(avg=True):
+	
+	vals = extractValuesOfInterest()
+
+	for di, series in vals.iteritems():
+		d = DOMS[di]
 		
 		fig, axs = plt.subplots(len(WEIGHTS), len(VALUESOFINTEREST))
 		#fig.tight_layout()
@@ -45,11 +58,23 @@ def doMain():
 				ax.tick_params(axis='x', which='both', bottom='off', top='off', labelbottom='off')
 				ax.get_yaxis().get_major_formatter().set_powerlimits((-1, 2))
 				
-				widthPerProb = 0.8 / NPROBLEMS
 				
-				for ai in range(len(ALGS)):
-					ax.bar([x*widthPerProb + ai for x in range(NPROBLEMS)], series[wi][vi][ai], widthPerProb)
-		
+				if avg:
+					width = 0.8
+					heights = [np.mean(series[wi,vi,ai,:]) for ai in range(len(ALGS))]
+					errs = [np.std(series[wi,vi,ai,:], ddof=1) for ai in range(len(ALGS))]
+
+					print series[wi,vi,ai,:], d["name"], WEIGHTS[wi], ALGS[ai]["name"]
+					
+					ax.bar(range(len(ALGS)), heights, width, yerr=errs)
+					
+				
+				else:
+					widthPerProb = 0.8 / NPROBLEMS
+					
+					for ai in range(len(ALGS)):
+						ax.bar([x*widthPerProb + ai for x in range(NPROBLEMS)], series[wi][vi][ai], widthPerProb)
+			
 		
 		for wi in range(len(WEIGHTS)):
 			ax = axs[wi][0]
@@ -70,35 +95,7 @@ def doMain():
 	
 	plt.show()
 
-"""
-		for wf,wt in WEIGHTS:
-			for vn in VALUESOFINTEREST:
-				
-				series = np.empty([len(ALGS), NPROBLEMS])
-				
-				for ai in range(len(ALGS)):
-					for pi in range(NPROBLEMS):
 
-						if vn in resultSet[makeAlgDomName(ALGS[ai], d)][str((wf,wt))][str(pi)]:
-							series[ai][pi] = resultSet[makeAlgDomName(ALGS[ai], d)][str((wf,wt))][str(pi)][vn]
-						else:
-							series[ai][pi] = 0
-
-
-				width = 0.8 / len(ALGS)
-				
-				barPlots = []
-				
-				
-				plt.subplot(
-				
-				for ai in range(len(ALGS)):
-					rects = plt.bar([x*width + ai for x in range(NPROBLEMS)], series[ai], width)
-				
-				plt.set_xticks([x + 0.4 for x in range(len(ALGS))])
-				plt.set_xticklabels([alg["name"] for alg in ALGS])
-				plt.show()
-"""
 
 if __name__ == "__main__":
-	doMain()
+	doProbPlot(True)

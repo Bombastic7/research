@@ -13,8 +13,8 @@ import gen_problems
 
 RES_CACHE_DIR = "./rescache/"
 
-WORKER_MEM = 3000
-TIME_LIMIT = 60
+WORKER_MEM = 6000
+TIME_LIMIT = 3600
 
 def setNWorkers():
 	global N_WORKERS

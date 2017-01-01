@@ -9,9 +9,9 @@ from configuration import DOMS, ALGS, WEIGHTS, VALUESOFINTEREST, NPROBLEMS, make
 
 
 
-def extractValuesOfInterest():
+def extractValuesOfInterest(resfile, valsOfInterest):
 	
-	with open(sys.argv[1]) as f:
+	with open(resfile) as f:
 		resultSet = json.load(f)
 
 	resDict = {}
@@ -19,40 +19,36 @@ def extractValuesOfInterest():
 	for di in range(len(DOMS)):
 		d = DOMS[di]
 		
-		series = np.empty([len(WEIGHTS), len(VALUESOFINTEREST), len(ALGS), NPROBLEMS])
+		series = np.empty([len(WEIGHTS), len(valsOfInterest), len(ALGS), NPROBLEMS])
 		
 		for wi in range(len(WEIGHTS)):
-			for vi in range(len(VALUESOFINTEREST)):
+			for vi in range(len(valsOfInterest)):
 				
 				for ai in range(len(ALGS)):
 					
 					for pi in range(NPROBLEMS):
-						
-						if VALUESOFINTEREST[vi] in resultSet[makeAlgDomName(ALGS[ai], d)][str(WEIGHTS[wi])][str(pi)]:
-							series[wi][vi][ai][pi] = resultSet[makeAlgDomName(ALGS[ai], d)][str(WEIGHTS[wi])][str(pi)][VALUESOFINTEREST[vi]]
-						else:
-							resultSet[makeAlgDomName(ALGS[ai], d)][str(WEIGHTS[wi])][str(pi)][VALUESOFINTEREST[vi]] = 0
-		
+						series[wi][vi][ai][pi] = resultSet[makeAlgDomName(ALGS[ai], d)][str(WEIGHTS[wi])][str(pi)][valsOfInterest[vi]]
+
 		resDict[di] = series
 
 	return resDict
 
 
+
+def doProbPlot(resfile, valsOfInterest, avg=True):
 	
-def doProbPlot(avg=True):
-	
-	vals = extractValuesOfInterest()
+	vals = extractValuesOfInterest(resfile, valsOfInterest)
 
 	for di, series in vals.iteritems():
 		d = DOMS[di]
 		
-		fig, axs = plt.subplots(len(WEIGHTS), len(VALUESOFINTEREST))
+		fig, axs = plt.subplots(len(WEIGHTS), len(valsOfInterest))
 		#fig.tight_layout()
 		fig.suptitle(d["name"])
 		fig.subplots_adjust(bottom=0.3, hspace=0.3)
 		
 		for wi in range(len(WEIGHTS)):
-			for vi in range(len(VALUESOFINTEREST)):
+			for vi in range(len(valsOfInterest)):
 				ax = axs[wi][vi]
 				
 				ax.tick_params(axis='x', which='both', bottom='off', top='off', labelbottom='off')
@@ -80,11 +76,11 @@ def doProbPlot(avg=True):
 			ax = axs[wi][0]
 			ax.set_ylabel(str(WEIGHTS[wi]), rotation=0, size="large", labelpad=50)
 		
-		for vi in range(len(VALUESOFINTEREST)):
+		for vi in range(len(valsOfInterest)):
 			ax = axs[0][vi]
-			ax.set_title(VALUESOFINTEREST[vi])
+			ax.set_title(valsOfInterest[vi])
 		
-		for vi in range(len(VALUESOFINTEREST)):
+		for vi in range(len(valsOfInterest)):
 			ax = axs[len(WEIGHTS)-1][vi]
 			ax.tick_params(axis='x', which='both', bottom='on', labelbottom='on')
 			ax.set_xticks([(x+0.5) for x in range(len(ALGS))])
@@ -98,4 +94,4 @@ def doProbPlot(avg=True):
 
 
 if __name__ == "__main__":
-	doProbPlot(True)
+	doProbPlot(sys.argv[1], sys.argv[2:])

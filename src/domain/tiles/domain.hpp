@@ -88,7 +88,7 @@ namespace mjon661 { namespace tiles {
 		}
 
 		cost_t getMoveCost(state_t& pState, idx_t op) const {
-			return Use_Weight ? pState[op] : 1;
+			return Use_Weight ? op : 1;
 		}
 		
 		void prettyPrint(state_t const& pState, std::ostream& out) const {

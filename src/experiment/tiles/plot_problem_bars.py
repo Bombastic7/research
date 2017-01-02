@@ -60,7 +60,6 @@ def doProbPlot(resfile, valsOfInterest, avg=True):
 					heights = [np.mean(series[wi,vi,ai,:]) for ai in range(len(ALGS))]
 					errs = [np.std(series[wi,vi,ai,:], ddof=1) for ai in range(len(ALGS))]
 
-					print series[wi,vi,ai,:], d["name"], WEIGHTS[wi], ALGS[ai]["name"]
 					
 					ax.bar(range(len(ALGS)), heights, width, yerr=errs)
 					

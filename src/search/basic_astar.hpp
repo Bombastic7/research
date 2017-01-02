@@ -6,15 +6,39 @@
 #include "search/nodepool.hpp"
 #include "util/debug.hpp"
 #include "util/json.hpp"
+#include "util/exception.hpp"
 
 
 namespace mjon661 { namespace algorithm {
 
-	template<typename 	DomStack,
-			 bool 		Collect_Stats = true>
+namespace AstarImpl_Impl {
+	template<typename Domain, bool Do_Weighted>
+	struct FvalType {
+		using type = typename Domain::Cost;
+	};
+	
+	template<typename Domain>
+	struct FvalType<Domain, true> {
+		using type = double;
+	};
+
+}
+
+
+	template<	typename DomStack,
+				bool Do_Weighted,
+				bool Do_Greedy,
+				bool Do_Speedy,
+				bool Collect_Stats = true>
 	
 	class AstarImpl {
+		
+		static_assert(!(Do_Weighted && (Do_Greedy || Do_Speedy)), "");
+		static_assert(!(Do_Greedy && Do_Speedy), "");
+		
 		public:
+		
+		using Fval_t = typename AstarImpl_Impl::FvalType<Domain, Do_Weighted>::type;
 		
 		using Domain = typename DomStack::template Domain<0>;
 		using Cost = typename Domain::Cost;
@@ -26,7 +50,8 @@ namespace mjon661 { namespace algorithm {
 
 		
 		struct Node {
-			Cost g, f;
+			Cost g;
+			Fval_t f;
 			PackedState pkd;
 			Operator in_op;
 			Operator parent_op;
@@ -93,7 +118,7 @@ namespace mjon661 { namespace algorithm {
 		
 		
 
-		AstarImpl(DomStack& pDomain) :
+		AstarImpl(DomStack& pDomain, Json const& jConfig) :
 			mStats				(),
 			mDomain				(pDomain),
 			mOpenList			(CompareNodesCost()),
@@ -101,8 +126,14 @@ namespace mjon661 { namespace algorithm {
 									HashNode(mDomain),
 									CompareNodeToState(mDomain)
 								),
-			mNodePool			()
+			mNodePool			(),
+			mWeight				(0)
 		{
+			if(Do_Weighted) {
+				mWeight = jConfig.at("weight");
+				if(mWeight < 1)
+					throw ConfigException("Bad weight");
+			}
 		}
 
 		
@@ -111,7 +142,7 @@ namespace mjon661 { namespace algorithm {
 				Node* n0 = mNodePool.construct();
 				
 				n0->g = 		Cost(0);
-				n0->f = 		mDomain.heuristicValue(s0);
+				n0->f = 		evaluateFval(n0->g, s0);
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
@@ -181,6 +212,13 @@ namespace mjon661 { namespace algorithm {
 			j["closed table size"] = mClosedList.size();
 			j["open size"] = mOpenList.size();
 			j["open capacity"] = mOpenList.capacity();
+			
+			if(Do_Weighted)
+				j["used weight"] = mWeight;
+			
+			j["used weighted"] = Do_Weighted;
+			j["used greedy"] = Do_Greedy;
+			j["used speedy"] = Do_Speedy;
 			return j;
 		}
 		
@@ -229,7 +267,7 @@ namespace mjon661 { namespace algorithm {
 				Node* kid_node 		= mNodePool.construct();
 
 				kid_node->g 		= kid_g;
-				kid_node->f 		= kid_g + mDomain.heuristicValue(edge.state());
+				kid_node->f 		= evaluateFval(kid_g, edge.state());
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
@@ -241,6 +279,20 @@ namespace mjon661 { namespace algorithm {
 			
 			mDomain.destroyEdge(edge);
 		}
+		
+		Fval_t evaluateFval(Cost const& g, State const& s) {
+			if(Do_Weighted)
+				return g + mWeight * mDomain.heuristicValue(s);
+			
+			else if(Do_Greedy)
+				return mDomain.heuristicValue(s);		
+			
+			else if(Do_Speedy)
+				return mDomain.distanceValue(s);
+			
+			gen_assert(false);
+			return 0;
+		}
 
 		SearchStats 		mStats;
 		Domain				mDomain;
@@ -248,6 +300,8 @@ namespace mjon661 { namespace algorithm {
 		OpenList_t 			mOpenList;
 		ClosedList_t 		mClosedList;
 		NodePool_t 			mNodePool;
+		
+		Fval_t				mWeight;
 	};
 	
 }}

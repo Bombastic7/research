@@ -128,8 +128,10 @@ void selectAll(Json const& jExecDesc) {
 	codeStr += """
 	else {
 		Json jErr;
-		jErr["result"] = "bad name";
-		std::cout << jErr.dump(4);
+		jErr["_result"] = "bad name";
+		std::string msg = jErr.dump();
+		write(1, msg.c_str(), msg.size());
+		exit(0);
 	}
 }
 

@@ -38,9 +38,18 @@ namespace mjon661 { namespace tiles {
 						mMinCost[src][t] = mMinDistance[src][t];
 				}
 			}
+			
+			for(tile_t t=0; t<Board_Size; t++) {
+				for(idx_t src=0; src<Board_Size; src++) {
+					for(idx_t dst=0; dst<Board_Size; dst++) {
+						mCostInc[t][src][dst] = mMinCost[dst][t] - mMinCost[src][t];
+						mDistInc[t][src][dst] = mMinDistance[dst][t] - mMinDistance[src][t];
+					}
+				}
+			}
 		}
 		
-		void dump(std::ostream& out) {
+		void dump(std::ostream& out) const {
 			for(tile_t t=0; t<Board_Size; t++) {
 				out << t << ":\n";
 				
@@ -60,7 +69,7 @@ namespace mjon661 { namespace tiles {
 				}
 			}
 		}
-		/*
+		
 		//MD for state
 		void eval(BoardStateV<H, W> const& pBoard, int& out_h, int& out_d) const {
 			
@@ -72,17 +81,17 @@ namespace mjon661 { namespace tiles {
 				
 				slow_assert(pBoard[i] >= 0 && pBoard[i] < H*W, "%d", pBoard[i]);
 
-				out_h += mDistance[i][pBoard[i]] * (Use_Weight ? pBoard[i] : 1);
-				out_d += mDistance[i][pBoard[i]];
+				out_h += mMinCost[i][pBoard[i]];
+				out_d += mMinDistance[i][pBoard[i]];
 			}
 		}
 		
-		//Change in MD when pTile (not the blank) moves from pSrc to pDest in a move operation.
-		//i.e. state.h += increment(op, blankpos, state[op]), where op is the index the blank is moving to.
-		int increment_dist(idx_t pSrc, idx_t pDest, tile_t pTile) const {
-			return mIncrement[pTile][pSrc][pDest];
+		//Change in h/d when pTile moves from pSrc to pDest.
+		void increment(idx_t pSrc, idx_t pDest, tile_t pTile, int& out_dh, int& out_dd) const {
+			out_dh = mCostInc[pTile][pSrc][pDest];
+			out_dd = mDistInc[pTile][pSrc][pDest];
 		}
-		*/
+		
 		
 		private:
 		
@@ -112,11 +121,9 @@ namespace mjon661 { namespace tiles {
 			return bestCost;
 		}
 		
-		std::array<std::array<cost_t, Board_Size>, Board_Size> mMinDistance;
-		std::array<std::array<cost_t, Board_Size>, Board_Size> mMinCost;
-		//std::array<std::array<std::array<int, Board_Size>, Board_Size>, Board_Size> mIncrement;
+		std::array<std::array<cost_t, Board_Size>, Board_Size> mMinCost, mMinDistance;
+		std::array<std::array<std::array<int, Board_Size>, Board_Size>, Board_Size> mCostInc, mDistInc;
 		const BoardStateV<H, W> mGoalState;
-		
-		MoveLookup<H, W> mMoveLookup;
+		const MoveLookup<H, W> mMoveLookup;
 	};
 }}

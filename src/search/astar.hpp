@@ -17,7 +17,7 @@ namespace mjon661 { namespace algorithm {
 		using State = 			typename Domain::State;
 		using Node =			typename Astar_t::Node;
 			
-		Astar(DomStack& pDomStack, Json const& jConfig) :
+		AstarAlgorithm(DomStack& pDomStack, Json const& jConfig) :
 			mDomain(pDomStack),
 			mAlgo(pDomStack, jConfig)
 		{}

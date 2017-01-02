@@ -33,14 +33,20 @@ namespace mjon661 { namespace tiles {
 		struct StateImpl : public BoardStateV<H,W> {
 			using BoardStateV<H,W>::BoardStateV;
 			
-			cost_t get_h() const {return 0;} cost_t get_d() const {return 0;} void set_h(cost_t) {} void set_d(cost_t) {}
+			cost_t get_h() const {return 0;} 
+			cost_t get_d() const {return 0;} 
+			void set_h(cost_t) {} 
+			void set_d(cost_t) {}
 		};
 		
 		template<typename Ign>
 		struct StateImpl<true, Ign> : public BoardStateV<H,W> {
 			using BoardStateV<H,W>::BoardStateV;
 			
-			cost_t get_h() const {return h;} cost_t get_d() const {return d;} void set_h(cost_t ph) {h=ph;} void set_d(cost_t pd) {d=pd;}
+			cost_t get_h() const {return h;} 
+			cost_t get_d() const {return d;} 
+			void set_h(cost_t ph) {h=ph;} 
+			void set_d(cost_t pd) {d=pd;}
 			
 			cost_t h, d;
 		};
@@ -102,13 +108,11 @@ namespace mjon661 { namespace tiles {
 		
 		void performMove(state_t& pState, idx_t op) const {
 			if(Use_H) {
-				int distIncr = mManhattan.increment_dist(op, pState.getBlankPos(), pState[op]);
+				cost_t dh, dd;
+				mManhattan.increment(op, pState.getBlankPos(), pState[op], dh, dd);
 				
-				cost_t newH = pState.get_h() + distIncr * (Use_Weight ? pState[op] : 1);
-				cost_t newD = pState.get_d() + distIncr;
-			
-				pState.set_h(newH);
-				pState.set_d(newD);
+				pState.set_h(pState.get_h() + dh);
+				pState.set_d(pState.get_d() + dd);
 			}
 			pState.moveBlank(op);
 		}
@@ -161,17 +165,7 @@ namespace mjon661 { namespace tiles {
 
 		cost_t getMoveCost(state_t& pState, idx_t op) const {
 			
-			if(!Use_Weight)
-				return 1;
-			
-			int tileIdx;
-			
-			if(pState.tryFindAt(op, tileIdx)) {
-				slow_assert(mMap.tileAt(tileIdx) != 0);
-				return mMap.tileAt(tileIdx);
-			}
-			
-			return 1;
+			return Use_Weight ? op : 1;
 		}
 		
 		void prettyPrint(state_t const& pState, std::ostream& out) const {
@@ -319,7 +313,7 @@ namespace mjon661 { namespace tiles {
 					BoardStateV<H,W> const& pGoalState,
 					IndexMap<H*W, Sz> const& pMap) :
 			
-			base_t(pInitState, pGoalState, pMap),
+			base_t		(pInitState, pGoalState, pMap),
 			noOp		(-1),
 			mOpLookup	()
 		{}

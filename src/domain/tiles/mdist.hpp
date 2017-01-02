@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <iostream>
 #include "domain/tiles/defs.hpp"
+#include "domain/tiles/board_state.hpp"
+#include "domain/tiles/common.hpp"
 #include "util/math.hpp"
 #include "util/debug.hpp"
 
@@ -14,7 +16,7 @@ namespace mjon661 { namespace tiles {
 	struct Manhattan {
 		static_assert(H > 0 && W > 0, "");
 		
-		static const unsigned Board_Size = H*W;
+		static const int Board_Size = H*W;
 		
 		Manhattan(BoardStateV<H, W> const& pGoalState) :
 			mGoalState(pGoalState),
@@ -52,13 +54,13 @@ namespace mjon661 { namespace tiles {
 				
 				for(int h=0; h<H; h++) {
 					for(int w=0; w<W; w++)
-						out << mCostDistance[h*W+w][t] << " ";
+						out << mMinCost[h*W+w][t] << " ";
 				
 					out << "\n";
 				}
 			}
 		}
-		
+		/*
 		//MD for state
 		void eval(BoardStateV<H, W> const& pBoard, int& out_h, int& out_d) const {
 			
@@ -80,12 +82,12 @@ namespace mjon661 { namespace tiles {
 		int increment_dist(idx_t pSrc, idx_t pDest, tile_t pTile) const {
 			return mIncrement[pTile][pSrc][pDest];
 		}
-		
+		*/
 		
 		private:
 		
 		
-		cost_t weightedCostRec(tile_t t, pos_t s, cost_t g, std::vector<cost_t>& pAnc) {
+		cost_t weightedCostRec(tile_t t, idx_t s, cost_t g, std::vector<cost_t>& pAnc) {
 			
 			if(s == mGoalState.find(t))
 				return g;
@@ -100,8 +102,8 @@ namespace mjon661 { namespace tiles {
 			
 			for(int n=0; n<mvs[0]; n++) {
 				pAnc.push_back(s);
-				cst = weightedCostRec(t, mvs[n+1], g+s, pAnc);
-				pAnc.pop();
+				cost_t cst = weightedCostRec(t, mvs[n+1], g+s, pAnc);
+				pAnc.pop_back();
 				
 				if(cst < bestCost)
 					bestCost = cst;
@@ -110,8 +112,9 @@ namespace mjon661 { namespace tiles {
 			return bestCost;
 		}
 		
-		std::array<std::array<cost_t, Board_Size>, Board_Size> mDistance;
-		std::array<std::array<std::array<int, Board_Size>, Board_Size>, Board_Size> mIncrement;
+		std::array<std::array<cost_t, Board_Size>, Board_Size> mMinDistance;
+		std::array<std::array<cost_t, Board_Size>, Board_Size> mMinCost;
+		//std::array<std::array<std::array<int, Board_Size>, Board_Size>, Board_Size> mIncrement;
 		const BoardStateV<H, W> mGoalState;
 		
 		MoveLookup<H, W> mMoveLookup;

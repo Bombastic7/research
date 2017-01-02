@@ -4,7 +4,6 @@
 #include <iostream>
 #include <cstdlib>
 
-#include "search/basic_astar.hpp"
 #include "util/json.hpp"
 
 namespace mjon661 { namespace algorithm {

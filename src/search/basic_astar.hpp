@@ -4,6 +4,7 @@
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
 #include "search/nodepool.hpp"
+#include "search/solution.hpp"
 #include "util/debug.hpp"
 #include "util/json.hpp"
 #include "util/exception.hpp"
@@ -38,8 +39,6 @@ namespace AstarImpl_Impl {
 		
 		public:
 		
-		using Fval_t = typename AstarImpl_Impl::FvalType<Domain, Do_Weighted>::type;
-		
 		using Domain = typename DomStack::template Domain<0>;
 		using Cost = typename Domain::Cost;
 		using Operator = typename Domain::Operator;
@@ -48,6 +47,7 @@ namespace AstarImpl_Impl {
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
 
+		using Fval_t = typename AstarImpl_Impl::FvalType<Domain, Do_Weighted>::type;
 		
 		struct Node {
 			Cost g;

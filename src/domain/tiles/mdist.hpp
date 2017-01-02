@@ -1,11 +1,12 @@
 #pragma once
 
+#include <limits>
 #include <cstdlib>
+#include <iostream>
 #include "domain/tiles/defs.hpp"
 #include "util/math.hpp"
 #include "util/debug.hpp"
 
-#include <iostream>//..........
 
 namespace mjon661 { namespace tiles {
 
@@ -16,37 +17,45 @@ namespace mjon661 { namespace tiles {
 		static const unsigned Board_Size = H*W;
 		
 		Manhattan(BoardStateV<H, W> const& pGoalState) :
-			mGoalState(pGoalState)
+			mGoalState(pGoalState),
+			mMoveLookup()
 		{
-			for(unsigned src=0; src<Board_Size; src++) {
-				for(unsigned t=0; t<Board_Size; t++) {
-					
+			std::vector<idx_t> ancVec;
+			
+			for(idx_t src=0; src<Board_Size; src++) {
+				for(tile_t t=0; t<Board_Size; t++) {
 					int src_row = src / W, src_col = src % W;
 					int goal_row = mGoalState.find(t) / W, goal_col = mGoalState.find(t) % W;
 					
-					mDistance[src][t] = std::abs(src_row - goal_row) + std::abs(src_col - goal_col);
+					mMinDistance[src][t] = std::abs(src_row - goal_row) + std::abs(src_col - goal_col);
+					
+					if(Use_Weight)
+						mMinCost[src][t] = weightedCostRec(t, src, 0, ancVec);
+					
+					else
+						mMinCost[src][t] = mMinDistance[src][t];
 				}
 			}
-			
-			
-			MoveLookup<H, W> moveLookup;
-			
-			for(tile_t t=0; t<H*W; t++) {
+		}
+		
+		void dump(std::ostream& out) {
+			for(tile_t t=0; t<Board_Size; t++) {
+				out << t << ":\n";
 				
-				for(idx_t pos=0; pos<H*W; pos++) {
-					
-					std::array<idx_t, 5> mvs = moveLookup.get(pos);
-					
-					for(int n=0; n<mvs[0]; n++) {
-						
-						idx_t dest = mvs[n+1];
-						
-						mIncrement[t][pos][dest] = mDistance[dest][t] - mDistance[pos][t];
-
-						fast_assert(std::abs(mIncrement[t][pos][dest]) <= 1);
-					}
+				for(int h=0; h<H; h++) {
+					for(int w=0; w<W; w++)
+						out << mMinDistance[h*W+w][t] << " ";
+				
+					out << "\n";
 				}
+				out << "\n";
 				
+				for(int h=0; h<H; h++) {
+					for(int w=0; w<W; w++)
+						out << mCostDistance[h*W+w][t] << " ";
+				
+					out << "\n";
+				}
 			}
 		}
 		
@@ -74,8 +83,37 @@ namespace mjon661 { namespace tiles {
 		
 		
 		private:
+		
+		
+		cost_t weightedCostRec(tile_t t, pos_t s, cost_t g, std::vector<cost_t>& pAnc) {
+			
+			if(s == mGoalState.find(t))
+				return g;
+			
+			if(std::find(pAnc.begin(), pAnc.end(), s) != pAnc.end())
+				return std::numeric_limits<cost_t>::max();
+
+			
+			std::array<idx_t, 5> const& mvs = mMoveLookup.get(s);
+			
+			cost_t bestCost = std::numeric_limits<cost_t>::max();
+			
+			for(int n=0; n<mvs[0]; n++) {
+				pAnc.push_back(s);
+				cst = weightedCostRec(t, mvs[n+1], g+s, pAnc);
+				pAnc.pop();
+				
+				if(cst < bestCost)
+					bestCost = cst;
+			}
+			
+			return bestCost;
+		}
+		
 		std::array<std::array<cost_t, Board_Size>, Board_Size> mDistance;
 		std::array<std::array<std::array<int, Board_Size>, Board_Size>, Board_Size> mIncrement;
 		const BoardStateV<H, W> mGoalState;
+		
+		MoveLookup<H, W> mMoveLookup;
 	};
 }}

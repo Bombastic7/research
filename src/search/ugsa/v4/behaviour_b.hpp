@@ -104,7 +104,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 		flt_t computeHBF() {
-			if(mRefInit)
+			if(mConf.use_hbf_ref_init)
 				return computeHBF_refInit();
 			else
 				return computeHBF_neighbours();			
@@ -117,8 +117,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 		
-		HeuristicBF(bool pRefInit) :
-			mRefInit(pRefInit)
+		HeuristicBF(AlgoConf<> const& pConf) :
+			mConf(pConf)
 		{
 			reset();
 		}
@@ -126,8 +126,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		std::map<Cost, unsigned> mLevelCount;
 		Cost mInitNodeFval;
 		bool mInitFvalSet;
-		const bool mRefInit;
-		
+		AlgoConf<> const& mConf;
 	};
 	
 	
@@ -141,17 +140,17 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		using Cost = ucost_t;
 		
 		UGSABehaviour(AlgoConf<> const& pConf) :
-			HeuristicBF<ucost_t>(pConf.use_hbf_ref_init),
+			HeuristicBF<ucost_t>(pConf),
 			mPref(pConf.kpref),
 			mConf(pConf)
 		{
 			reset();
 		}
 		
-		unsigned compute_singleTree(unsigned pLvl, ucost_t pG) {
+		ucost_t compute_singleTree(unsigned pLvl, ucost_t pG) {
 			slow_assert(pLvl == 1);
 			
-			flt_t remExpFlt = std::pow(this->computeHBF(), pG); //<- dist correction?
+			flt_t remExpFlt = std::pow(mCachedHBF, pG); //<- dist correction?
 			
 			ucost_t remExp;
 			
@@ -162,25 +161,32 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				mClipCount++;
 			}
 			
-			slow_assert((flt_t)remExp * mPref < std::numeric_limits<ucost_t>::max() / 2, "%f %f %d", this->computeHBF(), remExp, pG );
+			slow_assert((flt_t)remExp * mPref < std::numeric_limits<ucost_t>::max() / 2, "%f %f %d", mCachedHBF, remExp, pG );
 			
 			return pG + mPref * remExp;
 		}
+
 		
-		unsigned compute_allFrontier(unsigned pLvl, Cost pG, unsigned pSz) {
-			return compute_singleTree(pLvl, pG) * pSz;
+		unsigned compute_effectiveEdge(unsigned pLvl, Cost pG) {
+			return compute_singleTree(pLvl, pG) * (mConf.useAllFrontier ? mBaseFrontierSz : 1);
 		}
 		
-		unsigned compute_effectiveEdge(unsigned pLvl, Cost pG, unsigned pSz) {
-			if(mConf.useAllFrontier)
-				return compute_allFrontier(pLvl, pG, pSz);
-			else
-				return compute_singleTree(pLvl, pG);
+		void informAbtSearchBegins(unsigned pLvl, unsigned pFrontierSz) {
+			mCachedHBF = this->computeHBF();
+			mBaseFrontierSz = pFrontierSz;
+			slow_assert(!mIsInAbtSearch);
+			mIsInAbtSearch = true;
+		}
+		
+		void informAbtSearchEnds() {
+			slow_assert(mIsInAbtSearch);
+			mIsInAbtSearch = false;
 		}
 		
 		void reset() {
 			HeuristicBF<ucost_t>::reset();
 			mClipCount = 0;
+			mIsInAbtSearch = false;
 		}
 		
 		Json report() {
@@ -193,8 +199,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			return j;
 		}
 		
+		
 		const unsigned mPref;
 		AlgoConf<> const& mConf;
 		unsigned mClipCount;
+		ucost_t mCachedHBF;
+		unsigned mBaseFrontierSz;
+		bool mIsInAbtSearch;
 	};
 }}}

@@ -7,6 +7,9 @@ import json
 import subprocess
 import time
 import multiprocessing
+from multiprocessing.managers import SyncManager
+import signal
+from Queue import Empty
 
 import gen_problems
 
@@ -14,7 +17,9 @@ import gen_problems
 RES_CACHE_DIR = "./rescache/"
 
 WORKER_MEM = 6000
-TIME_LIMIT = 180
+TIME_LIMIT = 10
+
+
 
 def setNWorkers():
 	global N_WORKERS
@@ -41,11 +46,12 @@ def makeAlgDomName(alg, dom):
 
 
 
-def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
+def execWorker(algdomprobQueue, resDict, statusMsgQueue, doTermValue, lck, probfile, doDump):
 	logFileObj = open(RES_CACHE_DIR + str(os.getpid()) + ".out", "w")
 	sys.stdout = logFileObj
 	sys.stderr = logFileObj
-	
+
+	signal.signal(signal.SIGINT, signal.SIG_IGN)
 	
 	with open(probfile) as f:
 		probset = json.load(f)
@@ -54,6 +60,7 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 		adp = algdomprobQueue.get()
 		if adp is None:
 			print "Finished"
+			statusMsgQueue.put(str(os.getpid()) + ": finished")
 			break
 		
 		cachedResult = None
@@ -79,25 +86,37 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 			execParams["time limit"] = TIME_LIMIT
 			execParams["memory limit"] = WORKER_MEM
 
+			instanceName = adp["name"] + "_" + str((wf, wt)).replace(" ", "_") + "_" + probkey
+			
 			if doDump:
 				res = execParams
 			
-			else:
-				print "starting", adp["name"], {"wf" : wf, "wt" : wt}, probfile, probkey
+			else:	
+				
+				print "starting", instanceName
 				logFileObj.flush()
+				
+				
 				
 				if not adp["util_aware"] and cachedResult is not None:
 					res = cachedResult
 					print "using cached result"
+					statusMsgQueue.put(str(os.getpid()) + ": " + instanceName + ": cached result")
+				
 				
 				else:
-					proc = subprocess.Popen(["./searcher", "-s"], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-				
+					proc = subprocess.Popen(["./searcher", "-s", instanceName], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+					runningSubprocess = proc
+					
 					searcherOut = proc.communicate(input=bytearray(json.dumps(execParams)))[0]
-
+					
+					if doTermValue:
+						statusMsgQueue.put(str(os.getpid()) + ": finished (signal)")
+						return
+					
 					try:
 						res = json.loads(searcherOut)
-						
+
 						if res["_result"] == "good":
 							res["util_real"] = res["_solution_cost"] * wf + res["_cputime"] * wt
 							
@@ -120,6 +139,11 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 							res["util_all_expd"] = 0
 							res["util_all_gend"] = 0
 						
+						if res["_result"] != "good":
+							statusMsgQueue.put(">> " + str(os.getpid()) + ": " + instanceName + " " + res["_result"])
+						else:
+							statusMsgQueue.put(str(os.getpid()) + ": " + instanceName)
+
 						cachedResult = res
 					
 					except ValueError as e:
@@ -149,19 +173,23 @@ def execWorker(algdomprobQueue, resDict, lck, probfile, doDump):
 				logFileObj.flush()
 				
 			except Exception as e:
-				print adp["name"] + "_" + str((wf, wt)).replace(" ", "_") + "_" + k
+				
 				print e.__class__.__name__
 				print e
 				logFileObj.flush()
+				
+				statusMsgQueue.put(str(os.getpid()) + ": Exception: " +  e.__class__.__name__ + " " + str(e))
 			
 			lck.release()
 			
-			with open(RES_CACHE_DIR + adp["name"] + "_" + str((wf, wt)).replace(" ", "_") + "_" + probkey + ".json", "w") as f:
+			with open(RES_CACHE_DIR + instanceName + ".json", "w") as f:
 				json.dump(res, f, indent=4, sort_keys=True)
 
 
 
 
+def syncManagerInit():
+	signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
 		
@@ -169,11 +197,11 @@ WEIGHTS = [(1,0),(1,1),(1,5),(1,10), (1,100), (1,1000)]
 
 
 ALGS = [
-		{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "util_aware" : False},
-		{"name" : "Bugsy", "class" : "algorithm::Bugsy", "header" : "search/bugsy.hpp", "abt" : False, "util_aware" : True},
-		{"name" : "Bugsy_norm", "class" : "algorithm::Bugsy", "conf" : {"normalised_exptime":True}, "header" : "search/bugsy.hpp",  "abt" : False, "util_aware" : True},
-		{"name" : "HAstar1", "class" : "algorithm::hastarv2::HAstar_StatsSimple", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
-		{"name" : "HAstar1_nc", "class" : "algorithm::hastarv2::HAstar_StatsSimple", "conf" : {"do_caching":False}, "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
+		#{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "util_aware" : False},
+		#{"name" : "Bugsy", "class" : "algorithm::Bugsy", "header" : "search/bugsy.hpp", "abt" : False, "util_aware" : True},
+		#{"name" : "Bugsy_norm", "class" : "algorithm::Bugsy", "conf" : {"normalised_exptime":True}, "header" : "search/bugsy.hpp",  "abt" : False, "util_aware" : True},
+		#{"name" : "HAstar1", "class" : "algorithm::hastarv2::HAstar_StatsSimple", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
+		#{"name" : "HAstar1_nc", "class" : "algorithm::hastarv2::HAstar_StatsSimple", "conf" : {"do_caching":False}, "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
 		
 		{"name" : "UGSAv4_st_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
 			"conf" : {"use_all_frontier":False, "use_hbf_ref_init":False}},
@@ -264,24 +292,52 @@ if __name__ == "__main__":
 		
 
 		
-		manager = multiprocessing.Manager()
+		manager = SyncManager()
+		manager.start(syncManagerInit)
 		resultsDict = manager.dict()
 		taskQueue = manager.Queue()
+		statusMsgQueue = manager.Queue()
+		doTerminateValue = manager.Value(bool, False)
 		dictLock = manager.Lock()
-		
+
+
 		for i in algdomsprobs:
 			taskQueue.put(i)
 		
 		for i in range(N_WORKERS):
 			taskQueue.put(None)
 		
-		workers = [multiprocessing.Process(target = execWorker, args = (taskQueue, resultsDict, dictLock, inprobfile, doDump)) for i in range(N_WORKERS)]
+		workers = [multiprocessing.Process(target = execWorker, args = (taskQueue, resultsDict, statusMsgQueue, doTerminateValue, dictLock, inprobfile, doDump)) for i in range(N_WORKERS)]
+		
+		def sigHandler(*args):
+			doTerminateValue = True
+		
+		signal.signal(signal.SIGINT, sigHandler)
+		signal.signal(signal.SIGTERM, sigHandler)
+		
 		
 		for i in workers:
 			i.start()
 		
-		for i in workers:
-			i.join()
+		runningWorkers = N_WORKERS
+
+		while runningWorkers > 0:
+			for i in range(len(workers)):
+				if workers[i] is not None:
+					workers[i].join(1)
+					
+					if not workers[i].is_alive():
+						workers[i] = None
+						runningWorkers -= 1
+
+			while True:
+				try:
+					print statusMsgQueue.get_nowait()
+				except Empty:
+					break
+			
+			sys.stdout.flush()
+
 		
 		with open(outresfile, "w") as f:
 			json.dump(resultsDict._getvalue(), f, indent=4, sort_keys=True)

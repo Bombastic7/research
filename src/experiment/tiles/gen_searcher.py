@@ -151,54 +151,39 @@ void run_prob_from_set(mjon661::Json const& jExecDescSet, std::string const& key
 	codeStr += """
 int main(int argc, const char* argv[]) {
 	
-	if(argc == 2) {
-		if(std::string(argv[1]) == "-s") {
-			mjon661::Json j;
-			std::cin >> j;
-			mjon661::selectAll(j);
-		}
-		else {
-			std::ifstream ifs(argv[1]);
-		
-			if(!ifs) {
-				std::cout << "Could not open problem file\\n";
-				return 2;
-			}
-		
-			mjon661::Json j;
-		
-			ifs >> j;
-		
-			if(argc == 2)
-				mjon661::selectAll(j);
-		}
-	}
-	else if(argc >= 3) {
-		std::ifstream ifs(argv[1]);
-		
-			if(!ifs) {
-				std::cout << "Could not open problem file\\n";
-				return 2;
-			}
-		
-			mjon661::Json jInput, jExec;
-		
-			ifs >> jInput;
-			
-			jExec = jInput;
-			
-			for(int i=2; i<argc; i++) {
-				jExec = jExec.at(argv[i]);
-			}
-			
-			mjon661::selectAll(jExec);
-	}
-	else {
+	if(argc == 1) {
 		std::cout << "Usage:\\n";
 		std::cout << "-s                     | Get input from stdin\\n";
 		std::cout << "<exec>                 | for file input\\n";
 		std::cout << "<execset> <key>[...]   |\\n";
 		return 2;
+	
+	}
+	
+	if(std::string(argv[1]) == "-s") {
+		mjon661::Json j;
+		std::cin >> j;
+		mjon661::selectAll(j);
+	}
+	else {
+		std::ifstream ifs(argv[1]);
+		
+		if(!ifs) {
+			std::cout << "Could not open problem file\\n";
+			return 2;
+		}
+	
+		mjon661::Json jInput, jExec;
+	
+		ifs >> jInput;
+		
+		jExec = jInput;
+		
+		for(int i=2; i<argc; i++) {
+			jExec = jExec.at(argv[i]);
+		}
+		
+		mjon661::selectAll(jExec);
 	}
 }
 """

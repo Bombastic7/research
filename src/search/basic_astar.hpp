@@ -284,14 +284,16 @@ namespace AstarImpl_Impl {
 			if(Do_Weighted)
 				return g + mWeight * mDomain.heuristicValue(s);
 			
-			else if(Do_Greedy)
+			if(Do_Greedy)
 				return mDomain.heuristicValue(s);		
 			
 			else if(Do_Speedy)
 				return mDomain.distanceValue(s);
 			
-			gen_assert(false);
-			return 0;
+			else
+				return g + mDomain.heuristicValue(s);
+			
+
 		}
 
 		SearchStats 		mStats;

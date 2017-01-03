@@ -94,7 +94,7 @@ namespace mjon661 { namespace tiles {
 		}
 
 		cost_t getMoveCost(state_t& pState, idx_t op) const {
-			return Use_Weight ? op : 1;
+			return Use_Weight ? pState.getBlankPos() : 1;
 		}
 		
 		void prettyPrint(state_t const& pState, std::ostream& out) const {
@@ -165,7 +165,7 @@ namespace mjon661 { namespace tiles {
 
 		cost_t getMoveCost(state_t& pState, idx_t op) const {
 			
-			return Use_Weight ? op : 1;
+			return Use_Weight ? pState.getBlankPos() : 1;
 		}
 		
 		void prettyPrint(state_t const& pState, std::ostream& out) const {
@@ -336,7 +336,7 @@ namespace mjon661 { namespace tiles {
 			cost_t edgeCost = base_t::getMoveCost(pState, op);
 			
 			slow_assert(pState.getBlankPos() != op);
-			slow_assert(edgeCost > 0 && (unsigned)edgeCost < Board_Size, "%d", edgeCost);
+			slow_assert(edgeCost >= 0 && (unsigned)edgeCost < Board_Size, "%d", edgeCost);
 			
 			
 			base_t::performMove(pState, op);

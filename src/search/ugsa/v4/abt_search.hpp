@@ -129,7 +129,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 
 		
-		Cost doSearch(BaseState const& pBaseState) {
+		Cost doSearch(BaseState const& pBaseState, unsigned pBaseFrontierSz) {
 			
 			{
 				State s0 = mAbtor(pBaseState);
@@ -158,6 +158,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				else
 					mStatsAcc.s_cachePartial();
 				*/
+				
+				mBehaviour.informAbtSearchBegins(1, pBaseFrontierSz);
 				
 				Node* n0 = mNodePool.construct();
 				
@@ -244,7 +246,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mNodePool.clear();
 			//mBestExactNode = nullptr;
 
-
+			mBehaviour.informAbtSearchEnds();
 			mStatsAcc.s_end();
 			return retUCost;
 		}
@@ -270,7 +272,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 			Edge		edge 		= mDomain.createEdge(pParentState, pInOp);
 			Cost		kid_g	 	= pParentNode->g + edge.cost();
-			Cost		kid_u   	= mBehaviour.compute_effectiveEdge(1, kid_g, mOpenList.size());
+			Cost		kid_u   	= mBehaviour.compute_effectiveEdge(1, kid_g);
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);

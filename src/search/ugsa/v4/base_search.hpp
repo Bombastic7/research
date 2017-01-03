@@ -123,7 +123,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
 				
-				n0->f = mAbtSearch.doSearch(mInitState);
+				n0->f = mAbtSearch.doSearch(mInitState, 1);
 				
 				mDomain.packState(mInitState, n0->pkd);
 				
@@ -227,7 +227,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
 				
-				kid_node->f = kid_g + mAbtSearch.doSearch(edge.state());
+				kid_node->f = kid_g + mAbtSearch.doSearch(edge.state(), mOpenList.size());
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -238,7 +238,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mDomain.destroyEdge(edge);			
 		}
 		
-		
+
 
 		UGSABehaviour<>&		mBehaviour;
 		StatsAcc				mStatsAcc;

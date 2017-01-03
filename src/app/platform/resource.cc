@@ -18,11 +18,9 @@
 namespace mjon661 {
 
 	void sigHandler(int pSig) {
-		if(pSig == SIGXCPU) {
-			Json j;
-			j["_result"] = "OOT";
-			std::string msg = j.dump();
-			write(1, msg.c_str(), msg.size());
+		if(pSig == SIGXCPU) {			
+			const char msg[] = R"({"_result":"OOT"})";
+			write(1, msg, sizeof(msg)-1);
 		}
 		exit(0);
 	}

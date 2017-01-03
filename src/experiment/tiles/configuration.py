@@ -110,11 +110,12 @@ def execWorker(algdomprobQueue, resDict, statusMsgQueue, doTermValue, lck, probf
 					
 					searcherOut = proc.communicate(input=bytearray(json.dumps(execParams)))[0]
 					
-					if doTermValue:
+					if doTermValue.value:
 						statusMsgQueue.put(str(os.getpid()) + ": finished (signal)")
 						return
 					
 					try:
+						print "\n", searcherOut, "\n"
 						res = json.loads(searcherOut)
 
 						if res["_result"] == "good":
@@ -309,8 +310,9 @@ if __name__ == "__main__":
 		
 		workers = [multiprocessing.Process(target = execWorker, args = (taskQueue, resultsDict, statusMsgQueue, doTerminateValue, dictLock, inprobfile, doDump)) for i in range(N_WORKERS)]
 		
-		def sigHandler(*args):
-			doTerminateValue = True
+		def sigHandler(signum, frame):
+			print str(os.getpid()) + ": caught signal " + str(signum)
+			doTerminateValue.value = True
 		
 		signal.signal(signal.SIGINT, sigHandler)
 		signal.signal(signal.SIGTERM, sigHandler)
@@ -329,6 +331,7 @@ if __name__ == "__main__":
 					if not workers[i].is_alive():
 						workers[i] = None
 						runningWorkers -= 1
+						print "runningWorkers", runningWorkers
 
 			while True:
 				try:

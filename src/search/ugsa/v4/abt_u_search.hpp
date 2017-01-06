@@ -23,11 +23,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 		public:
 
-		using UCost = ucost_t;
-
 		using AbtSearch = UGSAv4_Abt_H<D, 1, Bound, StatsManager>;
 		
-		using Domain = typename D::template Domain<L>;
+		using Domain = typename D::template Domain<1>;
+		using BaseDomain = typename D::template Domain<0>;
 		using Cost = typename Domain::Cost;
 		using UCost = ucost_t;
 		using Operator = typename Domain::Operator;
@@ -35,10 +34,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
-		using StatsAcc = typename StatsManager::template StatsAcc<L>;
+		using StatsAcc = typename StatsManager::template StatsAcc<1>;
 		
-		using BaseAbstractor = typename D::template Abstractor<L-1>;
-		using BaseState = typename D::template Domain<L-1>::State;
+		using BaseAbstractor = typename D::template Abstractor<0>;
+		using BaseState = typename D::template Domain<0>::State;
 		
 
 
@@ -106,10 +105,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 		
 
-		UGSAv4_Abt(D& pDomStack, UGSABehaviour<>& pBehaviour, StatsManager& pStats) :
+		UGSAv4_Abt_U(D& pDomStack, UGSABehaviour<BaseDomain>& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
-			mAbtSearch			(pDomStack, pBehaviour, pStats),
+			mAbtSearch			(pDomStack, pStats),
 			mAbtor				(pDomStack),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
@@ -137,11 +136,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 		
 		void doSearch(BaseState const& pBaseState, Cost& out_g, UCost& out_u) {
-			{
+			
 				State s0 = mAbtor(pBaseState);
 				PackedState pkd0;
 				mDomain.packState(s0, pkd0);
-			
+
+			{
 				CacheEntry* ent = mCache.retrieve(pkd0);
 				
 				if(ent) {
@@ -278,7 +278,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 
-		UGSABehaviour<>&		 mBehaviour;
+		UGSABehaviour<BaseDomain>&	mBehaviour;
 
 		StatsAcc				mStatsAcc;
 		AbtSearch				mAbtSearch;

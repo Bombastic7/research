@@ -26,9 +26,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 			
 			if(jConfig.count("use_hbf_ref_init") && (bool)jConfig.at("use_hbf_ref_init"))
-				use_hbf_ref_init = true;
+				hbf_ref_init = true;
 			else
-				use_hbf_ref_init = false;
+				hbf_ref_init = false;
 			
 			//~ if(jConfig.count("use_g_for_hbf") && (bool)jConfig.at("use_g_for_hbf"))
 				//~ use_g_for_hbf = true;

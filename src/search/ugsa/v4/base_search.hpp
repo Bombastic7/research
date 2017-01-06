@@ -36,7 +36,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 
 		struct Node {
-			UCost u;
+			ucost_t u;
 			Cost f;
 			Cost g;
 			unsigned depth;
@@ -89,7 +89,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 		
 
-		UGSAv4_Base(D& pDomStack, UGSABehaviour<>& pBehaviour, StatsManager& pStats) :
+		UGSAv4_Base(D& pDomStack, UGSABehaviour<Domain>& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, mBehaviour, pStats),
@@ -226,7 +226,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 					
 					mOpenList.pushOrUpdate(kid_dup);
 					
-					mBehaviour.informNodeGeneration(kid_dup->g, kid_dup->f, kid->u, kid_dup->depth);
+					//mBehaviour.informNodeGeneration(kid_dup->g, kid_dup->f, kid->u, kid_dup->depth);
 				}
 			} else {
 				Node* kid_node 		= mNodePool.construct();
@@ -239,7 +239,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				kid_node->parent	= pParentNode;
 				
 				Cost kid_h;
-				UCost kid_uh;
+				ucost_t kid_uh;
 				
 				mAbtSearch.doSearch(edge.state(), kid_h, kid_uh);
 				
@@ -249,7 +249,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
 				
-				mBehaviour.informNodeGeneration(kid_node->g, kid_node->f, kid_node->u, kid_node->depth);
+				//mBehaviour.informNodeGeneration(kid_node->g, kid_node->f, kid_node->u, kid_node->depth);
 			}
 			
 			mDomain.destroyEdge(edge);			
@@ -257,7 +257,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 
 
-		UGSABehaviour<>&		mBehaviour;
+		UGSABehaviour<Domain>&	mBehaviour;
 		StatsAcc				mStatsAcc;
 		AbtSearch				mAbtSearch;
 		const Domain			mDomain;

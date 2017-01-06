@@ -7,7 +7,7 @@
 #include "util/math.hpp"
 #include "search/solution.hpp"
 
-#include "search/ugsa/v4/behaviour_b.hpp"
+#include "search/ugsa/v4/behaviour.hpp"
 #include "search/ugsa/v4/base_search.hpp"
 #include "search/ugsa/v4/level_stats.hpp"
 #include "search/ugsa/v4/simple_stats.hpp"
@@ -52,7 +52,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 
 		AlgoConf<> mConf;
-		UGSABehaviour<> mBehaviour;
+		UGSABehaviour<BaseDomain> mBehaviour;
 		StatsManager mStatsManager;
 		UGSAv4_Base<DomStack, Used_Abt_Levels, StatsManager> mAlgo;
 		

@@ -94,9 +94,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				
 			mLevelCount[(unsigned)pfval]++;
 			
-			if(!mInitFvalSet) {
-				mInitFvalSet = true;
-				mInitNodeFval = pfval;
+			if(!mInitValSet) {
+				mInitValSet = true;
+				mInitVal = pfval;
 			}
 			
 			mTotalCount++;
@@ -138,7 +138,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 		flt_t computeHBF_refInit() {
 			
-			if(!mInitFvalSet || mLevelCount.empty() || mLevelCount.size() == 1)
+			if(!mInitValSet || mLevelCount.empty() || mLevelCount.size() == 1)
 				return 0;
 			
 			flt_t acc = 0;
@@ -147,7 +147,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			auto it = mLevelCount.begin();
 			++it;
 			
-			unsigned initCount = mLevelCount[mInitNodeFval];
+			unsigned initCount = mLevelCount[mInitVal];
 			
 			for(; it != mLevelCount.end(); ++it) {
 				unsigned flvl = it->first, count = it->second;
@@ -159,7 +159,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				}
 				
 				flt_t r = (flt_t)count / initCount;
-				flt_t fDifRecip = 1.0 / (flvl - mInitNodeFval);
+				flt_t fDifRecip = 1.0 / (flvl - mInitVal);
 			
 				flt_t bf = std::pow(r, fDifRecip);
 				acc += bf;
@@ -189,7 +189,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		void reset() {
 			mLevelCount.clear();
 			mTotalCount = 0;
-			mInitFvalSet = false;
+			mInitValSet = false;
 			mDirty = true;
 		}
 		
@@ -254,12 +254,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			
 			//slow_assert((flt_t)remExp * mPref < std::numeric_limits<ucost_t>::max() / 2, "%f %f %d", mCachedHBF, remExp, pG );
 			
-			return mConf.wf * pG + mConf.wt * remExpFlt * this->getExpansionTime();
+			return mConf.wf * pgval + mConf.wt * remExpFlt * this->getExpansionTime();
 		}
 
 		
-		unsigned compute_U(Cost pgval, unsigned pdepth) {
-			return compute_singleTree(pG, pDepth);
+		unsigned compute_U(Cost pgval, unsigned pDepth) {
+			return compute_singleTree(pgval, pDepth);
 		}
 		
 		void informNodeExpansion(Cost pgval, Cost pfval, ucost_t puval, unsigned pDepth) {

@@ -99,7 +99,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 
 		UGSAv4_Abt_H(D& pDomStack, StatsManager& pStats) :
-			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, pStats),
 			mAbtor				(pDomStack),
@@ -107,7 +106,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
-			mCache				(mDomain)
+			mCache				(mDomain),
 			mBestExactNode		(nullptr)
 		{}
 
@@ -127,11 +126,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mAbtSearch.submitStats();
 		}
 		
-
 		
 		Cost doSearch(BaseState const& pBaseState) {
+			State s0 = mAbtor(pBaseState);
+			return doSearch(s0);
+		}
+
+		
+		Cost doSearch(State const& s0) {
 			{
-				State s0 = mAbtor(pBaseState);
 				PackedState pkd0;
 				mDomain.packState(s0, pkd0);
 			
@@ -339,16 +342,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		NodePool_t 				mNodePool;
 		
 		CacheStore_t			mCache;
-		Node					mBestExactNode;
+		Node*					mBestExactNode;
 	};
 	
 	
 	template<typename D, unsigned Bound, typename StatsManager>
 	struct UGSAv4_Abt_H<D, Bound, Bound, StatsManager> {
 		
+		using Cost = typename D::template Domain<Bound-1>::Cost;
+		using State = typename D::template Domain<Bound-1>::State;
+		
 		UGSAv4_Abt_H(D& pDomStack, StatsManager& pStats) {}
 		
-		Util_t doSearch(typename D::template Domain<Bound-1>::State const&) {return 0;}
+		Cost doSearch(State const&) {return 0;}
 		void reset() {}
 		void clearCache() {}
 		void submitStats() {}

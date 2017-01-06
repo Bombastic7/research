@@ -93,4 +93,4 @@ def doProbPlot(resfile, valsOfInterest, avg=True):
 
 
 if __name__ == "__main__":
-	doProbPlot(sys.argv[1], sys.argv[2:])
+	doProbPlot(sys.argv[1], sys.argv[2:], False)

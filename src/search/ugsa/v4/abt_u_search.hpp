@@ -8,25 +8,28 @@
 #include "util/debug.hpp"
 #include "util/json.hpp"
 
-#include "search/ugsa/v4/behaviour_b.hpp"
+#include "search/ugsa/v4/defs.hpp"
+#include "search/ugsa/v4/behaviour.hpp"
 #include "search/ugsa/v4/cache.hpp"
+#include "search/ugsa/v4/abt_h_search.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 
-	template<typename D, unsigned L, unsigned Bound, typename StatsManager>
-	class UGSAv4_Abt {
+	template<typename D, unsigned Bound, typename StatsManager>
+	class UGSAv4_Abt_U {
 		
 
 		public:
-		
-		//using AbtSearch = UGSAv4_Abt<D, L+1, Bound, StatsManager>;
-		using AbtSearch = UGSAv4_Abt<D, Bound, Bound, StatsManager>;
+
+		using UCost = ucost_t;
+
+		using AbtSearch = UGSAv4_Abt_H<D, 1, Bound, StatsManager>;
 		
 		using Domain = typename D::template Domain<L>;
-		//using Cost = typename Domain::Cost;
-		using Cost = ucost_t;
+		using Cost = typename Domain::Cost;
+		using UCost = ucost_t;
 		using Operator = typename Domain::Operator;
 		using OperatorSet = typename Domain::OperatorSet;
 		using State = typename Domain::State;
@@ -41,23 +44,23 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 
 		struct Node {
-			Cost u;
+			UCost u;
 			Cost g;
-			//unsigned depth;
+			unsigned depth;
 			PackedState pkd;
 			Operator in_op, parent_op;
 			Node* parent;
 		};
 		
-		/*
+		
 		struct CacheEntry {
 			PackedState pkd;
-			Util_t uh;
-			bool exact;
+			UCost u;
+			Cost g;
 		};
 		
 		using CacheStore_t = CacheStore<Domain, CacheEntry>;
-		*/
+		
 		
 		
 		struct ClosedOps {
@@ -111,9 +114,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
-			mNodePool			()
-			//mCache				(mDomain),
-			//mBestExactNode		(nullptr)
+			mNodePool			(),
+			mCache				(mDomain)
 		{}
 
 		
@@ -127,45 +129,36 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mAbtSearch.submitStats();
 		}
 		
+		void clearCache() {
+			mCache.clear();
+			mAbtSearch.clearCache();
+		}
+		
 
 		
-		Cost doSearch(BaseState const& pBaseState, unsigned pBaseFrontierSz) {
-			
+		void doSearch(BaseState const& pBaseState, Cost& out_g, UCost& out_u) {
 			{
 				State s0 = mAbtor(pBaseState);
 				PackedState pkd0;
-				
 				mDomain.packState(s0, pkd0);
-				
-				/*
+			
 				CacheEntry* ent = mCache.retrieve(pkd0);
 				
-				if(ent && ent->exact) {
-					mStatsAcc.s_cacheHit();
-					mStatsAcc.s_end();
-					return ent->uh;				
+				if(ent) {
+					out_g = ent->g;
+					out_u = ent->u;
+					return;
 				}
+
 				
-				bool miss = mCache.get(pkd0, ent);
-				
-				
-				if(miss) {
-					ent->exact = false;
-					ent->uh = mAbtSearch.doSearch(s0);
-					mStatsAcc.s_cacheMiss();
-					mStatsAcc.l_cacheAdd();
-				}
-				else
-					mStatsAcc.s_cachePartial();
-				*/
-				
-				mBehaviour.informAbtSearchBegins(1, pBaseFrontierSz);
+				//mBehaviour.informAbtSearchBegins(1, pBaseFrontierSz);
 				
 				Node* n0 = mNodePool.construct();
 				
 				n0->pkd =		pkd0;
 				n0->g = 		0;
-				n0->u =			0;
+				n0->depth =		0;
+				n0->u =			mBehaviour.abtHtoU(mAbtSearch.doSearch(s0));
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
@@ -175,8 +168,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			}
 			
 
-			//Node* goalNode = nullptr;
-			Cost retUCost = 0;
+			Cost retGCost = 0;
+			UCost retUCost = 0;
 			
 			while(true) {				
 				Node* n = mOpenList.pop();
@@ -185,56 +178,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				mDomain.unpackState(s, n->pkd);
 
 				if(mDomain.checkGoal(s)) {
+					retGCost = n->g;
 					retUCost = n->u;
-					//goalNode = n;
 					mStatsAcc.s_solutionFull();
 					break;
 				}
 				
-				/*
-				if(n == mBestExactNode) {
-					retUCost = n->uf;
-					goalNode = n;
-					mStatsAcc.s_solutionPartial();
-					break;
-				}
-				* */
-				
 				expand(n, s);
 			}
-			
-			/*
-			for(auto it = mClosedList.begin(); it != mClosedList.end(); ++it) {
-				Node* n = *it;
-				
-				if(mOpenList.contains(n))
-					continue;
-				
-				CacheEntry* ent = mCache.retrieve(n->pkd);
-				slow_assert(ent);
 
-				if(ent->exact)
-					continue;
-
-				Util_t upg = retUCost - n->ug;
-				
-				if(ent->uh < upg) {
-					ent->uh = upg;
-					mStatsAcc.l_cacheImprove();
-				}
-			}
-			
-			
-			for(Node* n = goalNode; n != nullptr; n = n->parent) {
-				CacheEntry* ent = mCache.retrieve(n->pkd);
-				slow_assert(ent);
-				
-				if(!ent->exact) {
-					mStatsAcc.l_cacheMadeExact();
-					ent->exact = true;
-				}
-			}
-			*/
 			
 			//mBehaviour.informPath(L, goalNode->g, goalNode->depth);
 			
@@ -244,11 +196,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
-			//mBestExactNode = nullptr;
-
-			mBehaviour.informAbtSearchEnds();
+			
+			if(mBehaviour.abtShouldCache()) {
+				CacheEntry* ent = nullptr;
+				mCache.get(pkd0, ent);
+				ent->g = retGCost;
+				ent->u = retUCost;
+			}
+		
+			//mBehaviour.informAbtSearchEnds();
 			mStatsAcc.s_end();
-			return retUCost;
+			
+			out_g = retGCost;
+			out_u = retUCost;
 		}
 		
 		
@@ -272,7 +232,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 			Edge		edge 		= mDomain.createEdge(pParentState, pInOp);
 			Cost		kid_g	 	= pParentNode->g + edge.cost();
-			Cost		kid_u   	= mBehaviour.compute_effectiveEdge(1, kid_g);
+			unsigned	kid_depth	= pParentNode->depth + 1;
+			UCost		kid_u   	= mBehaviour.compute_U(kid_g, kid_depth) + mBehaviour.abtHtoU(mAbtSearch.doSearch(edge.state()));
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -284,7 +245,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				if(kid_dup->u > kid_u) {
 					kid_dup->u			= kid_u;
 					kid_dup->g			= kid_g;
-					
+					kid_dup->depth		= kid_depth;
 					kid_dup->in_op		= pInOp;
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
@@ -295,35 +256,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 					}
 					
 					mOpenList.pushOrUpdate(kid_dup);
-					
-					/*
-					CacheEntry* ent = mCache.retrieve(kid_pkd);
-					slow_assert(ent);
-					
-					if(ent->exact) {
-						slow_assert(mBestExactNode);
-						
-						if(mBestExactNode->uf > kid_dup->uf)
-							mBestExactNode = kid_dup;
-					}
-					*/
+
 				}
 			} else {
 				
 				Node* kid_node 		= mNodePool.construct();
-				/*
-				CacheEntry* ent;
-				bool miss = mCache.get(kid_pkd, ent);
-				
-				if(miss) {
-					ent->exact = false;
-					ent->uh = mAbtSearch.doSearch(edge.state());
-					mStatsAcc.l_cacheAdd();
-				}
-				*/
 				
 				kid_node->g 		= kid_g;
 				kid_node->u			= kid_u;
+				kid_node->depth		= kid_depth;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
@@ -331,12 +272,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
-				
-				/*
-				if(ent->exact && (!mBestExactNode || mBestExactNode->uf > kid_node->uf)) {
-					mBestExactNode = kid_node;
-				}
-				*/
 			}
 			
 			mDomain.destroyEdge(edge);
@@ -354,21 +289,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		ClosedList_t 			mClosedList;
 		NodePool_t 				mNodePool;
 		
-		//CacheStore_t			mCache;
-		//Node*					mBestExactNode;
-	};
-	
-	
-	template<typename D, unsigned Bound, typename StatsManager>
-	struct UGSAv4_Abt<D, Bound, Bound, StatsManager> {
-		
-		UGSAv4_Abt(D& pDomStack, UGSABehaviour<>& pBehaviour, StatsManager& pStats) {}
-		
-		Util_t doSearch(typename D::template Domain<Bound-1>::State const&) {return 0;}
-		void reset() {}
-		void clearCache() {}
-		void submitStats() {}
-	};
-	
+		CacheStore_t			mCache;
+	};	
 	
 }}}

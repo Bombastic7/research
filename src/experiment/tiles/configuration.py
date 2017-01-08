@@ -245,21 +245,109 @@ ALGS = [
 
 DOMS = [
 		#{"name" : "8h_5", "class" : tiles_stack(3,3,False,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
-		{"name" : "15_7", "class" : tiles_stack(4,4,False,False,8), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15},
+		{"name" : "15_7", "class" : tiles_stack(4,4,False,True,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15},
 		
 		#{"name" : "8hw_5", "class" : tiles_stack(3,3,True,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
-		{"name" : "15w_7", "class" : tiles_stack(4,4,True,False,8), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15}
+		{"name" : "15w_7", "class" : tiles_stack(4,4,True,True,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15}
 		]
 
-NPROBLEMS = 6
 
-PROBFILES = {
-		8 : (3,3,NPROBLEMS,"probs_8.json"),
-		15 : (4,4,NPROBLEMS,"probs_15.json")
-			}
+class AlgorithmInfo:
+	lookup = {}
+	
+	def __init__(self, name, cls, hdr, isabt, isutilaware, conf = None):
+		self.name = name
+		self.cls = cls
+		self.hdr = hdr
+		self.isabt = isabt
+		self.isutilaware = isutilware
+		self.conf = conf
+		AlgorithmInfo.lookup[name] = self
 
-VALUESOFINTEREST = ["util_real", "util_base_expd", "util_base_gend", "util_all_expd", "util_all_gend"]
 
+class DomainInfo:
+	lookup = {}
+	
+	def __init__(self, name, cls, hdr, isabt, probcls):
+		self.name = name
+		self.cls = cls
+		self.hdr = hdr
+		self.isabt = isabt
+		self.probcls = probcls
+		DomainInfo.lookup[name] = self
+
+
+class ProblemSetInfo:
+	lookup = {}
+	
+	def __init__(self, probcls, name, func, args):
+		self.probcls = probcls
+		self.fname = fname
+		self.func = func
+		self.args = args
+		ProblemSetInfo.lookup[name] = self
+	
+	def output(self):
+		probs = self.func(self.args)
+
+		with open(self.name, "w") as f:
+			json.dump(probs, f)
+
+
+class ExecutionInfo:
+	def __init__(self, d, a, w, p):
+		params = {}
+		
+		params["name"] = a.name + "_" + d.name
+		params["domain conf"] = p
+		
+		if a.conf is not None:
+			params["algorithm conf"] = a.conf
+		else:
+			params["algorithm conf"] = {}
+		
+		params["algorithm conf"]["wf"] = w[0]
+		params["algorithm conf"]["wt"] = w[1]
+				
+		params["time limit"] = TIME_LIMIT
+		params["memory limit"] = WORKER_MEM
+		params["instance"] = params.name + "_" + str((wf, wt)).replace(" ", "_") + "_" + str(p)
+		
+		self.params = params
+	
+	def execute(self):
+		try:
+			proc = subprocess.Popen(["./searcher", "-s", instanceName], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+			searcherOut = proc.communicate(input=bytearray(json.dumps(self.params)))[0]
+		
+			self.results = json.load(searcherOut)
+
+		except Exception as e:
+			self.results = {"_result":"exception", "_error_what": e.__class__.__name__ + " " + str(e) }
+
+
+
+
+def prepExecTable(doms, algs, weights, problems):
+	execTable = []
+	
+	for di in range(len(doms)):
+		execTable.append([])
+		
+		for ai in range(len(algs)):
+			execTable[di].append([])
+			
+				for wi in range(len(weights)):
+					execTable[di][ai].append([])
+						
+						for pi in range(len(problems)):
+							
+							t = ExecutionInfo(doms[di], algs[di], weights[wi], problems[pi])
+							
+							execTable[di][ai][wi].append((t)
+
+	return execTable
+	
 
 
 if __name__ == "__main__":

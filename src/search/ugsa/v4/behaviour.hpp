@@ -213,7 +213,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 		void informNodeExpansion(Cost pgval, Cost pfval, ucost_t puval, unsigned pDepth) {
-			mHBF.informNodeExpansion(pgval);
+			if(c_treeSizeMethod == Use_HBF)
+				mHBF.informNodeExpansion(pgval);
+			
+			else
+				mAvgBF.informNodeExpansion(pDepth);
+			
 			mExpTime.informNodeExpansion();
 		}
 		
@@ -273,7 +278,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				mClipCount++;
 			}
 
-			return mWf * pgval + mWt * remExpFlt * this->getExpansionTime();
+			return c_wf * pgval + c_wt * remExpFlt * this->getExpansionTime();
 		}
 		
 		
@@ -293,7 +298,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		//ucost_t mCachedHBF;
 		//unsigned mBaseFrontierSz;
 		
-		const int  c_treeSizeMethod;
+		const int c_treeSizeMethod;
 		const flt_t c_wf, c_wt;
 		
 		

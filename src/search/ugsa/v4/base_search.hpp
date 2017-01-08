@@ -89,10 +89,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 		
 
-		UGSAv4_Base(D& pDomStack, UGSABehaviour<Domain>& pBehaviour, StatsManager& pStats) :
+		UGSAv4_Base(D& pDomStack, Json const& jConfig, UGSABehaviour<Domain>& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
-			mAbtSearch			(pDomStack, mBehaviour, pStats),
+			mAbtSearch			(pDomStack, mBehaviour, pConf, pStats),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
@@ -232,7 +232,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				Node* kid_node 		= mNodePool.construct();
 
 				kid_node->g 		= kid_g;
-				kid_dup->depth 		= pParentNode->depth + 1;
+				kid_node->depth		= pParentNode->depth + 1;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();

@@ -16,8 +16,8 @@ import gen_problems
 
 RES_CACHE_DIR = "./rescache/"
 
-WORKER_MEM = 6000
-TIME_LIMIT = 180
+WORKER_MEM = 30000
+TIME_LIMIT = 3600
 
 
 
@@ -27,7 +27,10 @@ def setNWorkers():
 	mem_mib = meminfo['MemTotal'] / 1024
 	N_WORKERS = max(1, mem_mib / WORKER_MEM)
 
-setNWorkers()
+#setNWorkers()
+
+N_WORKERS = 2
+
 
 def _bstr(b):
 	return "true" if b else "false"
@@ -79,10 +82,9 @@ def execWorker(algdomprobQueue, resDict, statusMsgQueue, doTermValue, lck, probf
 			
 			execParams["domain conf"] = probdesc
 			
-			if "conf" in adp:
-				execParams["algorithm conf"] = adp["conf"]
-			else:
-				execParams["algorithm conf"] = {}
+
+			execParams["algorithm conf"] = adp["conf"]
+
 			
 			execParams["algorithm conf"]["wf"] = wf
 			execParams["algorithm conf"]["wt"] = wt
@@ -155,7 +157,7 @@ def execWorker(algdomprobQueue, resDict, statusMsgQueue, doTermValue, lck, probf
 						cachedResult = res
 					
 					except ValueError as e:
-						print searcherOut
+						print searcherOut, "^^"
 						print e
 						logFileObj.flush()
 						raise e
@@ -206,28 +208,34 @@ WEIGHTS = [(1,0),(1,0.01),(1,0.1),(1,1),(1,10),(1,100),(0,1)]
 
 ALGS = [
 		{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "util_aware" : False},
-		{"name" : "Bugsy", "class" : "algorithm::Bugsy", "header" : "search/bugsy.hpp", "abt" : False, "util_aware" : True},
-		{"name" : "Bugsy_norm", "class" : "algorithm::Bugsy", "conf" : {"normalised_exptime":True}, "header" : "search/bugsy.hpp",  "abt" : False, "util_aware" : True},
-		{"name" : "HAstar1", "class" : "algorithm::hastarv2::HAstar_StatsSimple", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
-		{"name" : "HAstar1_nc", "class" : "algorithm::hastarv2::HAstar_StatsSimple", "conf" : {"do_caching":False}, "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
+		#{"name" : "Bugsy", "class" : "algorithm::Bugsy", "header" : "search/bugsy.hpp", "abt" : False, "util_aware" : True},
+		#{"name" : "Bugsy_norm", "class" : "algorithm::Bugsy", "conf" : {"normalised_exptime":True}, "header" : "search/bugsy.hpp",  "abt" : False, "util_aware" : True},
+		{"name" : "HAstar", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
+		#{"name" : "HAstar1_nc", "class" : "algorithm::hastarv2::HAstar_StatsSimple", "conf" : {"do_caching":False}, "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
 		
-		{"name" : "UGSAv4_st_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			"conf" : {"use_all_frontier":False, "use_hbf_ref_init":False}},
+		#~ {"name" : "UGSAv4_st_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+			#~ "conf" : {"use_all_frontier":False, "use_hbf_ref_init":False}},
 		
-		{"name" : "UGSAv4_st_hbfinit", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			"conf" : {"use_all_frontier":False, "use_hbf_ref_init":True}},
+		#{"name" : "UGSAv4_st_hbfinit_maxhd", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+		#	"conf" : {"uh_eval_mode":"Use_Max_H_D", "hbf_ref_init":True,  "g_for_hbf" : True}},
 		
-		{"name" : "UGSAv4_af_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			"conf" : {"use_all_frontier":True, "use_hbf_ref_init":False}},
+		#{"name" : "UGSAv4_st_hbfinit_evaluh", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+		#	"conf" : {"uh_eval_mode":"Use_H", "hbf_ref_init":True, "g_for_hbf" : True}},
 		
-		{"name" : "UGSAv4_af_hbfinit", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			"conf" : {"use_all_frontier":True, "use_hbf_ref_init":True}},
+		#{"name" : "UGSAv4_st_hbfinit_evalud", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+		#	"conf" : {"uh_eval_mode":"Use_D", "hbf_ref_init":True, "g_for_hbf" : True}},
 		
-		{"name" : "UGSAv4_st_hbfinit_g", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			"conf" : {"use_all_frontier":False, "use_hbf_ref_init":True, "use_g_for_hbf":True}},
+		#~ {"name" : "UGSAv4_af_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+			#~ "conf" : {"use_all_frontier":True, "use_hbf_ref_init":False}},
 		
-		{"name" : "UGSAv4_af_hbfinit_g", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			"conf" : {"use_all_frontier":True, "use_hbf_ref_init":True, "use_g_for_hbf":True}},
+		#~ {"name" : "UGSAv4_af_hbfinit", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+			#~ "conf" : {"use_all_frontier":True, "use_hbf_ref_init":True}},
+		
+		#~ {"name" : "UGSAv4_st_hbfinit_g", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+			#~ "conf" : {"use_all_frontier":False, "use_hbf_ref_init":True, "use_g_for_hbf":True}},
+		
+		#~ {"name" : "UGSAv4_af_hbfinit_g", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
+			#~ "conf" : {"use_all_frontier":True, "use_hbf_ref_init":True, "use_g_for_hbf":True}},
 		
 		#{"name" : "UGSAv4_af", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "conf" : {"use_all_frontier":True}, "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True},
 		#{"name" : "AstarExp", "class" : "algorithm::AstarExperiment", "header" : "search/astar_experiment.hpp", "abt" : False, "weights" : [(1,0)]},
@@ -236,11 +244,11 @@ ALGS = [
 
 
 DOMS = [
-		{"name" : "8h_5", "class" : tiles_stack(3,3,False,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
-		#{"name" : "15h_7", "class" : tiles_stack(4,4,False,True,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15},
+		#{"name" : "8h_5", "class" : tiles_stack(3,3,False,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
+		{"name" : "15_7", "class" : tiles_stack(4,4,False,False,8), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15},
 		
-		{"name" : "8hw_5", "class" : tiles_stack(3,3,True,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
-		#{"name" : "15hw_7", "class" : tiles_stack(4,4,True,True,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15}
+		#{"name" : "8hw_5", "class" : tiles_stack(3,3,True,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
+		{"name" : "15w_7", "class" : tiles_stack(4,4,True,False,8), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15}
 		]
 
 NPROBLEMS = 6
@@ -290,13 +298,22 @@ if __name__ == "__main__":
 		with open(inprobfile) as f:
 			probset = json.load(f)
 
+
+		def getOrDefault(params, key):
+			if key in params:
+				return params[key]
+			else:
+				return {}
+
+
 		algdomsprobs = [ { 	
 						"alg" : a["class"], 
 						"dom" : d["class"], 
 						"name" : makeAlgDomName(a,d), 
 						"weights": WEIGHTS,
 						"util_aware" : a["util_aware"],
-						"probkey": k
+						"probkey": k,
+						"conf" : getOrDefault(a, "conf")
 						} 
 						for a in ALGS for d in DOMS for k in probset.iterkeys()
 						if not a["abt"] or d["abt"] and d["probcls"] == inprobcls ]

@@ -29,7 +29,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
-		using StatsAcc = typename StatsManager::template StatsAcc<L>;
+		using StatsAcc = typename StatsManager::template StatsAcc<H_Search_Stack_Add + L>;
 		
 		using BaseAbstractor = typename D::template Abstractor<L-1>;
 		using BaseState = typename D::template Domain<L-1>::State;

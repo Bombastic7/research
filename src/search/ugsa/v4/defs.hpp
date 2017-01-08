@@ -14,8 +14,17 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 	
 	using ucost_t = double;
 	
+	
+	const unsigned D_Search_Stack_Add = 200;
+	const unsigned H_Search_Stack_Add = 100;
+	
+	
+	/*
 	template<typename = void>
 	struct AlgoConf {
+		
+		enum { Use_Max_H_D, Use_H, Use_D };
+		
 		
 		AlgoConf(Json const& jConfig) {
 			
@@ -25,7 +34,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				//~ useAllFrontier = false;
 		
 			
-			if(jConfig.count("use_hbf_ref_init") && (bool)jConfig.at("use_hbf_ref_init"))
+			if(jConfig.count("hbf_ref_init") && (bool)jConfig.at("hbf_ref_init"))
 				hbf_ref_init = true;
 			else
 				hbf_ref_init = false;
@@ -54,6 +63,36 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				//~ else
 					//~ throw ConfigException("Bad hbf cache method");
 			//~ }
+			
+
+			
+			if(jConfig.count("uh_eval_mode")) {
+				std::string s = jConfig.at("uh_eval_mode");
+				
+				if(s == "Use_Max_H_D") uh_eval_mode = Use_Max_H_D;
+				else if(s == "Use_H") uh_eval_mode = Use_H;
+				else if(s == "Use_D") uh_eval_mode = Use_D;
+				else
+					gen_assert(false);
+			}
+			else
+				uh_eval_mode = Use_Max_H_D;
+			
+			
+			if(jConfig.count("g_for_hbf") && (bool)jConfig.at("g_for_hbf"))
+				g_for_hbf = true;
+			else
+				g_for_hbf = false;
+		}
+		
+		Json report() {
+			Json j;
+			j["uh_eval_mode"] = uh_eval_mode;
+			j["wf"] = wf;
+			j["wt"] = wt;
+			j["hbf_ref_init"] = hbf_ref_init;
+			j["g_for_hbf"] = g_for_hbf;
+			return j;
 		}
 		
 		
@@ -62,12 +101,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		//bool use_g_for_hbf;
 		//unsigned kpref;
 		double wf,wt;
-		//bool do_hbf_cache;
-		//bool is_cache_lin;
-		//unsigned cache_lin_period;
-		//unsigned cache_geo_init;
-		//unsigned cache_geo_grow;
+		int uh_eval_mode;
+		bool g_for_hbf;
 		
 	};
+	* */
 	
 }}}

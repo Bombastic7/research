@@ -15,6 +15,7 @@
 #include "util/json.hpp"
 #include "util/debug.hpp"
 #include "util/time.hpp"
+#include "structs/simple_hashmap.hpp"
 
 #include "search/ugsa/v4/defs.hpp"
 
@@ -26,8 +27,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 	struct ComputeExpansionTime {
 		void informNodeExpansion() {
 			mExpThisPhase++;
-			if(mExpThisPhase >= mNextCalc)
-				update();
 		}
 		
 		flt_t getExpansionTime() {
@@ -49,10 +48,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mExpTime = mTimer.seconds() / mExpThisPhase;
 			mExpThisPhase = 0;
 			mNphases++;
-			mNextCalc *= mUpdateFactor;
 		}
-		
-		protected:
 		
 		void start() {
 			mTimer.start();
@@ -61,152 +57,101 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		void reset() {
 			mExpThisPhase = mNphases = 0;
 			mExpTime = 0;
-			mNextCalc = mFirstUpdate;
 			mTimer.stop();
 		}
 		
-		ComputeExpansionTime(unsigned pFirstUpdate = 16, unsigned pUpdateFactor = 2) :
-			mFirstUpdate(pFirstUpdate),
-			mUpdateFactor(pUpdateFactor)
-		{
-			//reset();
-		}
-		
-		
 		private:
-		unsigned mExpThisPhase, mNphases, mNextCalc;
+		unsigned mExpThisPhase, mNphases;
 		flt_t mExpTime;
 		Timer mTimer;
-		const unsigned mFirstUpdate, mUpdateFactor;
 	};
 	
 
-
-
-
-	template<typename Cost>
-	struct HeuristicBF {
-
-		void informNodeExpansion(Cost pgval, Cost pfval, ucost_t puval) {
-			
-			//~ if(mConf.use_g_for_hbf)
-				//~ pfval = pgval;
-				
-			mLevelCount[(unsigned)pfval]++;
-			
-			if(!mInitValSet) {
-				mInitValSet = true;
-				mInitVal = pfval;
-			}
-			
-			mTotalCount++;
-		};
+	template<typename = void>
+	struct ComputeAvgBF {
 		
-		//~ void informNodeGeneration(Cost, Cost) {}
-		
-
-		flt_t computeHBF_neighbours() {
-			
-			if(mLevelCount.empty() || mLevelCount.size() == 1)
-				return 0;
-
-			flt_t acc = 0;
-			unsigned samples = 0;
-			
-			auto it = mLevelCount.begin();
-			unsigned prevFlvl = it->first, prevCount = it->second;
-			++it;
-			
-			for(; it != mLevelCount.end(); ++it) {
-				unsigned flvl = it->first, count = it->second;
-				
-				flt_t r = (flt_t)count / prevCount;
-				flt_t fDifRecip = 1.0 / (flvl - prevFlvl);
-			
-				flt_t bf = std::pow(r, fDifRecip);
-				acc += bf;
-				samples++;
-				
-				prevFlvl = flvl;
-				prevCount = count;
-			}
-			
-			return acc / samples;
+		void informNodeExpansion(unsigned pDepth) {
+			mCountMap[pDepth].val++;
 		}
 		
-		
-		
-		flt_t computeHBF_refInit() {
+		flt_t computeAvgBF() {
+			std::vector<unsigned> const& depthsList = mCountMap.unorderedKeys();
 			
-			if(!mInitValSet || mLevelCount.empty() || mLevelCount.size() == 1)
-				return 0;
+			flt_t avgBFacc = 0;
 			
-			flt_t acc = 0;
-			unsigned samples = 0;
-			
-			auto it = mLevelCount.begin();
-			++it;
-			
-			unsigned initCount = mLevelCount[mInitVal];
-			
-			for(; it != mLevelCount.end(); ++it) {
-				unsigned flvl = it->first, count = it->second;
-				
-				if(count == initCount) {
-					acc += 1;
-					samples++;
+			for(unsigned d : depthsList) {
+				if(d == 0) {
+					avgBFacc += 1;
 					continue;
 				}
 				
-				flt_t r = (flt_t)count / initCount;
-				flt_t fDifRecip = 1.0 / (flvl - mInitVal);
-			
-				flt_t bf = std::pow(r, fDifRecip);
-				acc += bf;
-				samples++;
+				expCount = mCountMap[d].val;
+				avgBFacc += std::pow(expCount, 1.0/d);
 			}
 			
-			return acc / samples;
+			return avgBFacc / mCountMap.size();
 		}
-		
-		flt_t computeHBF() {
-			if(mDirty) {
-				mDirty = false;
-				if(mConf.hbf_ref_init)
-					mLastBF = computeHBF_refInit();
-				else
-					mLastBF = computeHBF_neighbours();
-			}
-			
-			return mLastBF;
-		}
-		
-		unsigned totalBaseExpansion() {
-			return mTotalCount;
-		}
-		
 		
 		void reset() {
-			mLevelCount.clear();
-			mTotalCount = 0;
-			mInitValSet = false;
-			mDirty = true;
-		}
-		
-		
-		HeuristicBF(AlgoConf<> const& pConf) :
-			mConf(pConf)
-		{
-			reset();
+			mCountMap.clear();
 		}
 
-		std::map<Cost, unsigned> mLevelCount;
-		unsigned mTotalCount;
-		ucost_t mInitVal;
-		bool mInitValSet;
-		flt_t mLastBF;
-		bool mDirty;
-		AlgoConf<> const& mConf;
+		private:
+		
+		SimpleHashMap<unsigned, unsigned, 1000> mCountMap;
+	};
+
+
+
+
+	template<typename = void>
+	struct HeuristicBF {
+
+		void informNodeExpansion(unsigned pLvl) {
+			mCountMap[pLvl].val++;	
+		}
+		
+		void setRefLvl(unsigned pLvl) {
+			mRefLvl = pLvl;
+			mRefLvlSet = true;
+		}
+		
+		void reset() {
+			mCountMap.clear();
+			mRefLvlSet = false;
+		}
+		
+		flt_t computeAvgHBF_ref() {
+			slow_assert(mRefLvlSet);
+			
+			std::vector<unsigned> const& lvlsList = mCountMap.unorderedKeys();
+			unsigned refExpCount = mCountMap[mRefLvl];
+			
+			slow_assert(refExpCount != 0);
+			
+			flt_t avgBFacc = 0;
+			
+			for(unsigned l : lvlsList) {
+				if(l == mRefLvl) {
+					avgBFacc += 1;
+					continue;
+				}
+
+				avgBFacc += std::pow(expCount, 1.0/(l - refExpCount));
+			}
+			
+			return avgBFacc / mCountMap.size();
+		}
+		
+		HeuristicBF() :
+			mInitValSet(false)
+		{}
+
+		private:
+		
+		SimpleHashMap<unsigned, unsigned, 1000> mCountMap;
+		unsigned mRefLvl;
+		bool mRefLvlSet;
 	};
 	
 	
@@ -223,7 +168,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 	 * 	Params:
 	 * 		bool use_hbf_init: True: Compute hbf as average of count(lvl) vs count(init lvl).
 	 * 							False: as average of all pairs of neighbouring counts. e.g. count(lvl_i) vs count(lvl_j), j vs k..
-	 * 		bool use_frontier_sz: if false --
+	 * 
+	 * 		bool g_for_hbf:		Calculate hbf with g-values rather than f.
 	 * 
 	 * 		
 	 */
@@ -231,40 +177,44 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 	
 	template<typename Domain>
-	struct UGSABehaviour : protected HeuristicBF<typename Domain::Cost>, protected ComputeExpansionTime<> {
+	struct UGSABehaviour {
 		
 		using Cost = typename Domain::Cost;
 		
-		UGSABehaviour(AlgoConf<> const& pConf) :
-			HeuristicBF<Cost>(pConf),
-			ComputeExpansionTime<>(),
-			mConf(pConf)
+		enum { Use_HBF, Use_Avg_BF };
+		
+		
+		
+		UGSABehaviour(Json const& jConfig) :
+			c_treeSizeMethod(parseOption(jConfig, "tree size method")),
+			c_wf(jConfig.at("wf")),
+			c_wt(jConfig.at("wt"))
 		{
+			fast_assert(c_wf >= 0 && c_wt >= 0);
+			
 			reset();
+			hasStarted = false;
 		}
 		
-		ucost_t compute_singleTree(Cost pgval, ucost_t pDepth) {
-			
-			flt_t remExpFlt = std::pow(this->computeHBF(), pgval); //<- dist correction?
-
-			if(remExpFlt > 100000000) {
-				remExpFlt = 100000000;
-				mClipCount++;
-			}
-			
-			//slow_assert((flt_t)remExp * mPref < std::numeric_limits<ucost_t>::max() / 2, "%f %f %d", mCachedHBF, remExp, pG );
-			
-			return mConf.wf * pgval + mConf.wt * remExpFlt * this->getExpansionTime();
+		
+		
+		
+		
+		
+		void start() {
+			fast_assert(!hasStarted);
+			mHasStarted = true;
+			mExpTime.start();
 		}
-
 		
 		unsigned compute_U(Cost pgval, unsigned pDepth) {
+			slow_assert(mHasStarted);
 			return compute_singleTree(pgval, pDepth);
 		}
 		
 		void informNodeExpansion(Cost pgval, Cost pfval, ucost_t puval, unsigned pDepth) {
-			HeuristicBF<Cost>::informNodeExpansion(pgval, pfval, puval);
-			ComputeExpansionTime<>::informNodeExpansion();
+			mHBF.informNodeExpansion(pgval);
+			mExpTime.informNodeExpansion();
 		}
 		
 		bool abtShouldCache() {
@@ -275,28 +225,77 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			return mConf.wf * pCost;
 		}
 		
+		ucost_t abtDtoU(unsigned pDepth) {
+			return mConf.wt * std::pow(this->computeHBF(), pDepth);
+		}
+		
 		void reset() {
-			HeuristicBF<Cost>::reset();
-			ComputeExpansionTime<>::reset();
+			mHBF.reset();
+			mAvgBF.reset();
+			mExpTime.reset();
 			mClipCount = 0;
+			mBaseExpd = 0;
+			mHasStarted = false;
 		}
 		
 		Json report() {
 			Json j;
 			j["hbf"] = this->computeHBF();
 			j["exptime"] = ComputeExpansionTime<>::report();
-			j["used wf"] = mConf.wf;
-			j["used wt"] = mConf.wt;
-			j["used hbf_ref_init"] = mConf.hbf_ref_init;
+			j["used wf"] = c_wt;
+			j["used wt"] = c_wt;
 			j["clips"] = mClipCount;
 			return j;
 		}
 		
 		
-		//const unsigned mPref;
-		AlgoConf<> const& mConf;
+		
+		int parseOption(Json const& jConfig, std::string const& key) {
+			std::string val = jConfig.at(key);
+			
+			if(key == "tree size method") {
+				if(val == "Use_HBF") return Use_HBF;
+				else if(val == "Use_Avg_BF") return Use_Avg_BF;
+				else gen_assert(false);
+			}
+			
+			gen_assert(false);
+			return 0;
+		}
+		
+		
+		ucost_t compute_singleTree(Cost pgval, ucost_t pDepth) {
+			
+			flt_t remExpFlt = std::pow(this->computeHBF(), pgval); //<- dist correction?
+
+			if(remExpFlt > 100000000) {
+				remExpFlt = 100000000;
+				mClipCount++;
+			}
+
+			return mWf * pgval + mWt * remExpFlt * this->getExpansionTime();
+		}
+		
+		
+		
+		
+		
+
+		
+		HeuristicBF<> mHBF;
+		ComputeAvgBF<> mAvgBF;
+		ComputeExpansionTime<> mExpTime;
+
+		
 		unsigned mClipCount;
+		unsigned mBaseExpd;
+		bool mHasStarted;
 		//ucost_t mCachedHBF;
 		//unsigned mBaseFrontierSz;
+		
+		const int  c_treeSizeMethod;
+		const flt_t c_wf, c_wt;
+		
+		
 	};
 }}}

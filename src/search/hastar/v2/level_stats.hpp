@@ -107,6 +107,8 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 					j["gend"] = mL0gend;
 					j["dups"] = mL0dups;
 					j["reopnd"] = mL0reopnd;
+					mManager.mReport["_base_expd"] = mL0expd;
+					mManager.mReport["_base_gend"] = mL0gend;
 					
 				}
 				else {
@@ -120,7 +122,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				}
 				
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;
-				mManager.mTotExpd += ba::sum(mAccExpd);
+				mManager.mAllExpd += ba::sum(mAccExpd);
 			}
 			
 			private:
@@ -130,23 +132,24 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 
 		
 		
-		LevelStatsManager() :
-			mTotExpd(),
-			mReport()
-		{}
+		LevelStatsManager()
+		{
+			reset();
+		}
 		
 		Json report() {
-			mReport["expd"] = mTotExpd;
+			mReport["_all_expd"] = mAllExpd;
+			mReport["_all_gend"] = 0;
 			return mReport;
 		}
 		
 		
 		void reset() {
-			mTotExpd = 0;
+			mAllExpd = 0;
 			mReport = Json();
 		}
 		
-		unsigned mTotExpd;
+		unsigned mAllExpd;
 		Json mReport;
 	};
 }}}

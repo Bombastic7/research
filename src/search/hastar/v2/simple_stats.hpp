@@ -39,7 +39,8 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				mNsearches++;
 				mTotalExpd += mExpd;
 				mTotalGend += mGend;
-				searchCountsReset();
+				if(L != 0)
+					searchCountsReset();
 			}
 
 			

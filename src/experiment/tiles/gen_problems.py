@@ -1,10 +1,6 @@
  #!/bin/python
  
 import random
-import json
-
-import configuration
-
 
 def getRandomPerm(sz):
 	perm = range(0, sz)
@@ -54,16 +50,7 @@ def getTilesInitState(w, h, goal):
 
 
 		
-def genTilesProblemSet(w, h, nprob, fname):
-	probs = {}
-
+def genTilesProblemSet(w, h, nprob):
 	goalState = tuple(range(0, h*w))
 
-	for i in range(0, nprob):
-		initState = getTilesInitState(w, h, goalState)
-
-		probs[str(i)] = {"init" : initState, "goal" : goalState}
-
-	
-	with open(fname, "w") as f:
-		json.dump(probs, f, indent=4, sort_keys=True)
+	return [getTilesInitState(w, h, n, goalState) for n in range(nprob)]

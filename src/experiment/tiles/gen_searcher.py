@@ -69,11 +69,11 @@ namespace mjon661 {
 			algo.execute(sol);
 			timer.stop();
 			
+			jOut = algo.report();
+			
 			jOut["_result"] = "good";
-		
 			jOut["solution length"] = sol.operators.size();
 			jOut["_solution_cost"] = sol.pathCost(dom);
-			jOut["_algorithm_report"] = algo.report();
 			jOut["resources"] = resourceReport();
 			jOut["_walltime"] = timer.seconds();
 			jOut["_cputime"] = jOut["resources"].at("cputime");
@@ -90,7 +90,7 @@ namespace mjon661 {
 			write(1, msg.c_str(), msg.size());
 			exit(0);
 		} catch(std::exception const& e) {
-			jOut["_result"] = "exception";
+			jOut["_result"] = "exec exception";
 			
 			std::string errwht(e.what());
 			jOut["_error_what"] = errwht;

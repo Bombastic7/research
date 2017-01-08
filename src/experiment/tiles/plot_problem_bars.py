@@ -89,35 +89,85 @@ def doProbPlot(resfile, valsOfInterest, avg=True):
 """
 
 
-def plotA(series, metainfo):
-	assert(len(series.shape) == 4)
+#(figure for each domain) * (subplot col for each val) * (subplot row for each weight) * (x tick for each algorithm) * (bar for each problem)
+def plotA(resultSet, valsOfInterest):
+
+	doms = resultSet["meta"]["domains"]
+	algs = resultSet["meta"]["algorithms"]
+	weights = resultSet["meta"]["weights"]
+	nprobs = resultSet["meta"]["n_problems"]
 	
-	for di in range(series.shape[0]): #domain
+	series = np.empty((len(doms), len(algs), len(weights), len(valsOfInterest), nprobs))
+
+	for di in range(len(doms)):
+		for ai in range(len(algs)):
+			for wi in range(len(weights)):
+				for vi in range(len(valsOfInterest)):
+					for pi in range(nprobs):
+						d = doms[di]
+						a = algs[ai]
+						w = weights[wi]
+						v = valsOfInterest[vi]
+						p = str(pi)
+						
+						if resultSet[d][a][w][p]["results"]["_result"] != "good":
+							print d, a, w, v, resultSet[d][a][w][p]["results"]["_result"] 
+							series[di][ai][wi][vi][pi] = 0
+					
+						else:
+							series[di][ai][wi][vi][pi] = resultSet[d][a][w][p]["results"][valsOfInterest[vi]]
+	
+	
+	for di in range(len(doms)): 
 		
-		fig, axs = plt.subplots(series.shape[2], 1)
-		fig.suptitle(metainfo["dim_names"][di])
+		fig, axs = plt.subplots(len(weights), len(valsOfInterest))
+		fig.suptitle(resultSet["meta"]["domains"][di])
 		fig.subplots_adjust(bottom=0.3, hspace=0.3)
 		
-		for wi in range(series.shape[2]): #weight
-		
-			ax = axs[wi]
-			ax.tick_params(axis='x', which='both', bottom='off', top='off', labelbottom='off')
-			ax.get_yaxis().get_major_formatter().set_powerlimits((-1, 2))
+		for wi in range(len(weights)):
+			for vi in range(len(valsOfInterest)):
+				
+				if len(valsOfInterest) == 1:
+					ax = axs[wi]
+				else:
+					ax = axs[wi][vi]
+				
+				ax.tick_params(axis='x', which='both', bottom='off', top='off', labelbottom='off')
+				ax.get_yaxis().get_major_formatter().set_powerlimits((-1, 2))
+				
+				widthPerProb = 0.8 / nprobs
 			
-			widthPerProb = 0.8 / NPROBLEMS
-		
-			for ai in range(series.shape[1]): #algorithm
-				ax.bar([x*widthPerProb + ai for x in range(series.shape[3])], series[di][ai][wi], widthPerProb)
+				for ai in range(len(algs)):
+					ax.bar([x*widthPerProb + ai for x in range(nprobs)], series[di][ai][wi][vi], widthPerProb)
 
-		for wi in range(series.shape[2]):
-			ax = axs[wi]
-			ax.set_ylabel(metainfo["key_names"][wi], rotation=0, size="large", labelpad=50)
+
+		for wi in range(len(weights)):
+			if len(valsOfInterest) == 1:
+				ax = axs[wi]
+			else:
+				ax = axs[wi][0]
+
+			ax.set_ylabel(str(resultSet["meta"]["weights"][wi]), rotation=0, size="large", labelpad=50)
 		
-			botsubplot = axs[-1]
-			botsubplot.tick_params(axis='x', which='both', bottom='on', labelbottom='on')
-			botsubplot.set_xticks([(x+0.5) for x in range(series.shape[1])])
-			botsubplot.set_xticklabels(metainfo["key_names"][1], rotation="vertical")
-	
+
+		for vi in range(len(valsOfInterest)):
+			if len(valsOfInterest) == 1:
+				ax = axs[0]
+			else:
+				ax = axs[0][vi]
+
+			ax.set_title(valsOfInterest[vi])
+		
+		for vi in range(len(valsOfInterest)):
+			if len(valsOfInterest) == 1:
+				ax = axs[-1]
+			else:
+				ax = axs[-1][vi]
+			
+			ax.tick_params(axis='x', which='both', bottom='on', labelbottom='on')
+			ax.set_xticks([(x+0.5) for x in range(len(algs))])
+			ax.set_xticklabels(resultSet["meta"]["algorithms"], rotation="vertical")
+
 	plt.show()
 
 
@@ -129,24 +179,12 @@ if __name__ == "__main__":
 	
 	with open(sys.argv[1]) as f:
 		resultSet = json.load(f)
+
 	
-	assert(resultSet["meta"]["num_dims"] == 4)
+	valsOfInterest = sys.argv[2:]
+
 	
-	dimLengths = resultSet["meta"]["dim_length"]
 	
-	series = np.empty(dimLengths)
-	
-	for i in range(dimLengths[0]):
-		for j in range(dimLengths[1]):
-			for k in range(dimLengths[2]):
-				for l in range(dimLengths[3]):
-					key0 = resultSet["meta"]["key_names"][0][i]
-					key1 = resultSet["meta"]["key_names"][1][j]
-					key2 = resultSet["meta"]["key_names"][2][k]
-					key3 = resultSet["meta"]["key_names"][3][l]
-					
-					series[i][j][k][l] = resultSet[key0][key1][key2][key3]["results"][sys.argv[2]]
-	
-	plotA(series, resultSet["meta"])
+	plotA(resultSet, valsOfInterest)
 	
 	#doProbPlot(sys.argv[1], sys.argv[2:], False)

@@ -92,7 +92,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		UGSAv4_Base(D& pDomStack, Json const& jConfig, UGSABehaviour<Domain>& pBehaviour, StatsManager& pStats) :
 			mBehaviour			(pBehaviour),
 			mStatsAcc			(pStats),
-			mAbtSearch			(pDomStack, mBehaviour, pConf, pStats),
+			mAbtSearch			(pDomStack, jConfig, mBehaviour, pStats),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),

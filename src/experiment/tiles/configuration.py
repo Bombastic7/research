@@ -144,7 +144,15 @@ class ExecutionInfo:
 		
 			self.results = json.loads(searcherOut)
 			
-			self.results["util_real"] = self.results["_solution_cost"] * self.weights[0] + self.results["_cputime"] * self.weights[1]
+			if self.results["_result"] == "good":
+			
+				self.results["util_real"] = self.results["_solution_cost"] * self.weights[0] + self.results["_cputime"] * self.weights[1]
+
+				if "_base_expd" not in self.results:
+					self.results["_base_expd"] = self.results["_all_expd"]
+
+				if "_base_gend" not in self.results:
+					self.results["_base_gend"] = self.results["_all_gend"]
 
 		except Exception as e:
 			self.results = {"_result":"exception", "_error_what": e.__class__.__name__ + " " + str(e) }
@@ -187,8 +195,10 @@ def flatExecArrayToNice(indict, doms, algs, weights, problems):
 	outdict["meta"] = 	{	
 						"num_dims": 4, 
 						"dim_names":["Domain", "Algorithm", "Weight", "Problem"], 
-						"key_names": [ [d.name for d in doms], [a.name for a in algs], [str(w) for w in weights], [str(i) for i in range(len(problems))]],
-						"dim_length": [ len(doms), len(algs), len(weights), len(problems) ],
+						"domains": [d.name for d in doms],
+						"algorithms": [a.name for a in algs],
+						"weights": [str(w) for w in weights],
+						"n_problems": len(problems)
 						}
 	
 	return outdict
@@ -226,6 +236,10 @@ ALGS = [
 		AlgorithmInfo("Astar", "algorithm::Astar", "search/astar.hpp", False, False),
 		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsLevel", "search/hastar/v2/hastar.hpp", True, False),
 		
+		AlgorithmInfo("UGSA_bf", "algorithm::ugsav4::UGSAv4_StatsSimple", "search/ugsa/v4/ugsa_v4.hpp", True, True, {"uh_method":"UH_Max_HD", "tree_size_method":"Use_Avg_BF"}),
+		AlgorithmInfo("UGSA_hbf", "algorithm::ugsav4::UGSAv4_StatsSimple", "search/ugsa/v4/ugsa_v4.hpp", True, True, {"uh_method":"UH_Max_HD", "tree_size_method":"Use_HBF"}),
+		
+
 
 		#{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "util_aware" : False},
 		#{"name" : "Bugsy", "class" : "algorithm::Bugsy", "header" : "search/bugsy.hpp", "abt" : False, "util_aware" : True},

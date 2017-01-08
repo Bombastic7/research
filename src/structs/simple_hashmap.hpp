@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 #include "util/debug.hpp"
+#include "structs/object_pool.hpp"
 
 
 namespace mjon661 {
@@ -26,7 +27,7 @@ namespace mjon661 {
 		};
 		
 		struct ModuloHash {
-			static size_t operator()(K pKey) {
+			static size_t doHash(K pKey) {
 				return pKey % Table_Size;
 			};
 		};
@@ -34,8 +35,10 @@ namespace mjon661 {
 
 		
 		SimpleHashMap() :
+			mDummyEntry(0),
 			mHashTable(),
 			mKeyList(),
+			mPool(),
 			mFill(0)
 		{
 			mHashTable.fill(nullptr);
@@ -55,7 +58,7 @@ namespace mjon661 {
 
 		HTentry& operator[](K pKey) {
 			
-			unsigned h = ModuloHash::operator()(pKey);
+			unsigned h = ModuloHash::doHash(pKey);
 			
 			slow_assert(h < Table_Size);
 			
@@ -63,7 +66,7 @@ namespace mjon661 {
 				mHashTable[h] = mPool.construct(pKey);
 				mKeyList.push_back(pKey);
 				mFill++;
-				return mHashTable[h];
+				return *(mHashTable[h]);
 			}
 			
 			HTentry* current = mHashTable[h];
@@ -80,11 +83,11 @@ namespace mjon661 {
 					return *(current->nxt);
 				}
 				
-				current = current.nxt;
+				current = current->nxt;
 			}
 			
 			gen_assert(false);
-			return nullptr;			
+			return mDummyEntry;
 		}
 
 
@@ -105,8 +108,10 @@ namespace mjon661 {
 		}
 
 		
+		HTentry mDummyEntry;
 		std::array<HTentry*, Table_Size> mHashTable;
 		std::vector<K> mKeyList;
+		ObjectPool<HTentry> mPool;
 		unsigned mFill;
 	};
 }

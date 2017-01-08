@@ -38,7 +38,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			j["phase count"] = mNphases;
 			j["expd this phase"] = mExpThisPhase;
 			j["exp time"] = mExpTime;
-			j["next calc"] = mNextCalc;
 			return j;
 		}
 		
@@ -85,7 +84,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 					continue;
 				}
 				
-				expCount = mCountMap[d].val;
+				unsigned expCount = mCountMap[d].val;
 				avgBFacc += std::pow(expCount, 1.0/d);
 			}
 			
@@ -125,7 +124,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			slow_assert(mRefLvlSet);
 			
 			std::vector<unsigned> const& lvlsList = mCountMap.unorderedKeys();
-			unsigned refExpCount = mCountMap[mRefLvl];
+			unsigned refExpCount = mCountMap[mRefLvl].val;
 			
 			slow_assert(refExpCount != 0);
 			
@@ -137,14 +136,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 					continue;
 				}
 
-				avgBFacc += std::pow(expCount, 1.0/(l - refExpCount));
+				avgBFacc += std::pow((flt_t)mCountMap[l].val/refExpCount, 1.0/(l - refExpCount));
 			}
 			
 			return avgBFacc / mCountMap.size();
 		}
 		
 		HeuristicBF() :
-			mInitValSet(false)
+			mRefLvlSet(false)
 		{}
 
 		private:
@@ -186,23 +185,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 		
 		UGSABehaviour(Json const& jConfig) :
-			c_treeSizeMethod(parseOption(jConfig, "tree size method")),
+			c_treeSizeMethod(parseOption(jConfig, "tree_size_method")),
 			c_wf(jConfig.at("wf")),
 			c_wt(jConfig.at("wt"))
 		{
 			fast_assert(c_wf >= 0 && c_wt >= 0);
 			
 			reset();
-			hasStarted = false;
+			mHasStarted = false;
 		}
 		
-		
-		
-		
-		
-		
+
 		void start() {
-			fast_assert(!hasStarted);
+			fast_assert(!mHasStarted);
 			mHasStarted = true;
 			mExpTime.start();
 		}
@@ -213,6 +208,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 		void informNodeExpansion(Cost pgval, Cost pfval, ucost_t puval, unsigned pDepth) {
+			
+			if(!mInitValSet) {
+				mHBF.setRefLvl(pgval);
+				mInitValSet = true;
+			}
+			
 			if(c_treeSizeMethod == Use_HBF)
 				mHBF.informNodeExpansion(pgval);
 			
@@ -220,6 +221,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				mAvgBF.informNodeExpansion(pDepth);
 			
 			mExpTime.informNodeExpansion();
+			
+			if(mBaseExpd >= mNextRecalc) {
+				mNextRecalc *= 2;
+				
+				if(c_treeSizeMethod == Use_HBF)
+					mCachedBF = mHBF.computeAvgHBF_ref();
+				else
+					mCachedBF = mAvgBF.computeAvgBF();
+				
+				mExpTime.update();
+			}
+			
 		}
 		
 		bool abtShouldCache() {
@@ -227,11 +240,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 		ucost_t abtHtoU(Cost pCost) {
-			return mConf.wf * pCost;
+			return c_wf * pCost;
 		}
 		
 		ucost_t abtDtoU(unsigned pDepth) {
-			return mConf.wt * std::pow(this->computeHBF(), pDepth);
+			return c_wt * std::pow(mCachedBF, pDepth);
 		}
 		
 		void reset() {
@@ -240,13 +253,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mExpTime.reset();
 			mClipCount = 0;
 			mBaseExpd = 0;
+			mNextRecalc = 100;
 			mHasStarted = false;
+			mInitValSet = false;
+			mCachedBF = 1;
 		}
 		
 		Json report() {
 			Json j;
-			j["hbf"] = this->computeHBF();
-			j["exptime"] = ComputeExpansionTime<>::report();
+			j["bf"] = mCachedBF;
+			j["exptime"] = mExpTime.report();
 			j["used wf"] = c_wt;
 			j["used wt"] = c_wt;
 			j["clips"] = mClipCount;
@@ -258,7 +274,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		int parseOption(Json const& jConfig, std::string const& key) {
 			std::string val = jConfig.at(key);
 			
-			if(key == "tree size method") {
+			if(key == "tree_size_method") {
 				if(val == "Use_HBF") return Use_HBF;
 				else if(val == "Use_Avg_BF") return Use_Avg_BF;
 				else gen_assert(false);
@@ -271,14 +287,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 		ucost_t compute_singleTree(Cost pgval, ucost_t pDepth) {
 			
-			flt_t remExpFlt = std::pow(this->computeHBF(), pgval); //<- dist correction?
+			flt_t remExpFlt = std::pow(mCachedBF, pgval); //<- dist correction?
 
 			if(remExpFlt > 100000000) {
 				remExpFlt = 100000000;
 				mClipCount++;
 			}
 
-			return c_wf * pgval + c_wt * remExpFlt * this->getExpansionTime();
+			return c_wf * pgval + c_wt * remExpFlt * mExpTime.getExpansionTime();
 		}
 		
 		
@@ -295,7 +311,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		unsigned mClipCount;
 		unsigned mBaseExpd;
 		bool mHasStarted;
-		//ucost_t mCachedHBF;
+		bool mInitValSet;
+		unsigned mNextRecalc;
+		flt_t mCachedBF;
 		//unsigned mBaseFrontierSz;
 		
 		const int c_treeSizeMethod;

@@ -325,7 +325,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 		UGSABehaviour<BaseDomain>&	mBehaviour;
 		StatsAcc				mStatsAcc;
-		const bool				c_uhMethod;
+		const int 				c_uhMethod;
 		
 		AbtSearchH				mAbtSearchH;
 		AbtSearchD				mAbtSearchD;

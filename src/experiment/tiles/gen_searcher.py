@@ -1,12 +1,7 @@
 #!/bin/python
 
-import os
 
-import configuration as conf
-
-
-
-def searcher_code(algdom, headers):
+def genSearcherCode(algdoms, headers):
 	
 	codeStr = ""
 	
@@ -16,7 +11,7 @@ def searcher_code(algdom, headers):
 	
 	There are {0} domain/algorithm pairs implemented.
 	
-*/""".format(len(algdom))
+*/""".format(len(algdoms))
 
 
 
@@ -118,11 +113,11 @@ void selectAll(Json const& jExecDesc) {
 		;
 """
 
-	for i in algdom:
+	for i in algdoms:
 		codeStr += """
 	else if(pAlgDom == "{0}")
 		mjon661::execRoutine<{1}, {2}>(jExecDesc);
-	""".format(i["name"], i["dom"], i["alg"])
+	""".format(i[0], i[2], i[1])
 
 
 	codeStr += """
@@ -190,22 +185,4 @@ int main(int argc, const char* argv[]) {
 
 	return codeStr
 	
-
-
-
-
-def genSearcher():
-	
-	algdoms = [ { "alg" : a["class"], "dom" : d["class"], "name" : conf.makeAlgDomName(a,d), "headers" : [d["header"], a["header"]] } for a in conf.ALGS for d in conf.DOMS if not a["abt"] or d["abt"] ]
-	headers = list(set([j for s in [ i["headers"] for i in algdoms] for j in s]))
-	
-	
-	with open(os.path.dirname(os.path.abspath(__file__)) + "/searcher_auto.cc", "w") as f:
-			f.write(searcher_code(algdoms, headers))
-	
-
-if __name__ == "__main__":
-	genSearcher()
-
-
 

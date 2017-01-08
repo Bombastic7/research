@@ -28,7 +28,7 @@ TILES_EXP_FILES:=\
 	$(BUILDDIR)/experiment/tiles/searcher\
 	$(BUILDDIR)/experiment/tiles/configuration.py\
 	$(BUILDDIR)/experiment/tiles/gen_problems.py\
-	$(BUILDDIR)/experiment/tiles/analyse.py\
+	$(BUILDDIR)/experiment/tiles/gen_searcher.py\
 	$(BUILDDIR)/experiment/tiles/plot_problem_bars.py
 
 
@@ -40,7 +40,7 @@ BINS+=$(TILES_EXP_FILES)
 .PHONY: tiles_src tiles_exp
 
 tiles_src:
-	python $(SRCDIR)/experiment/tiles/gen_searcher.py
+	python $(SRCDIR)/experiment/tiles/configuration.py gencode $(SRCDIR)/experiment/tiles/searcher_auto.cc
 
 
 tiles_exp: $(TILES_EXP_FILES)

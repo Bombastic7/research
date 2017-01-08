@@ -53,4 +53,4 @@ def getTilesInitState(w, h, goal):
 def genTilesProblemSet(w, h, nprob):
 	goalState = tuple(range(0, h*w))
 
-	return [getTilesInitState(w, h, n, goalState) for n in range(nprob)]
+	return [{"init":getTilesInitState(w, h, goalState), "goal":list(goalState)} for n in range(nprob)]

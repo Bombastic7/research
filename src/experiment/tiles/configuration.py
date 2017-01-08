@@ -133,6 +133,7 @@ class ExecutionInfo:
 		params["memory limit"] = WORKER_MEM
 		params["instance"] = params["name"] + "_" + str(w).replace(" ", "_") + "_" + str(pi)
 		
+		self.weights = w
 		self.params = params
 		self.results = {}
 	
@@ -142,6 +143,8 @@ class ExecutionInfo:
 			searcherOut = proc.communicate(input=bytearray(json.dumps(self.params)))[0]
 		
 			self.results = json.loads(searcherOut)
+			
+			self.results["util_real"] = self.results["_solution_cost"] * self.weights[0] + self.results["_cputime"] * self.weights[1]
 
 		except Exception as e:
 			self.results = {"_result":"exception", "_error_what": e.__class__.__name__ + " " + str(e) }
@@ -180,6 +183,13 @@ def flatExecArrayToNice(indict, doms, algs, weights, problems):
 
 					outdict[doms[di].name][algs[ai].name][weightKey][str(pi)] = {"params":indict[(di,ai,wi,pi)].params,
 																					"results":indict[(di,ai,wi,pi)].results}
+	
+	outdict["meta"] = 	{	
+						"num_dims": 4, 
+						"dim_names":["Domain", "Algorithm", "Weight", "Problem"], 
+						"key_names": [ [d.name for d in doms], [a.name for a in algs], [str(w) for w in weights], [str(i) for i in range(len(problems))]],
+						"dim_length": [ len(doms), len(algs), len(weights), len(problems) ],
+						}
 	
 	return outdict
 
@@ -357,7 +367,8 @@ if __name__ == "__main__":
 			sys.stdout.flush()
 		
 		niceResults = flatExecArrayToNice(sharedExecList, DOMS, ALGS, WEIGHTS, probset.problems)
-
+		niceResults["meta"]["problem_set"] = probset.name
+		
 		with open(outfile, "w") as f:
 			json.dump(niceResults, f, indent=4, sort_keys=True)
 

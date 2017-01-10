@@ -44,14 +44,14 @@ namespace mjon661 {
 
 		using BaseDomain = typename D::template Domain<0>;
 		
-		if(jExecDesc.count("time limit")) {
-			double res = setCpuTimeLimit(jExecDesc.at("time limit").get<double>());
+		if(jExecDesc.count("_time_limit")) {
+			double res = setCpuTimeLimit(jExecDesc.at("_time_limit").get<double>());
 			if(res < 0)
 				throw std::runtime_error("Failed to set time limit");
 		}
 		
-		if(jExecDesc.count("memory limit")) {
-			double res = setVirtMemLimit(jExecDesc.at("memory limit").get<double>());
+		if(jExecDesc.count("_memory_limit")) {
+			double res = setVirtMemLimit(jExecDesc.at("_memory_limit").get<double>());
 			if(res < 0)
 				throw std::runtime_error("Failed to set memory limit");
 		}
@@ -62,28 +62,35 @@ namespace mjon661 {
 		Solution<BaseDomain> sol;
 			
 		try {		
-			D 		dom(jExecDesc.at("domain conf"));
-			Alg<D> 	algo(dom, jExecDesc.at("algorithm conf"));
+			D 		dom(jExecDesc.at("_domain_conf"));
+			Alg<D> 	algo(dom, jExecDesc.at("_algorithm_conf"));
 
 			timer.start();
 			algo.execute(sol);
 			timer.stop();
 			
-			jOut = algo.report();
+			jOut = Json();
+			jOut["algo report"] = algo.report();
+			jOut["resources"] = resourceReport();
 			
 			jOut["_result"] = "good";
-			jOut["solution length"] = sol.operators.size();
-			jOut["_solution_cost"] = sol.pathCost(dom);
-			jOut["resources"] = resourceReport();
+			jOut["_sol_length"] = sol.operators.size();
+			jOut["_sol_cost"] = sol.pathCost(dom);
+			jOut["_mem_used"] = jOut.at("resources").at("max rss (MB)");
 			jOut["_walltime"] = timer.seconds();
-			jOut["_cputime"] = jOut["resources"].at("cputime");
+			jOut["_cputime"] = jOut.at("resources").at("cputime");
+			
+			if(jOut.at("resource report").count("_base_expd"))
+				jOut["_base_expd"] = jOut.at("resource report"].at("_base_expd");
+			
+			else
+				jOut["_base_expd"] = jOut.at("resource report"].at("_all_expd");
+			
+			jOut["_all_expd"] = jOut.at("resource report"].at("_all_expd");
+			
 			
 			std::cout << jOut.dump(4) << "\\n";
-			
-			if(jExecDesc.count("print solution"))
-				if(jExecDesc.at("print solution").get<bool>())
-					sol.printSolution(dom, std::cout);
-			
+
 		} catch(std::bad_alloc const& e) {
 			jOut["_result"] = "OOM";
 			std::string msg = jOut.dump();
@@ -107,7 +114,7 @@ namespace mjon661 {
 
 	codeStr += """
 void selectAll(Json const& jExecDesc) {
-	std::string pAlgDom = jExecDesc.at("name");
+	std::string pAlgDom = jExecDesc.at("_name");
 	
 	if(false)
 		;

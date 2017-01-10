@@ -222,6 +222,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			
 			mExpTime.informNodeExpansion();
 			
+			mBaseExpd++;
+			
 			if(mBaseExpd >= mNextRecalc) {
 				mNextRecalc *= 2;
 				

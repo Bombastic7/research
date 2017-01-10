@@ -213,13 +213,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 					
 					kid_dup->f			-= kid_dup->g;
 					kid_dup->f			+= kid_g;
-					//kid_dup->u is not changed.
+					kid_dup->u			-= kid_dup->g * mBehaviour.c_wf;
+					kid_dup->u			-= kid_g * mBehaviour.c_wf;
+					
 					kid_dup->g			= kid_g;
 					kid_dup->depth 		= pParentNode->depth + 1;
 					kid_dup->in_op		= pInOp;
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
 					
+
 					if(!mOpenList.contains(kid_dup)) {
 						mStatsAcc.a_reopnd();
 					}
@@ -244,7 +247,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				mAbtSearch.doSearch(edge.state(), kid_h, kid_uh);
 				
 				kid_node->f = kid_g + kid_h;
-				kid_node->u = kid_g + kid_uh;
+				kid_node->u = kid_g  * mBehaviour.c_wf + kid_uh;
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);

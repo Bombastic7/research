@@ -8,6 +8,7 @@ import json
 import subprocess
 import time
 import multiprocessing
+import MySQLdb
 from multiprocessing.managers import SyncManager
 from Queue import Empty
 
@@ -113,24 +114,37 @@ class ProblemSetInfo:
 			json.dump(self.problems, f, indent=4, sort_keys=True)
 
 
+class CommonParams:
+	def __init__(self, dom, alg, wf, wt, prob):
+		self.dom = dom
+		self.alg = alg
+		self.wt = wt
+		self.wf = wf
+		self.prob = prob
+
+
+class CommonResults:
+	def __init__(self, solcost, sollength, baseexpd, allexpd, 
 
 class ExecutionInfo:
 	def __init__(self, d, a, w, p, pi):
 		params = {}
 		
-		params["name"] = a.name + "_" + d.name
-		params["domain conf"] = p
+		params["_domain"] = d.name
+		params["_algorithm"] = a.name
+		params["_name"] = a.name + "_" + d.name
+		params["_domain_conf"] = p
 		
 		if a.conf is not None:
-			params["algorithm conf"] = a.conf
+			params["_algorithm_conf"] = a.conf
 		else:
-			params["algorithm conf"] = {}
+			params["_algorithm_conf"] = {}
 		
-		params["algorithm conf"]["wf"] = w[0]
-		params["algorithm conf"]["wt"] = w[1]
+		params["_algorithm_conf"]["wf"] = w[0]
+		params["_algorithm_conf"]["wt"] = w[1]
 				
-		params["time limit"] = TIME_LIMIT
-		params["memory limit"] = WORKER_MEM
+		params["_time_limit"] = TIME_LIMIT
+		params["_memory_limit"] = WORKER_MEM
 		params["instance"] = params["name"] + "_" + str(w).replace(" ", "_") + "_" + str(pi)
 		
 		self.weights = w
@@ -145,14 +159,9 @@ class ExecutionInfo:
 			self.results = json.loads(searcherOut)
 			
 			if self.results["_result"] == "good":
-			
-				self.results["util_real"] = self.results["_solution_cost"] * self.weights[0] + self.results["_cputime"] * self.weights[1]
+				self.results["_util_real"] = self.results["_sol_cost"] * self.weights[0] + self.results["_cputime"] * self.weights[1]
 
-				if "_base_expd" not in self.results:
-					self.results["_base_expd"] = self.results["_all_expd"]
 
-				if "_base_gend" not in self.results:
-					self.results["_base_gend"] = self.results["_all_gend"]
 
 		except Exception as e:
 			self.results = {"_result":"exception", "_error_what": e.__class__.__name__ + " " + str(e) }
@@ -386,3 +395,29 @@ if __name__ == "__main__":
 		with open(outfile, "w") as f:
 			json.dump(niceResults, f, indent=4, sort_keys=True)
 
+	elif sys.argv[1] == "db":
+		db = MySQLdb.connect(host="localhost", user="matthew", passwd="debian", db="research")
+		cur = db.cursor()
+		
+		tbname = sys.argv[3]
+		
+		with open(argv[2]) as f:
+			resultSet = json.load(f)
+		
+		cur.execute("""DROP TABLE IF EXISTS '{tb}'; CREATE TABLE '{tb}' (domain VARCHAR(20), algorithm VARCHAR(20), weight VARCHAR(20), problem INT, cost DOUBLE, length INT, baseExpd INT, allExpd INT, expTime DOUBLE, cpuTime DOUBLE, memory DOUBLE);""".format(tb=tbname)
+		
+		for dk, dv in resultSet.iteritems():
+			for ak, av in dv.iteritems():
+				for wk, wv in av.iteritems():
+					for pk, pv in wv.iteritems():
+						
+						insertStr = """INSERT INTO {tb} VALUES ('{d}','{a}','{w}','{p}', '{cst}', '{ln}', '{be}', '{ae}', '{et}', '{ct}', '{mem}');""".format(
+							tb=tbname, d=dk, a=ak, w=wk, p=pk, cst=pv["_sol_cost"], ln=pv["_sol_length"], be=pv["_base_expd"], ae=pv["_all_expd"], et=pv["_exptime"], ct=pv["_cputime"], mem=pv["_mem_used"])
+						
+						cur.execute(insertStr)
+						
+		db.commit()
+		db.close()
+		
+		
+		

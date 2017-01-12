@@ -110,18 +110,20 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mClosedList.clear();
 			mNodePool.clear();
 			mStatsAcc.reset();
+			mBehaviour.reset();
 			mAbtSearch.reset();
 		}
 
 		
 		void submitStats() {
-			mStatsAcc.submit();
+			mStatsAcc.submit(mBehaviour.report());
 			mAbtSearch.submitStats();
 		}
 		
 		
 		
 		void doSearch(Solution<Domain>& pSolution) {
+			mBehaviour.start();
 			{
 				Node* n0 = mNodePool.construct();
 

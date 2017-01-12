@@ -117,27 +117,25 @@ class ProblemSetInfo:
 
 class ExecutionInfo:
 	def __init__(self, d, a, w, p, pi):
-		params = {}
-		
-		params["_domain"] = d.name
-		params["_algorithm"] = a.name
-		params["_name"] = a.name + "_" + d.name
-		params["_domain_conf"] = p
+		self.params = {}
+
+		self.params["_domain"] = d.name
+		self.params["_algorithm"] = a.name
+		self.params["_name"] = a.name + "_" + d.name
+		self.params["_domain_conf"] = p
 		
 		if a.conf is not None:
-			params["_algorithm_conf"] = a.conf
+			self.params["_algorithm_conf"] = a.conf.copy()
 		else:
-			params["_algorithm_conf"] = {}
+			self.params["_algorithm_conf"] = {}
 		
-		params["_algorithm_conf"]["wf"] = w[0]
-		params["_algorithm_conf"]["wt"] = w[1]
-				
-		params["_time_limit"] = TIME_LIMIT
-		params["_memory_limit"] = WORKER_MEM
-		params["instance"] = params["_name"] + "_" + str(w).replace(" ", "_") + "_" + str(pi)
+		self.params["_algorithm_conf"]["wf"] = w[0]
+		self.params["_algorithm_conf"]["wt"] = w[1]
+		self.params["_time_limit"] = TIME_LIMIT
+		self.params["_memory_limit"] = WORKER_MEM
+		self.params["instance"] = self.params["_name"] + "_" + str(w).replace(" ", "_") + "_" + str(pi)
 		
 		self.weights = w
-		self.params = params
 		self.results = {}
 	
 	def execute(self):
@@ -159,13 +157,14 @@ class ExecutionInfo:
 
 
 def prepExecObjs(outdict, doms, algs, weights, problems):
+
 	for di in range(len(doms)):
 		for ai in range(len(algs)):
 				for wi in range(len(weights)):
 						for pi in range(len(problems)):
 							assert((di,ai,wi,pi) not in outdict)
 							outdict[(di,ai,wi,pi)] = ExecutionInfo(doms[di], algs[ai], weights[wi], problems[pi], pi)
-
+		 
 
 def flatExecArrayToNice(indict, doms, algs, weights, problems):
 	outdict = {}
@@ -186,10 +185,11 @@ def flatExecArrayToNice(indict, doms, algs, weights, problems):
 						outdict[doms[di].name][algs[ai].name][weightKey] = {}
 						
 					assert(str(pi) not in outdict[doms[di].name][algs[ai].name][weightKey])
-
-					outdict[doms[di].name][algs[ai].name][weightKey][str(pi)] = {"params":indict[(di,ai,wi,pi)].params,
+					
+					outdict[doms[di].name][algs[ai].name][str(weights[wi])][str(pi)] = {"params":indict[(di,ai,wi,pi)].params,
 																					"results":indict[(di,ai,wi,pi)].results}
-	
+
+					
 	outdict["meta"] = 	{	
 						"num_dims": 4, 
 						"dim_names":["Domain", "Algorithm", "Weight", "Problem"], 
@@ -232,9 +232,9 @@ def workerRoutine(sharedExecList, taskQueue, msgQueue):
 
 ALGS = [
 		AlgorithmInfo("Astar", "algorithm::Astar", "search/astar.hpp", False, False),
-		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsLevel", "search/hastar/v2/hastar.hpp", True, False),
+		#AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsLevel", "search/hastar/v2/hastar.hpp", True, False),
 		
-		AlgorithmInfo("UGSA_bf", "algorithm::ugsav4::UGSAv4_StatsSimple", "search/ugsa/v4/ugsa_v4.hpp", True, True, {"bin_width":"10"}),
+		AlgorithmInfo("UGSA_bf", "algorithm::ugsav4::UGSAv4_StatsSimple", "search/ugsa/v4/ugsa_v4.hpp", True, True, {"bin_width":10}),
 
 
 
@@ -275,8 +275,8 @@ ALGS = [
 
 
 DOMS =	[
-		DomainInfo("8h_7", tiles_stack(3,3,False,True,5), "domain/tiles/fwd.hpp", True, 8),
-		DomainInfo("8hw_7", tiles_stack(3,3,True,True,5), "domain/tiles/fwd.hpp", True, 8),
+		DomainInfo("8h_5", tiles_stack(3,3,False,True,5), "domain/tiles/fwd.hpp", True, 8),
+		DomainInfo("8hw_5", tiles_stack(3,3,True,True,5), "domain/tiles/fwd.hpp", True, 8),
 		
 		#{"name" : "8h_5", "class" : tiles_stack(3,3,False,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
 		#{"name" : "15_7", "class" : tiles_stack(4,4,False,True,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15},
@@ -290,7 +290,7 @@ PROBLEM_SETS =	[
 				ProblemSetInfo(15, "tiles_15.json", gen_problems.genTilesProblemSet, (4, 4, 5)),
 				]
 
-WEIGHTS = [(1,0),(1,0.01),(1,0.1),(1,1),(1,10),(1,100),(0,1)]
+WEIGHTS = ((1,0),(1,0.01),(1,0.1),(1,1),(1,10),(1,100),(0,1))
 
 
 
@@ -332,8 +332,8 @@ if __name__ == "__main__":
 		
 		with open(outfile, "w") as f:
 			json.dump(outdict, f, indent=4, sort_keys=True)
-	
-	
+		
+
 	elif sys.argv[1] == "exec":
 		outfile = sys.argv[3]
 

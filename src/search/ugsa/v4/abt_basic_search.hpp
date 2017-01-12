@@ -12,7 +12,9 @@
 
 #include "search/ugsa/v4/defs.hpp"
 #include "search/ugsa/v4/behaviour.hpp"
+#include "search/ugsa/v4/cache.hpp"
 
+#include <iostream>
 
 namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
@@ -42,11 +44,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		struct Node {
 			ucost_t ug;
 			Cost g;
+			unsigned depth;
 			PackedState pkd;
 			Operator in_op, parent_op;
 			Node* parent;
 		};
 		
+		struct CacheEntry {
+			PackedState pkd;
+			ucost_t u;
+		};
+		
+		using CacheStore_t = CacheStore<Domain, CacheEntry>;
 
 		
 		struct ClosedOps {
@@ -100,6 +109,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			()
+			//mCache				()
 		{}
 
 		
@@ -128,6 +138,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				n0->pkd =		pkd0;
 				n0->g = 		0;
 				n0->ug =		0;
+				n0->depth =		0;
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
@@ -137,6 +148,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			}
 			
 
+			ucost_t retu;
 			
 			while(true) {				
 				Node* n = mOpenList.pop();
@@ -145,7 +157,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				mDomain.unpackState(s, n->pkd);
 
 				if(mDomain.checkGoal(s)) {
-					return n->ug;
+					retu = n->ug;
+					break;
 				}
 				
 				expand(n, s);
@@ -156,7 +169,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mNodePool.clear();
 
 			mStatsAcc.s_end();
-
+			return retu;
 		}
 		
 		
@@ -180,7 +193,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 			Edge		edge 		= mDomain.createEdge(pParentState, pInOp);
 			Cost		kid_g	 	= pParentNode->g + edge.cost();
-			ucost_t		kid_ug   	= compute_ug(kid_g);
+			unsigned	kid_depth	= pParentNode->depth + 1;
+			ucost_t		kid_ug   	= compute_ug(kid_g, kid_depth);
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -192,6 +206,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				if(kid_dup->ug > kid_ug) {
 					kid_dup->ug			= kid_ug;
 					kid_dup->g			= kid_g;
+					kid_dup->depth		= kid_depth;
 					kid_dup->in_op		= pInOp;
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
@@ -210,6 +225,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				
 				kid_node->g 		= kid_g;
 				kid_node->ug		= kid_ug;
+				kid_node->depth		= kid_depth;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
@@ -230,7 +246,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		//ug = (c log(bf) - W(- bf^c k log(bf))) / log(bf)
 		//where W is the Lambert W function.
 		
-		ucost_t compute_ug(Cost g) {
+		ucost_t compute_ug(Cost g, unsigned depth) {
 			
 			double c = mBehaviour.c_wf * g;
 			double k = mBehaviour.getExpansionTime() * mBehaviour.c_wt;
@@ -238,7 +254,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			
 			ucost_t ug = (c - mathutil::lambertW(- (std::pow(bf, c) * k * std::log(bf))) ) / std::log(bf);
 			
-			slow_assert(ug >= 0);
+			if(!std::isfinite(ug) || ug < c)
+				ug = 0;
+			
+			ug = mathutil::max(ug, mathutil::max(c, depth * mBehaviour.c_wt));
+
 			slow_assert(ug < 1e9); //Sanity check
 			
 			return ug;

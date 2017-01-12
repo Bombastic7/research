@@ -52,9 +52,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			}
 
 			
-			void submit() {
-				Json j;
-				
+			void submit(Json j = Json()) {				
 				if(L == 0) {
 					mManager.mReport["_base_expd"] = mExpd;
 					mManager.mReport["_base_gend"] = mGend;
@@ -65,7 +63,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				}
 
 				j["NSearches"] = mNsearches;
-
 
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;
 				mManager.mAllExpd += mTotalExpd;

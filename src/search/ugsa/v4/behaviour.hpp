@@ -227,7 +227,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			Json j;
 			j["bf"] = mCachedBF;
 			j["exptime"] = mExpTime.report();
-			j["used wf"] = c_wt;
+			j["used wf"] = c_wf;
 			j["used wt"] = c_wt;
 			j["used bin width"] = c_binWidth;
 			return j;

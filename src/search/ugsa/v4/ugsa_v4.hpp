@@ -26,7 +26,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		static const unsigned Used_Abt_Levels = mathutil::min(Max_Abt_Level, DomStack::Top_Abstract_Level);
 		
 		UGSAv4(DomStack& pStack, Json const& jConfig) :
-			mBehaviour(jConfig),
 			mStatsManager(),
 			mAlgo(pStack, jConfig, mStatsManager)
 		{
@@ -34,24 +33,20 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 		
 		void execute(Solution<BaseDomain>& pSol) {
-			mBehaviour.start();
 			mAlgo.doSearch(pSol);
 		}
 
 		Json report() {
 			mAlgo.submitStats();
 			Json j = mStatsManager.report();
-			j["behaviour"] = mBehaviour.report();
 			return j;
 		}
 		
 		void reset() {
 			mAlgo.reset();
 			mStatsManager.reset();
-			mBehaviour.reset();
 		}
 
-		UGSABehaviour<BaseDomain> mBehaviour;
 		StatsManager mStatsManager;
 		UGSAv4_Base<DomStack, Used_Abt_Levels, StatsManager> mAlgo;
 		

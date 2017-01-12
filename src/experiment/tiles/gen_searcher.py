@@ -91,13 +91,13 @@ namespace mjon661 {
 			jOut["_walltime"] = timer.seconds();
 			jOut["_cputime"] = jOut.at("resources").at("cputime");
 			
-			if(jOut.at("resource report").count("_base_expd"))
-				jOut["_base_expd"] = jOut.at("resource report").at("_base_expd");
+			if(jOut.at("algo report").count("_base_expd"))
+				jOut["_base_expd"] = jOut.at("algo report").at("_base_expd");
 			
 			else
-				jOut["_base_expd"] = jOut.at("resource report").at("_all_expd");
+				jOut["_base_expd"] = jOut.at("algo report").at("_all_expd");
 			
-			jOut["_all_expd"] = jOut.at("resource report").at("_all_expd");
+			jOut["_all_expd"] = jOut.at("algo report").at("_all_expd");
 			
 			
 			std::cout << jOut.dump(4) << "\\n";

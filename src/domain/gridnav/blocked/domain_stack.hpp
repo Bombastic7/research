@@ -138,11 +138,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 
 		static constexpr unsigned compressX(unsigned i, unsigned L, unsigned n = 0) {
-			return L == n ? i : compressX( min(i/Merge_Width_Factor, widthAtAbtLevel(n+1)-1), L, n+1);
+			return L == n ? i : compressX( mathutil::min(i/Merge_Width_Factor, widthAtAbtLevel(n+1)-1), L, n+1);
 		}
 		
 		static constexpr unsigned compressY(unsigned i, unsigned L, unsigned n = 0) {
-			return L == n ? i : compressY( min(i/Merge_Height_Factor, heightAtAbtLevel(n+1)-1), L, n+1);
+			return L == n ? i : compressY( mathutil::min(i/Merge_Height_Factor, heightAtAbtLevel(n+1)-1), L, n+1);
 		}
 		
 		static constexpr unsigned basePosAtLevel(idx_t pos, unsigned L) {
@@ -150,13 +150,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		static constexpr unsigned posUpOneLevel(idx_t pos, unsigned L) {
-			return min( (pos%widthAtAbtLevel(L)) / Merge_Width_Factor , widthAtAbtLevel(L+1)-1 ) +
-					min( (pos/widthAtAbtLevel(L)) / Merge_Height_Factor , heightAtAbtLevel(L+1)-1 ) * widthAtAbtLevel(L+1);
+			return mathutil::min( (pos%widthAtAbtLevel(L)) / Merge_Width_Factor , widthAtAbtLevel(L+1)-1 ) +
+					mathutil::min( (pos/widthAtAbtLevel(L)) / Merge_Height_Factor , heightAtAbtLevel(L+1)-1 ) * widthAtAbtLevel(L+1);
 		}
 		
 		
 		
-		static const unsigned Top_Abstract_Level = min(Max_Abt_Lvls, maxPossibleAbtLevel());
+		static const unsigned Top_Abstract_Level = mathutil::min(Max_Abt_Lvls, maxPossibleAbtLevel());
 		
 		
 		

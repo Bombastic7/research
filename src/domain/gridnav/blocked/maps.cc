@@ -91,6 +91,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			unsigned prevH = prev->getHeight();
 			
 			unsigned selfHeight = prevH / mHeightFactor, selfWidth = prevW / mWidthFactor;
+			unsigned selfSize = selfHeight * selfWidth;
 			
 			if(mMaps.size() == mMaxLevels || selfHeight == 0 || selfWidth == 0)
 				break;
@@ -111,8 +112,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			
 			
-			for(unsigned i=0; i<selfHeight * selfWidth; i++)
-				blockedCounts[i] = blockedCounts[i] >= mFillFactor ? 1 : 0;
+			for(unsigned i=0; i<selfSize; i++)
+				blockedCounts[i] = blockedCounts[i] * mFillFactor >= selfSize ? 1 : 0;
 			
 			Lvl_t* selfLvl = new Lvl_t(selfHeight, selfWidth);
 			selfLvl->read(blockedCounts.begin(), blockedCounts.end());

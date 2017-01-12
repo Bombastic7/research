@@ -14,6 +14,8 @@ from Queue import Empty
 
 import gen_searcher
 import gen_problems
+import gen_pancake_problems
+import gen_gridnav_problems
 
 
 RES_CACHE_DIR = "./rescache/"
@@ -58,13 +60,30 @@ def _bstr(b):
 
 
 def tiles_stack(height, width, weighted, useH, Abt1Sz):
-	
 	declStr = "tiles::TilesGeneric_DomainStack<{0}, {1}, {2}, {3}, {4}>".format(height, width, _bstr(weighted), _bstr(useH), Abt1Sz)
-	
 	return declStr
 
 
-		
+def pancake_stack_ignore(Ncakes, Abt1Sz, AbtStep):
+	declStr = "pancake::Pancake_DomainStack_IgnoreAbt<{0},{1},{2}>".format(Ncakes, Abt1Sz, AbtStep)
+	return declStr	
+
+def pancake_stack_single(Ncakes, gapH):
+	declStr = "pancake::Pancake_DomainStack_single<{0},{1}>".format(Ncakes, _bstr(gapH))
+	return declStr
+	
+def gridnav_blocked(height, width, mv8, cstLC, hr):
+	declStr = "gridnav::blocked::GridNav_DomainStack_single<{0}, {1}, {2}, {3}, {4}>"\
+	.format(height, width, _bstr(mv8), _bstr(cstLC), _bstr(hr))
+	return declStr
+
+def gridnav_blocked_stack_merge(height, width, mv8, cstLC, hfact, wfact, fillfact, maxAbtLvl = 1000):
+	declStr = "gridnav::blocked::GridNav_DomainStack_MergeAbt<{0},{1},{2},{3},{mxL},{4},{5},{6}>"\
+	.format(height, width, _bstr(mv8), _bstr(cstLC), hfact, wfact, fillfact, mxL=maxAbtLvl)
+	return declStr
+
+
+
 
 
 class AlgorithmInfo:
@@ -232,62 +251,30 @@ def workerRoutine(sharedExecList, taskQueue, msgQueue):
 
 ALGS = [
 		AlgorithmInfo("Astar", "algorithm::Astar", "search/astar.hpp", False, False),
-		#AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsLevel", "search/hastar/v2/hastar.hpp", True, False),
-		
+		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsLevel", "search/hastar/v2/hastar.hpp", True, False),
 		AlgorithmInfo("UGSA_bf", "algorithm::ugsav4::UGSAv4_StatsSimple", "search/ugsa/v4/ugsa_v4.hpp", True, True, {"bin_width":10}),
+		AlgorithmInfo("Bugsy", "algorithm::Bugsy", "search/bugsy.hpp", False, True)
 
-
-
-		#{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "util_aware" : False},
-		#{"name" : "Bugsy", "class" : "algorithm::Bugsy", "header" : "search/bugsy.hpp", "abt" : False, "util_aware" : True},
-		#{"name" : "Bugsy_norm", "class" : "algorithm::Bugsy", "conf" : {"normalised_exptime":True}, "header" : "search/bugsy.hpp",  "abt" : False, "util_aware" : True},
-		#{"name" : "HAstar", "class" : "algorithm::hastarv2::HAstar_StatsLevel", "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
-		#{"name" : "HAstar1_nc", "class" : "algorithm::hastarv2::HAstar_StatsSimple", "conf" : {"do_caching":False}, "header" : "search/hastar/v2/hastar.hpp", "abt" : True, "util_aware" : False},
-		
-		#~ {"name" : "UGSAv4_st_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			#~ "conf" : {"use_all_frontier":False, "use_hbf_ref_init":False}},
-		
-		#{"name" : "UGSAv4_st_hbfinit_maxhd", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-		#	"conf" : {"uh_eval_mode":"Use_Max_H_D", "hbf_ref_init":True,  "g_for_hbf" : True}},
-		
-		#{"name" : "UGSAv4_st_hbfinit_evaluh", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-		#	"conf" : {"uh_eval_mode":"Use_H", "hbf_ref_init":True, "g_for_hbf" : True}},
-		
-		#{"name" : "UGSAv4_st_hbfinit_evalud", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-		#	"conf" : {"uh_eval_mode":"Use_D", "hbf_ref_init":True, "g_for_hbf" : True}},
-		
-		#~ {"name" : "UGSAv4_af_hbfpairs", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			#~ "conf" : {"use_all_frontier":True, "use_hbf_ref_init":False}},
-		
-		#~ {"name" : "UGSAv4_af_hbfinit", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			#~ "conf" : {"use_all_frontier":True, "use_hbf_ref_init":True}},
-		
-		#~ {"name" : "UGSAv4_st_hbfinit_g", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			#~ "conf" : {"use_all_frontier":False, "use_hbf_ref_init":True, "use_g_for_hbf":True}},
-		
-		#~ {"name" : "UGSAv4_af_hbfinit_g", "class" : "algorithm::ugsav4::UGSAv4_StatsSimple", "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True,
-			#~ "conf" : {"use_all_frontier":True, "use_hbf_ref_init":True, "use_g_for_hbf":True}},
-		
-		#{"name" : "UGSAv4_af", "class" : "algorithm::ugsav4::UGSAv4_StatsLevel", "conf" : {"use_all_frontier":True}, "header" : "search/ugsa/v4/ugsa_v4.hpp", "abt" : True, "util_aware" : True},
-		#{"name" : "AstarExp", "class" : "algorithm::AstarExperiment", "header" : "search/astar_experiment.hpp", "abt" : False, "weights" : [(1,0)]},
 		]
 
 
 
 DOMS =	[
-		DomainInfo("8h_5", tiles_stack(3,3,False,True,5), "domain/tiles/fwd.hpp", True, 8),
-		DomainInfo("8hw_5", tiles_stack(3,3,True,True,5), "domain/tiles/fwd.hpp", True, 8),
-		
-		#{"name" : "8h_5", "class" : tiles_stack(3,3,False,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
-		#{"name" : "15_7", "class" : tiles_stack(4,4,False,True,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15},
-		
-		#{"name" : "8hw_5", "class" : tiles_stack(3,3,True,True,5), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 8},
-		#{"name" : "15w_7", "class" : tiles_stack(4,4,True,True,7), "header" : "domain/tiles/fwd.hpp", "abt": True, "probcls" : 15}
+		DomainInfo("tiles_8h_5", tiles_stack(3,3,False,True,5), "domain/tiles/fwd.hpp", True, "tiles_8"),
+		DomainInfo("tiles_8hw_5", tiles_stack(3,3,True,True,5), "domain/tiles/fwd.hpp", True, "tiles_8"),
+		#DomainInfo("tiles_15h_5", tiles_stack(4,4,False,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
+		#DomainInfo("tiles_15hw_5", tiles_stack(4,4,True,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
+		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2), "domain/pancake/fwd.hpp", True, "pancake_10"),
+		DomainInfo("pancake_10", pancake_stack_single(10, True), "domain/pancake/fwd.hpp", False, "pancake_10"),
+		DomainInfo("gridnav_20", gridnav_blocked(20, 20, False, True, True), "domain/gridnav/fwd.hpp", False, "gridnav_20"),
+		DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, 3, 3, 2), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
 		]
 
 PROBLEM_SETS =	[
-				ProblemSetInfo(8, "tiles_8.json", gen_problems.genTilesProblemSet, (3, 3, 5)),
-				ProblemSetInfo(15, "tiles_15.json", gen_problems.genTilesProblemSet, (4, 4, 5)),
+				ProblemSetInfo("tiles_8", "tiles_8.json", gen_problems.genTilesProblemSet, (3, 3, 5)),
+				ProblemSetInfo("tiles_15", "tiles_15.json", gen_problems.genTilesProblemSet, (4, 4, 2)),
+				ProblemSetInfo("pancake_10", "pancake_10.json", gen_pancake_problems.genPancakeProblemSet, (10, 5)),
+				ProblemSetInfo("gridnav_20", "gridnav_20.json", gen_gridnav_problems.genGridNavProblemSet, ("gridnav_20_map", 0.35, 20, 20, 5, 0.5))
 				]
 
 WEIGHTS = ((1,0),(1,0.01),(1,0.1),(1,1),(1,10),(1,100),(0,1))
@@ -326,7 +313,7 @@ if __name__ == "__main__":
 		params = {}
 		probset = ProblemSetInfo.lookup[sys.argv[2]]
 		probset.load()
-		prepExecObjs(params, DOMS, ALGS, WEIGHTS, probset.problems)
+		prepExecObjs(params, [d for d in DOMS if d.probcls == probset.name], ALGS, WEIGHTS, probset.problems)
 
 		outdict = flatExecArrayToNice(params, DOMS, ALGS, WEIGHTS, probset.problems)
 		

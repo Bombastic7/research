@@ -46,11 +46,16 @@ namespace mjon661 { namespace pancake {
 		using domStack_t = Pancake_DomainStack_IgnoreAbt<N, Abt1Sz, AbtStep>;
 		
 		
-		static constexpr unsigned cakesPerLevel(unsigned L) {
-			return L == 0 ? N : Abt1Sz - AbtStep * (L == 0 ? 0 : L - 1);
+		static constexpr int cakesPerLevel(int L) {
+			return L == 0 ? N : (int)Abt1Sz - (int)AbtStep * (L == 0 ? 0 : L - 1);
+		}
+		
+		static constexpr int topAbtLvl(int L=1) {
+			return cakesPerLevel(L) <= 1 ? L-1 : topAbtLvl(L+1); 
 		}
 		 
-		static const unsigned Top_Abstract_Level = Abt1Sz/AbtStep - 1;
+		static const unsigned Top_Abstract_Level = topAbtLvl();
+		
 		static_assert(cakesPerLevel(Top_Abstract_Level) >= 2, "");
 		static_assert(cakesPerLevel(Top_Abstract_Level+1) < 2 || cakesPerLevel(Top_Abstract_Level+1) >= N, "");
 		 

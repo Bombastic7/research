@@ -21,9 +21,6 @@
 namespace mjon661 { namespace algorithm { namespace ugsav4 {
 
 
-	template<typename = void>
-	struct BranchingFactorEst;
-
 
 	template<typename D, unsigned Top, typename StatsManager>
 	class UGSAv4_Base {
@@ -133,7 +130,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
 				
-				compute_u(n0);
+				compute_u(n0, mInitState);
 				
 				mDomain.packState(mInitState, n0->pkd);
 				
@@ -237,7 +234,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
 				
-				compute_u(kid_node);
+				compute_u(kid_node, edge.state());
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -247,7 +244,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 		void compute_u(Node *n, State const& pState) {
-			n->u = n->g * mBehaviour.c_wf + mAbtSearch.doSearch(pState);
+			n->u = n->g * mBehaviour.c_wf + mAbtSearch.doSearch(pState, mOpenList.size());
 		}
 		
 		

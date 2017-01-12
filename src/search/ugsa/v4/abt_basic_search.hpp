@@ -112,7 +112,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 
 		
-		void doSearch(BaseState const& pBaseState, unsigned pOpenSz) {
+		ucost_t doSearch(BaseState const& pBaseState, unsigned pOpenSz) {
 			
 			mVar_openSz = pOpenSz;
 			
@@ -150,10 +150,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				
 				expand(n, s);
 			}
-
-			
-			mStatsAcc.s_openListSize(mOpenList.size());
-			mStatsAcc.s_closedListSize(mClosedList.getFill());
 			
 			mOpenList.clear();
 			mClosedList.clear();
@@ -240,7 +236,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			double k = mBehaviour.getExpansionTime() * mBehaviour.c_wt;
 			double bf = mBehaviour.getBranchingFactor();
 			
-			ucost_t ug = (c - lambertW(- (std::pow(bf, c) * k * std::log(bf)) ) / std::log(bf);
+			ucost_t ug = (c - mathutil::lambertW(- (std::pow(bf, c) * k * std::log(bf))) ) / std::log(bf);
 			
 			slow_assert(ug >= 0);
 			slow_assert(ug < 1e9); //Sanity check

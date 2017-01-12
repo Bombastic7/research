@@ -202,7 +202,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			ucost_t norm_u = pUval + mBaseExpd * mExpTime.getExpansionTime();
 			
 			mExpTime.informNodeExpansion();
-			mUHist[assignBin(norm_u)]++;			
+			mUHist[assignBin(norm_u)].val++;			
 			
 			if(mBaseExpd >= mNextRecalc) {
 				mNextRecalc *= 2;
@@ -223,7 +223,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 
-		
+		Json report() {
+			Json j;
+			j["bf"] = mCachedBF;
+			j["exptime"] = mExpTime.report();
+			j["used wf"] = c_wt;
+			j["used wt"] = c_wt;
+			j["used bin width"] = c_binWidth;
+			return j;
+		}
 		
 		
 		
@@ -234,8 +242,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			
 			double acc = 0;
 			
-			for(unsigned i=1; i<bins; i++) {
-				acc += std::pow((mUHist[bins[i]]/mUHist[bins[0]]), 1.0/((double)bins[i] - bins[0]));
+			for(unsigned i=1; i<bins.size(); i++) {
+				acc += std::pow((double)mUHist[bins[i]].val/mUHist[bins[0]].val, 1.0/((double)bins[i] - bins[0]));
 			}
 			
 			return acc / (bins.size()-1);
@@ -250,23 +258,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		}
 		
 
-		
-		
-		Json report() {
-			Json j;
-			j["bf"] = mCachedBF;
-			j["exptime"] = mExpTime.report();
-			j["used wf"] = c_wt;
-			j["used wt"] = c_wt;
-			j["used bin width"] = c_binWidth;
-			return j;
-		}
-		
-		
 
 
 		ComputeExpansionTime<> mExpTime;
-		SimpleHashMap<unsigned, unsigned> mUHist;
+		SimpleHashMap<unsigned, unsigned, 10000> mUHist;
 		
 
 		unsigned mBaseExpd;

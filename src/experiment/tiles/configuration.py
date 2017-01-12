@@ -234,9 +234,8 @@ ALGS = [
 		AlgorithmInfo("Astar", "algorithm::Astar", "search/astar.hpp", False, False),
 		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsLevel", "search/hastar/v2/hastar.hpp", True, False),
 		
-		AlgorithmInfo("UGSA_bf", "algorithm::ugsav4::UGSAv4_StatsSimple", "search/ugsa/v4/ugsa_v4.hpp", True, True, {"uh_method":"UH_Max_HD", "tree_size_method":"Use_Avg_BF"}),
-		AlgorithmInfo("UGSA_hbf", "algorithm::ugsav4::UGSAv4_StatsSimple", "search/ugsa/v4/ugsa_v4.hpp", True, True, {"uh_method":"UH_Max_HD", "tree_size_method":"Use_HBF"}),
-		
+		AlgorithmInfo("UGSA_bf", "algorithm::ugsav4::UGSAv4_StatsSimple", "search/ugsa/v4/ugsa_v4.hpp", True, True, {"bin_width":"10"}),
+
 
 
 		#{"name" : "Astar", "class" : "algorithm::Astar", "header" : "search/astar.hpp", "abt" : False, "util_aware" : False},

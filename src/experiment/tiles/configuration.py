@@ -114,17 +114,6 @@ class ProblemSetInfo:
 			json.dump(self.problems, f, indent=4, sort_keys=True)
 
 
-class CommonParams:
-	def __init__(self, dom, alg, wf, wt, prob):
-		self.dom = dom
-		self.alg = alg
-		self.wt = wt
-		self.wf = wf
-		self.prob = prob
-
-
-class CommonResults:
-	def __init__(self, solcost, sollength, baseexpd, allexpd, 
 
 class ExecutionInfo:
 	def __init__(self, d, a, w, p, pi):
@@ -145,7 +134,7 @@ class ExecutionInfo:
 				
 		params["_time_limit"] = TIME_LIMIT
 		params["_memory_limit"] = WORKER_MEM
-		params["instance"] = params["name"] + "_" + str(w).replace(" ", "_") + "_" + str(pi)
+		params["instance"] = params["_name"] + "_" + str(w).replace(" ", "_") + "_" + str(pi)
 		
 		self.weights = w
 		self.params = params
@@ -312,7 +301,8 @@ if __name__ == "__main__":
 		print "genprob <probset>"
 		print "dump <probset> <outresults>"
 		print "exec <probset> <outresults>"
-	
+		print "db <results> <dbtable>"
+
 	if sys.argv[1] == "gencode":
 		hdrs = [a.hdr for a in AlgorithmInfo.lookup.itervalues()]
 		hdrs.extend([d.hdr for d in DomainInfo.lookup.itervalues()])
@@ -404,7 +394,7 @@ if __name__ == "__main__":
 		with open(argv[2]) as f:
 			resultSet = json.load(f)
 		
-		cur.execute("""DROP TABLE IF EXISTS '{tb}'; CREATE TABLE '{tb}' (domain VARCHAR(20), algorithm VARCHAR(20), weight VARCHAR(20), problem INT, cost DOUBLE, length INT, baseExpd INT, allExpd INT, expTime DOUBLE, cpuTime DOUBLE, memory DOUBLE);""".format(tb=tbname)
+		cur.execute("""DROP TABLE IF EXISTS '{tb}'; CREATE TABLE '{tb}' (domain VARCHAR(20), algorithm VARCHAR(20), weight VARCHAR(20), problem INT, cost DOUBLE, length INT, baseExpd INT, allExpd INT, expTime DOUBLE, cpuTime DOUBLE, memory DOUBLE);""".format(tb=tbname))
 		
 		for dk, dv in resultSet.iteritems():
 			for ak, av in dv.iteritems():

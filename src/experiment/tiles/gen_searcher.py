@@ -39,6 +39,17 @@ def genSearcherCode(algdoms, headers):
 
 
 namespace mjon661 {	
+
+	void fillJsonResult(Json& jOut) {
+		jOut["_sol_length"] = 0;
+		jOut["_sol_cost"] = 0;
+		jOut["_mem_used"] = 0;
+		jOut["_walltime"] = 0;
+		jOut["_cputime"] = 0;
+		jOut["_base_expd"] = 0;		
+		jOut["_all_expd"] = 0;
+	}
+
 	template<typename D, template<typename> typename Alg>
 	void execRoutine(Json const& jExecDesc) {
 
@@ -81,24 +92,25 @@ namespace mjon661 {
 			jOut["_cputime"] = jOut.at("resources").at("cputime");
 			
 			if(jOut.at("resource report").count("_base_expd"))
-				jOut["_base_expd"] = jOut.at("resource report"].at("_base_expd");
+				jOut["_base_expd"] = jOut.at("resource report").at("_base_expd");
 			
 			else
-				jOut["_base_expd"] = jOut.at("resource report"].at("_all_expd");
+				jOut["_base_expd"] = jOut.at("resource report").at("_all_expd");
 			
-			jOut["_all_expd"] = jOut.at("resource report"].at("_all_expd");
+			jOut["_all_expd"] = jOut.at("resource report").at("_all_expd");
 			
 			
 			std::cout << jOut.dump(4) << "\\n";
 
 		} catch(std::bad_alloc const& e) {
 			jOut["_result"] = "OOM";
+			fillJsonResult(jOut);
 			std::string msg = jOut.dump();
 			write(1, msg.c_str(), msg.size());
 			exit(0);
 		} catch(std::exception const& e) {
 			jOut["_result"] = "exec exception";
-			
+			fillJsonResult(jOut);
 			std::string errwht(e.what());
 			jOut["_error_what"] = errwht;
 			

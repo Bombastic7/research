@@ -65,7 +65,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		Timer mTimer;
 	};
 	
-
+/*
 	template<typename = void>
 	struct ComputeAvgBF {
 		
@@ -154,45 +154,30 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 	};
 	
 	
-	/*
-	 * 	Provides:
-	 * 		compute_U(g, depth): Translates abstract level 1 g/depth to U for base level, and to guide abt search.
-	 * 
-	 * 		informNodeExpansion(g, u): Notification that a base space expansion occured.
-	 * 
-	 * 		abtShouldCache(): True if abt level 1 should perform u*-caching.
-	 * 
-	 * 		abtHtoU(Cost h): Translates a cost heuristic in abt lvl 2+ into abt 1 U value.
-	 * 
-	 * 	Params:
-	 * 		bool use_hbf_init: True: Compute hbf as average of count(lvl) vs count(init lvl).
-	 * 							False: as average of all pairs of neighbouring counts. e.g. count(lvl_i) vs count(lvl_j), j vs k..
-	 * 
-	 * 		bool g_for_hbf:		Calculate hbf with g-values rather than f.
-	 * 
-	 * 		
-	 */
+*/
 
 
 	
-	template<typename Domain>
+	template<typename = void>
 	struct UGSABehaviour {
 		
-		using Cost = typename Domain::Cost;
+		const flt_t c_wf, c_wt;
+		const unsigned c_binWidth;
 		
-		enum { Use_HBF, Use_Avg_BF };
-		
-		
-		
+				
 		UGSABehaviour(Json const& jConfig) :
-			c_treeSizeMethod(parseOption(jConfig, "tree_size_method")),
 			c_wf(jConfig.at("wf")),
-			c_wt(jConfig.at("wt"))
+			c_wt(jConfig.at("wt")),
+			c_binWidth(jConfig.at("bin_width")),
+			mBaseExpd(),
+			mHasStarted(),
+			mNextRecalc(),
+			mCachedBF()
 		{
 			fast_assert(c_wf >= 0 && c_wt >= 0);
+			fast_assert(c_binWidth > 0);
 			
 			reset();
-			mHasStarted = false;
 		}
 		
 
@@ -202,64 +187,70 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			mExpTime.start();
 		}
 		
-		unsigned compute_U(Cost pgval, unsigned pDepth) {
-			slow_assert(mHasStarted);
-			return compute_singleTree(pgval, pDepth);
+		double getBranchingFactor() {
+			return mCachedBF;
 		}
 		
-		void informNodeExpansion(Cost pgval, Cost pfval, ucost_t puval, unsigned pDepth) {
+		double getExpansionTime() {
+			return mExpTime.getExpansionTime();
+		}
+		
+		void informNodeExpansion(ucost_t pUval) {
+			slow_assert(mHasStarted);
+			mBaseExpd++;
 			
-			if(!mInitValSet) {
-				mHBF.setRefLvl(pgval);
-				mInitValSet = true;
-			}
-			
-			if(c_treeSizeMethod == Use_HBF)
-				mHBF.informNodeExpansion(pgval);
-			
-			else
-				mAvgBF.informNodeExpansion(pDepth);
+			ucost_t norm_u = pUval + mBaseExpd * mExpTime.getExpansionTime();
 			
 			mExpTime.informNodeExpansion();
-			
-			mBaseExpd++;
+			mUHist[assignBin(norm_u)]++;			
 			
 			if(mBaseExpd >= mNextRecalc) {
 				mNextRecalc *= 2;
 				
-				if(c_treeSizeMethod == Use_HBF)
-					mCachedBF = mHBF.computeAvgHBF_ref();
-				else
-					mCachedBF = mAvgBF.computeAvgBF();
-				
+				mCachedBF = compute_bf();
 				mExpTime.update();
 			}
-			
-		}
-		
-		bool abtShouldCache() {
-			return this->totalBaseExpansion() > 100;
-		}
-		
-		ucost_t abtHtoU(Cost pCost) {
-			return c_wf * pCost;
-		}
-		
-		ucost_t abtDtoU(unsigned pDepth) {
-			return c_wt * std::pow(mCachedBF, pDepth);
 		}
 		
 		void reset() {
-			mHBF.reset();
-			mAvgBF.reset();
+			mUHist.clear();
 			mExpTime.reset();
-			mClipCount = 0;
 			mBaseExpd = 0;
-			mNextRecalc = 100;
 			mHasStarted = false;
-			mInitValSet = false;
+			mNextRecalc = 16;
 			mCachedBF = 1;
+
 		}
+		
+
+		
+		
+		
+		
+		private:
+		
+		double compute_bf() {
+			std::vector<unsigned> bins = mUHist.orderedKeys();
+			
+			double acc = 0;
+			
+			for(unsigned i=1; i<bins; i++) {
+				acc += std::pow((mUHist[bins[i]]/mUHist[bins[0]]), 1.0/((double)bins[i] - bins[0]));
+			}
+			
+			return acc / (bins.size()-1);
+		}
+		
+		
+		
+		unsigned assignBin(ucost_t pUval) {
+			slow_assert(std::numeric_limits<unsigned>::max() > pUval);
+			
+			return ((unsigned)pUval / c_binWidth) * c_binWidth;
+		}
+		
+
+		
 		
 		Json report() {
 			Json j;
@@ -267,60 +258,22 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			j["exptime"] = mExpTime.report();
 			j["used wf"] = c_wt;
 			j["used wt"] = c_wt;
-			j["clips"] = mClipCount;
+			j["used bin width"] = c_binWidth;
 			return j;
 		}
 		
 		
-		
-		int parseOption(Json const& jConfig, std::string const& key) {
-			std::string val = jConfig.at(key);
-			
-			if(key == "tree_size_method") {
-				if(val == "Use_HBF") return Use_HBF;
-				else if(val == "Use_Avg_BF") return Use_Avg_BF;
-				else gen_assert(false);
-			}
-			
-			gen_assert(false);
-			return 0;
-		}
-		
-		
-		ucost_t compute_singleTree(Cost pgval, ucost_t pDepth) {
-			
-			flt_t remExpFlt = std::pow(mCachedBF, pgval); //<- dist correction?
 
-			if(remExpFlt > 100000000) {
-				remExpFlt = 100000000;
-				mClipCount++;
-			}
 
-			return c_wf * pgval + c_wt * remExpFlt * mExpTime.getExpansionTime();
-		}
-		
-		
-		
-		
-		
-
-		
-		HeuristicBF<> mHBF;
-		ComputeAvgBF<> mAvgBF;
 		ComputeExpansionTime<> mExpTime;
-
+		SimpleHashMap<unsigned, unsigned> mUHist;
 		
-		unsigned mClipCount;
+
 		unsigned mBaseExpd;
 		bool mHasStarted;
-		bool mInitValSet;
 		unsigned mNextRecalc;
-		flt_t mCachedBF;
-		//unsigned mBaseFrontierSz;
 		
-		const int c_treeSizeMethod;
-		const flt_t c_wf, c_wt;
-		
-		
+		double mCachedBF;
+
 	};
 }}}

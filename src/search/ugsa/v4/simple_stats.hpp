@@ -18,22 +18,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 		template<unsigned L>
 		struct StatsAcc {
-			void a_expd() {mExpd++;}
+			void a_expd() {	mExpd++;}
 			void a_gend() { mGend++; }
-			void a_dups() { if(L==0) mDups++; }
-			void a_reopnd() { if(L==0) mReopnd++; }
-			
-			void l_cacheMadeExact() {}
-			void l_cacheImprove() { }
-			void l_cacheAdd() {  }
-			
-			void s_openListSize(unsigned sz) {  }
-			void s_closedListSize(unsigned sz) { }
-			void s_solutionPartial() {  }
-			void s_solutionFull() { ; }
-			void s_cachePartial() { }
-			void s_cacheMiss() {  }
-			void s_cacheHit() {  }
+			void a_dups() { mDups++; }
+			void a_reopnd() { mReopnd++; }
 			
 			void s_end() { 				
 				mNsearches++;
@@ -60,9 +48,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 			
 			void reset() {
 				searchCountsReset();
-				mNsearches = 0;
 				mTotalExpd = mTotalGend = mNsearches = 0;
-	
 			}
 
 			
@@ -72,13 +58,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 				if(L == 0) {
 					mManager.mReport["_base_expd"] = mExpd;
 					mManager.mReport["_base_gend"] = mGend;
+					j["expd"] = mExpd;
+					j["gend"] = mGend;
 					j["dups"] = mDups;
 					j["reopnd"] = mReopnd;
 				}
 
 				j["NSearches"] = mNsearches;
-				j["expd"] = mExpd;
-				j["gend"] = mGend;
 
 
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;

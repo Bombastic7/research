@@ -6,6 +6,7 @@
 #include <iterator>
 //#include <boost/multiprecision/cpp_int.hpp>
 #include "util/debug.hpp"
+#include "util/impl/LambertW/LambertW.h"
 
 /*
  * Math operations, added as needed.
@@ -114,4 +115,10 @@ namespace mjon661 { namespace mathutil {
 		
 		return true;
 	}
+	
+	template<int Branch = 0>
+	double lambertW(double x) {
+		return utl::LambertW<Branch>(x);
+	}
+	
 }}

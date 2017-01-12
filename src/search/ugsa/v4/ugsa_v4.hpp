@@ -28,7 +28,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		UGSAv4(DomStack& pStack, Json const& jConfig) :
 			mBehaviour(jConfig),
 			mStatsManager(),
-			mAlgo(pStack, jConfig, mBehaviour, mStatsManager)
+			mAlgo(pStack, jConfig, mStatsManager)
 		{
 		}
 		
@@ -57,13 +57,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav4 {
 		
 	};
 	
-	
-	template<typename D>
-	using UGSAv4_StatsLevel = UGSAv4<D, LevelStatsManager<>, 1000>;
-	
 	template<typename D>
 	using UGSAv4_StatsSimple = UGSAv4<D, SimpleStatsManager<>, 1000>;
-	
-	template<typename D>
-	using UGSAv4_StatsSLevel_1 = UGSAv4<D, LevelStatsManager<>, 1>;
+
 }}}

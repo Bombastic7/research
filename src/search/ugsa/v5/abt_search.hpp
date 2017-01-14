@@ -99,19 +99,25 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
-			mTradeOff			(jConfig.at("tradeoff"))
-		{}
+			mWf					(jConfig.at("wf")),
+			mWt					(jConfig.at("wt"))
+		{
+			gen_assert(mWt == 1);
+		}
 
 		
 		void reset() {
 			mStatsAcc.reset();
-			mAbtSearch.reset();
+			//mAbtSearch.reset();
 		}
 
 		
 		void submitStats() {
-			mStatsAcc.submit();
-			mAbtSearch.submitStats();
+			Json j;
+			j["used wf"] = mWf;
+			j["used wt"] = mWt;
+			mStatsAcc.submit(j);
+			//mAbtSearch.submitStats();
 		}
 		
 		
@@ -189,7 +195,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			Cost		kid_g	 	= pParentNode->g + edge.cost();
 			unsigned	kid_depth	= pParentNode->depth + 1;
 			
-			Cost		kid_u		= mTradeOff * kid_g + std::pow( mBehaviour.gethbf(), kid_depth);
+			Cost		kid_u		= mWf * kid_g + std::pow( mBehaviour.gethbf(), kid_depth);
 			
 			
 			PackedState kid_pkd;
@@ -244,7 +250,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		ClosedList_t 			mClosedList;
 		NodePool_t 				mNodePool;
 		
-		unsigned				mTradeOff;
+		const unsigned			mWf, mWt;
 	};
 	
 	

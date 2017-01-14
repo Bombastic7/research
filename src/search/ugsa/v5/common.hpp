@@ -26,7 +26,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mDirty = true;
 		}
 		
-		void gethbf() {
+		double gethbf() {
 			if(mDirty)
 				computehbf();
 			
@@ -37,6 +37,25 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mLevelCounts.clear();
 			mCachedBF = 0;
 			mDirty = false;
+		}
+		
+		Json report() {
+			
+			Json jReport;
+			jReport["hbf"] = gethbf();
+			
+			Json jflvls = {};
+			
+			std::vector<unsigned> flvls = mLevelCounts.orderedKeys();
+					
+			for(unsigned i=0; i<flvls.size(); i++) {
+				Json j = {{"lvl", flvls[i]}, {"count", mLevelCounts[flvls[i]].val}};
+				jflvls.push_back(j);
+			}
+			
+			jReport["flvls"] = jflvls;
+			
+			return jReport;
 		}
 		
 		private:
@@ -60,7 +79,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				acc += std::pow(r, exp);
 			}
 			
-			mCachedBF = acc / (bins.size());
+			mCachedBF = acc / (flvls.size());
 			mDirty = false;
 		}
 		

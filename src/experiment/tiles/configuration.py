@@ -166,8 +166,8 @@ class ExecutionInfo:
 			
 			if self.results["_result"] == "good":
 				self.results["_util_real"] = self.results["_sol_cost"] * self.weights[0] + self.results["_cputime"] * self.weights[1]
-
-
+				self.results["_util_norm_base"] = self.results["_sol_cost"] * self.weights[0] + self.results["_base_expd"]
+				self.results["_util_norm_all"] = self.results["_sol_cost"] * self.weights[0] + self.results["_all_expd"]
 
 		except Exception as e:
 			self.results = {"_result":"exception", "_error_what": e.__class__.__name__ + " " + str(e) }
@@ -251,9 +251,10 @@ def workerRoutine(sharedExecList, taskQueue, msgQueue):
 
 ALGS = [
 		AlgorithmInfo("Astar", "algorithm::Astar", "search/astar.hpp", False, False),
-		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsLevel", "search/hastar/v2/hastar.hpp", True, False),
-		AlgorithmInfo("UGSA_bf", "algorithm::ugsav4::UGSAv4_StatsSimple", "search/ugsa/v4/ugsa_v4.hpp", True, True, {"bin_width":10}),
-		AlgorithmInfo("Bugsy", "algorithm::Bugsy", "search/bugsy.hpp", False, True)
+		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsSimple", "search/hastar/v2/hastar.hpp", True, False),
+		AlgorithmInfo("UGSA", "algorithm::ugsav5::UGSAv5_StatsSimple", "search/ugsa/v5/ugsa_v5.hpp", True, True),
+		#AlgorithmInfo("Bugsy", "algorithm::Bugsy", "search/bugsy.hpp", False, True)
+		AlgorithmInfo("Bugsy_Norm", "algorithm::Bugsy_Norm", "search/bugsy.hpp", False, True)
 
 		]
 
@@ -264,10 +265,10 @@ DOMS =	[
 		DomainInfo("tiles_8hw_5", tiles_stack(3,3,True,True,5), "domain/tiles/fwd.hpp", True, "tiles_8"),
 		#DomainInfo("tiles_15h_5", tiles_stack(4,4,False,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		#DomainInfo("tiles_15hw_5", tiles_stack(4,4,True,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
-		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2), "domain/pancake/fwd.hpp", True, "pancake_10"),
-		DomainInfo("pancake_10", pancake_stack_single(10, True), "domain/pancake/fwd.hpp", False, "pancake_10"),
-		DomainInfo("gridnav_20", gridnav_blocked(20, 20, False, True, True), "domain/gridnav/fwd.hpp", False, "gridnav_20"),
-		DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, 3, 3, 2), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
+		#DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2), "domain/pancake/fwd.hpp", True, "pancake_10"),
+		#DomainInfo("pancake_10", pancake_stack_single(10, True), "domain/pancake/fwd.hpp", False, "pancake_10"),
+		#DomainInfo("gridnav_20", gridnav_blocked(20, 20, False, True, True), "domain/gridnav/fwd.hpp", False, "gridnav_20"),
+		#DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, 3, 3, 2), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
 		]
 
 PROBLEM_SETS =	[
@@ -277,8 +278,10 @@ PROBLEM_SETS =	[
 				ProblemSetInfo("gridnav_20", "gridnav_20.json", gen_gridnav_problems.genGridNavProblemSet, ("gridnav_20_map", 0.35, 20, 20, 5, 0.5))
 				]
 
-WEIGHTS = ((1,0),(1,0.01),(1,0.1),(1,1),(1,10),(1,100),(0,1))
+#WEIGHTS = ((1,0),(1,0.01),(1,0.1),(1,1),(1,10),(1,100),(0,1))
+NORM_WEIGHTS = ((1,1), (10, 1), (100, 1), (1000, 1), (1000000, 1))
 
+WEIGHTS = NORM_WEIGHTS
 
 
 if __name__ == "__main__":

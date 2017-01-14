@@ -8,10 +8,7 @@
 #include "search/solution.hpp"
 
 #include "search/ugsa/v5/base_search.hpp"
-
-//#include "search/hastar/v2/base_search.hpp"
-#include "search/hastar/v2/level_stats.hpp"
-#include "search/hastar/v2/simple_stats.hpp"
+#include "search/ugsa/v5/simple_stats.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav5 {
@@ -53,5 +50,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 	};
 	
-	
+	template<typename DomStack>
+	using UGSAv5_StatsSimple = UGSAv5<DomStack, SimpleStatsManager<>, 1000>;
 }}}

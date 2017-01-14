@@ -5,8 +5,6 @@ import random
 import csv
 import math
 import json
-
-import configuration as conf
  
  
  
@@ -27,7 +25,9 @@ def genGridNavMap(h, w, block, fname):
 
 
 
-def genGridNavProblemSet(fname, fmapname, h, w, nprobs, mindist):
+def genGridNavProblemSet(fmapname, block, h, w, nprobs, mindist):
+	
+	genGridNavMap(h, w, block, fmapname)
 	
 	cellsRows = []
 	with open(fmapname, "rb") as f:
@@ -39,7 +39,7 @@ def genGridNavProblemSet(fname, fmapname, h, w, nprobs, mindist):
 	
 	griddiag = math.hypot(h-1, w-1)
 	
-	probs = {}
+	probs = []
 	
 	def startGoalCond(startpos, endpos):
 		if abs(math.hypot(*startpos) - math.hypot(*goalpos)) < griddiag * mindist:
@@ -59,37 +59,8 @@ def genGridNavProblemSet(fname, fmapname, h, w, nprobs, mindist):
 			startpos = (random.randint(0, w-1), random.randint(0, w-1))
 			goalpos = (random.randint(0, w-1), random.randint(0, w-1))
 		
-		probs[str(i)] = {"init" : startpos, "goal" : goalpos, "map" : fmapname}
+		probs.append({"init" : startpos, "goal" : goalpos, "map" : fmapname})
 	
-	
-	with open(fname, "w") as f:
-		json.dump(probs, f, indent=4, sort_keys=True)
+	return probs
+
 		
-
-
-
-
-
-
-def _bstr(b):
-	return "true" if b else "false"
-
-
-def gridnav_blocked(height, width, mv8, cstLC, hr):
-	
-	declStr = "gridnav::blocked::GridNav_DomainStack_single<{0}, {1}, {2}, {3}, {4}>"\
-	.format(height, width, _bstr(mv8), _bstr(cstLC), _bstr(hr))
-	
-	return declStr
-	
-	
-	
-
-
-def gridnav_blocked_stack_merge(height, width, mv8, cstLC, hfact, wfact, fillfact, maxAbtLvl = 1000):
-	
-	declStr = "gridnav::blocked::GridNav_DomainStack_MergeAbt<{0},{1},{2},{3},{mxL},{4},{5},{6}>"\
-	.format(height, width, _bstr(mv8), _bstr(cstLC), hfact, wfact, fillfact, mxL=maxAbtLvl)
-	
-	return declStr
-

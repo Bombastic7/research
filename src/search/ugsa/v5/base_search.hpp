@@ -22,7 +22,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		public:
 		
-		using AbtSearch = HAstar_Abt<D, 1, Top+1, StatsManager>;
+		using AbtSearch = UGSAv5_Abt<D, 1, Top+1, StatsManager>;
 		
 		using Domain = typename D::template Domain<0>;
 		using Cost = typename Domain::Cost;

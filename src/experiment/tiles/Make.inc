@@ -28,6 +28,8 @@ TILES_EXP_FILES:=\
 	$(BUILDDIR)/experiment/tiles/searcher\
 	$(BUILDDIR)/experiment/tiles/configuration.py\
 	$(BUILDDIR)/experiment/tiles/gen_problems.py\
+	$(BUILDDIR)/experiment/tiles/gen_pancake_problems.py\
+	$(BUILDDIR)/experiment/tiles/gen_gridnav_problems.py\
 	$(BUILDDIR)/experiment/tiles/gen_searcher.py\
 	$(BUILDDIR)/experiment/tiles/plot_problem_bars.py
 

@@ -13,7 +13,7 @@
 
 namespace mjon661 { namespace algorithm {
 
-	template<typename D>
+	template<typename D, bool Use_Normed_Tradeoff>
 	struct BugsyImpl {
 		
 		using Domain = typename D::template Domain<0>;
@@ -79,6 +79,7 @@ namespace mjon661 { namespace algorithm {
 		using NodePool_t = NodePool<Node, typename ClosedList_t::Wrapped_t>;
 		
 		
+		
 		struct SearchStats {
 			unsigned expd, gend, dups, reopnd, nresorts;
 			
@@ -101,10 +102,15 @@ namespace mjon661 { namespace algorithm {
 			}
 		};
 		
+		
+		
 		struct BugsyConfig {
 			const double wf, wt;
 			
 			bool validate() {
+				if(Use_Normed_Tradeoff && wt != 1)
+					return false;
+
 				return wf >= 0 && wt >= 0;
 			}
 			
@@ -112,7 +118,7 @@ namespace mjon661 { namespace algorithm {
 				Json j;
 				j["wf"] = wf;
 				j["wt"] = wt;
-				j["used normalised exptime"] = mUseNormalisedExptime;
+				j["used normalised exptime"] = Use_Normed_Tradeoff;
 				return j;
 			}
 			
@@ -122,15 +128,13 @@ namespace mjon661 { namespace algorithm {
 			{
 				if(!validate())
 					throw ConfigException("");
-				
-				if(j.count("normalised_exptime") && (bool)j.at("normalised_exptime"))
-					mUseNormalisedExptime = true;
-				else
-					mUseNormalisedExptime = false;
 			}
 			
 			bool mUseNormalisedExptime;
 		};
+		
+		
+		
 		
 		struct BugsyBehaviour : public SearchStats {
 			static const unsigned First_Resort = 128;
@@ -148,7 +152,7 @@ namespace mjon661 { namespace algorithm {
 				last_expd = 0;
 				next_expd = Next_Resort_Fact;
 				
-				if(mUseNormalisedExptime)
+				if(Use_Normed_Tradeoff)
 					last_avgExpTime = 1;
 				
 				mTimer.start();
@@ -169,7 +173,7 @@ namespace mjon661 { namespace algorithm {
 				
 				last_avgExpDelay = next_accExpDelay / (SearchStats::expd - last_expd);
 				
-				if(!mUseNormalisedExptime)
+				if(!Use_Normed_Tradeoff)
 					last_avgExpTime = timeSinceLastUpdate / (SearchStats::expd - last_expd);
 				
 				next_accExpDelay = 0;
@@ -190,19 +194,16 @@ namespace mjon661 { namespace algorithm {
 				return j;
 			}
 			
-			BugsyBehaviour(bool pUseNormalisedExptime) :
-				mUseNormalisedExptime(pUseNormalisedExptime)
+			BugsyBehaviour()
 			{
 				reset();
 			}
-			
-			const bool mUseNormalisedExptime;
 		};
 		
 		
 		BugsyImpl(D& pDomStack, Json const& jConfig) :
 			mConfig				(jConfig),
-			mBehaviour			(mConfig.mUseNormalisedExptime),
+			mBehaviour			(),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
@@ -388,14 +389,14 @@ namespace mjon661 { namespace algorithm {
 	};
 	
 	
-	template<typename D>
-	struct Bugsy {
-		using Bugsy_t =			BugsyImpl<D>;
+	template<typename D, bool Use_Normed_Tradeoff>
+	struct BugsyFront {
+		using Bugsy_t =			BugsyImpl<D, Use_Normed_Tradeoff>;
 		using Domain =			typename D::template Domain<0>;
 		using State = 			typename Domain::State;
 		using Node =			typename Bugsy_t::Node;
 		
-		Bugsy(D& pDomStack, Json const& jConfig) :
+		BugsyFront(D& pDomStack, Json const& jConfig) :
 			mDomain(pDomStack),
 			mAlgo(pDomStack, jConfig)
 		{}
@@ -421,4 +422,10 @@ namespace mjon661 { namespace algorithm {
 		const Domain mDomain;
 		Bugsy_t mAlgo;
 	};
+	
+	template<typename D>
+	using Bugsy = BugsyFront<D, true>;
+	
+	template<typename D>
+	using Bugsy_Norm = BugsyFront<D, false>;
 }}

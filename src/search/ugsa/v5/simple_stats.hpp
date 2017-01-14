@@ -7,7 +7,7 @@
 
 
 
-namespace mjon661 { namespace algorithm { namespace hastarv2 {
+namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	
 
 	/*
@@ -66,19 +66,18 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			}
 
 			
-			void submit() {
-				Json j;
+			void submit(Json j = Json()) {
 				
 				if(L == 0) {
 					mManager.mReport["_base_expd"] = mExpd;
 					mManager.mReport["_base_gend"] = mGend;
+					j["expd"] = mExpd;
+					j["gend"] = mGend;
 					j["dups"] = mDups;
 					j["reopnd"] = mReopnd;
 				}
 
 				j["NSearches"] = mNsearches;
-				j["expd"] = mExpd;
-				j["gend"] = mGend;
 
 
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;

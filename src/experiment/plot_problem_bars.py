@@ -5,97 +5,14 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 
-"""
-def extractValuesOfInterest(resfile, valsOfInterest):
-	
-	with open(resfile) as f:
-		resultSet = json.load(f)
-
-	resDict = {}
-
-	for di in range(len(DOMS)):
-		d = DOMS[di]
-		
-		series = np.empty([len(WEIGHTS), len(valsOfInterest), len(ALGS), NPROBLEMS])
-		
-		for wi in range(len(WEIGHTS)):
-			for vi in range(len(valsOfInterest)):
-				
-				for ai in range(len(ALGS)):
-					
-					for pi in range(NPROBLEMS):
-						series[wi][vi][ai][pi] = resultSet[makeAlgDomName(ALGS[ai], d)][str(WEIGHTS[wi])][str(pi)][valsOfInterest[vi]]
-
-		resDict[di] = series
-
-	return resDict
-
-
-
-def doProbPlot(resfile, valsOfInterest, avg=True):
-	
-	vals = extractValuesOfInterest(resfile, valsOfInterest)
-
-	for di, series in vals.iteritems():
-		d = DOMS[di]
-		
-		fig, axs = plt.subplots(len(WEIGHTS), len(valsOfInterest))
-		#fig.tight_layout()
-		fig.suptitle(d["name"])
-		fig.subplots_adjust(bottom=0.3, hspace=0.3)
-		
-		for wi in range(len(WEIGHTS)):
-			for vi in range(len(valsOfInterest)):
-				ax = axs[wi][vi]
-				
-				ax.tick_params(axis='x', which='both', bottom='off', top='off', labelbottom='off')
-				ax.get_yaxis().get_major_formatter().set_powerlimits((-1, 2))
-				
-				
-				if avg:
-					width = 0.8
-					heights = [np.mean(series[wi,vi,ai,:]) for ai in range(len(ALGS))]
-					errs = [np.std(series[wi,vi,ai,:], ddof=1) for ai in range(len(ALGS))]
-
-					
-					ax.bar(range(len(ALGS)), heights, width, yerr=errs)
-					
-				
-				else:
-					widthPerProb = 0.8 / NPROBLEMS
-					
-					for ai in range(len(ALGS)):
-						ax.bar([x*widthPerProb + ai for x in range(NPROBLEMS)], series[wi][vi][ai], widthPerProb)
-			
-		
-		for wi in range(len(WEIGHTS)):
-			ax = axs[wi][0]
-			ax.set_ylabel(str(WEIGHTS[wi]), rotation=0, size="large", labelpad=50)
-		
-		for vi in range(len(valsOfInterest)):
-			ax = axs[0][vi]
-			ax.set_title(valsOfInterest[vi])
-		
-		for vi in range(len(valsOfInterest)):
-			ax = axs[len(WEIGHTS)-1][vi]
-			ax.tick_params(axis='x', which='both', bottom='on', labelbottom='on')
-			ax.set_xticks([(x+0.5) for x in range(len(ALGS))])
-			ax.set_xticklabels([alg["name"] for alg in ALGS], rotation="vertical")
-			
-		
-		#fig.show()
-	
-	plt.show()
-"""
-
 
 #(figure for each domain) * (subplot col for each val) * (subplot row for each weight) * (x tick for each algorithm) * (bar for each problem)
 def plotA(resultSet, valsOfInterest):
 
-	doms = resultSet["meta"]["domains"]
-	algs = resultSet["meta"]["algorithms"]
-	weights = resultSet["meta"]["weights"]
-	nprobs = resultSet["meta"]["n_problems"]
+	doms = [i for i in resultSet.iterkeys()]
+	algs = [i for i in resultSet[doms[0]].iterkeys()]
+	weights = [i for i in resultSet[doms[0]][algs[0]].iterkeys()]
+	nprobs = len([i for i in resultSet[doms[0]][algs[0]][weights[0]].iterkeys()])
 	
 	series = np.empty((len(doms), len(algs), len(weights), len(valsOfInterest), nprobs))
 
@@ -121,7 +38,7 @@ def plotA(resultSet, valsOfInterest):
 	for di in range(len(doms)): 
 		
 		fig, axs = plt.subplots(len(weights), len(valsOfInterest))
-		fig.suptitle(resultSet["meta"]["domains"][di])
+		fig.suptitle(doms[di])
 		fig.subplots_adjust(bottom=0.3, hspace=0.3)
 		
 		for wi in range(len(weights)):
@@ -147,7 +64,7 @@ def plotA(resultSet, valsOfInterest):
 			else:
 				ax = axs[wi][0]
 
-			ax.set_ylabel(str(resultSet["meta"]["weights"][wi]), rotation=0, size="large", labelpad=50)
+			ax.set_ylabel(str(weights[wi]), rotation=0, size="large", labelpad=50)
 		
 
 		for vi in range(len(valsOfInterest)):
@@ -166,7 +83,7 @@ def plotA(resultSet, valsOfInterest):
 			
 			ax.tick_params(axis='x', which='both', bottom='on', labelbottom='on')
 			ax.set_xticks([(x+0.5) for x in range(len(algs))])
-			ax.set_xticklabels(resultSet["meta"]["algorithms"], rotation="vertical")
+			ax.set_xticklabels(algs, rotation="vertical")
 
 	plt.show()
 
@@ -174,7 +91,7 @@ def plotA(resultSet, valsOfInterest):
 
 if __name__ == "__main__":
 	if len(sys.argv) == 1:
-		print "<resultfile> <valname> [<valname>...]"
+		print "<resultfile> <valname0> [<valname1>...]"
 		exit(0)
 	
 	with open(sys.argv[1]) as f:

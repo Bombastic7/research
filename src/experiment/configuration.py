@@ -8,7 +8,6 @@ import json
 import subprocess
 import time
 import multiprocessing
-from collections import defaultdict
 #import MySQLdb
 from multiprocessing.managers import SyncManager
 from Queue import Empty
@@ -37,25 +36,6 @@ setNWorkers()
 #N_WORKERS = 2
 
 
-#From itertools recipes. https://docs.python.org/2/library/itertools.html
-def unique_everseen(iterable, key=None):
-    "List unique elements, preserving order. Remember all elements ever seen."
-    # unique_everseen('AAAABBBCCDAABBB') --> A B C D
-    # unique_everseen('ABBCcAD', str.lower) --> A B C D
-    seen = set()
-    seen_add = seen.add
-    if key is None:
-        for element in itertools.ifilterfalse(seen.__contains__, iterable):
-            seen_add(element)
-            yield element
-    else:
-        for element in iterable:
-            k = key(element)
-            if k not in seen:
-                seen_add(k)
-                yield element
-
-
 def _bstr(b):
 	return "true" if b else "false"
 
@@ -65,24 +45,14 @@ def tiles_stack(height, width, weighted, useH, Abt1Sz):
 	return declStr
 
 
-def pancake_stack_ignore(Ncakes, Abt1Sz, AbtStep):
-	declStr = "pancake::Pancake_DomainStack_IgnoreAbt<{0},{1},{2}>".format(Ncakes, Abt1Sz, AbtStep)
+def pancake_stack_ignore(Ncakes, Abt1Sz, AbtStep, useH):
+	declStr = "pancake::Pancake_DomainStack_IgnoreAbt<{0},{1},{2},{3}>".format(Ncakes, Abt1Sz, AbtStep, _bstr(useH))
 	return declStr	
 
-def pancake_stack_single(Ncakes, gapH):
-	declStr = "pancake::Pancake_DomainStack_single<{0},{1}>".format(Ncakes, _bstr(gapH))
+def gridnav_blocked_stack_merge(height, width, mv8, cstLC, useH, hfact, wfact, fillfact, maxAbtLvl = 1000):
+	declStr = "gridnav::blocked::GridNav_DomainStack_MergeAbt<{0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}>"\
+	.format(height, width, _bstr(mv8), _bstr(cstLC), _bstr(useH), maxAbtLvl, hfact, wfact, fillfact)
 	return declStr
-	
-def gridnav_blocked(height, width, mv8, cstLC, hr):
-	declStr = "gridnav::blocked::GridNav_DomainStack_single<{0}, {1}, {2}, {3}, {4}>"\
-	.format(height, width, _bstr(mv8), _bstr(cstLC), _bstr(hr))
-	return declStr
-
-def gridnav_blocked_stack_merge(height, width, mv8, cstLC, hfact, wfact, fillfact, maxAbtLvl = 1000):
-	declStr = "gridnav::blocked::GridNav_DomainStack_MergeAbt<{0},{1},{2},{3},{mxL},{4},{5},{6}>"\
-	.format(height, width, _bstr(mv8), _bstr(cstLC), hfact, wfact, fillfact, mxL=maxAbtLvl)
-	return declStr
-
 
 
 
@@ -158,11 +128,12 @@ class ExecutionInfo:
 		self.params["instance"] = self.params["_name"] + "_" + str(w).replace(" ", "_") + "_" + str(pi)
 		self.params["exec_key"] = execKey
 		
-		self.results = {"pre"}
-		lookup[execKey] = self
+		self.weights = w
+		self.results = {"_result": "pre"}
+		ExecutionInfo.lookup[execKey] = self
 
 		
-	def computeUtils():
+	def computeUtils(self):
 		if self.results["_result"] == "good":
 			self.results["_util_real"] = self.results["_sol_cost"] * self.weights[0] + self.results["_cputime"] * self.weights[1]
 			self.results["_util_norm_base"] = self.results["_sol_cost"] * self.weights[0] + self.results["_base_expd"]
@@ -174,11 +145,10 @@ class ExecutionInfo:
 
 def workerRoutine(sharedExecList, sharedResList, taskQueue, msgQueue):
 	msgpfx = str(os.getpid()) + ": "
-	
+
 	try:
 		while True:
 			execKey = taskQueue.get()
-
 			if execKey is None:
 				msgQueue.put(msgpfx + "finished")
 				return
@@ -190,8 +160,8 @@ def workerRoutine(sharedExecList, sharedResList, taskQueue, msgQueue):
 			try:
 				proc = subprocess.Popen(["./searcher", "-s", execParams["instance"]], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
 				searcherOut = proc.communicate(input=bytearray(json.dumps(execParams)))[0]
-			
 				sharedResList[execKey] = json.loads(searcherOut)
+
 
 			except Exception as e:
 				sharedResList[execKey] = {"_result":"exception", "_error_what": e.__class__.__name__ + " " + str(e) }
@@ -199,6 +169,7 @@ def workerRoutine(sharedExecList, sharedResList, taskQueue, msgQueue):
 
 	except Exception as e:
 		msgQueue.put(msgpfx + "Exception: " + e.__class__.__name__ + ": " + str(e))
+	
 
 			
 	
@@ -213,7 +184,8 @@ def executeParallelSearches(execLst):
 	for i in execLst:
 		sharedExecList.append(i.params)
 
-	sharedResList = [None] * len(execLst)
+	for i in range(len(execLst)):
+		sharedResList.append(None)
 
 	for i in range(len(execLst)):
 		taskQueue.put(i)
@@ -245,9 +217,10 @@ def executeParallelSearches(execLst):
 				break
 		
 		sys.stdout.flush()
-	
+
 	for i in range(len(execLst)):
-		execLst[i].results = sharedResLst[i]
+		if sharedResList[i] is not None:
+			execLst[i].results = sharedResList[i]
 
 
 
@@ -267,10 +240,8 @@ DOMS =	[
 		DomainInfo("tiles_8hw_5", tiles_stack(3,3,True,True,5), "domain/tiles/fwd.hpp", True, "tiles_8"),
 		#DomainInfo("tiles_15h_5", tiles_stack(4,4,False,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		#DomainInfo("tiles_15hw_5", tiles_stack(4,4,True,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
-		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2), "domain/pancake/fwd.hpp", True, "pancake_10"),
-		DomainInfo("pancake_10", pancake_stack_single(10, True), "domain/pancake/fwd.hpp", False, "pancake_10"),
-		DomainInfo("gridnav_20", gridnav_blocked(20, 20, False, True, True), "domain/gridnav/fwd.hpp", False, "gridnav_20"),
-		DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, 3, 3, 2), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
+		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2, True), "domain/pancake/fwd.hpp", True, "pancake_10"),
+		DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, True, 3, 3, 2), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
 		]
 
 PROBLEM_SETS =	[
@@ -286,16 +257,66 @@ NORM_WEIGHTS = ((1,1), (10, 1), (100, 1), (1000, 1), (1000000, 1))
 
 
 
+def do_trial_A(doms, algs, weights, ps, outfile):
+	
+	execParamsLst = [ (d, a, w, p) for d in doms for a in algs for w in weights for p in ps.problems ]
+	exec_objs = []
+	
+	for (d, a, w, p) in execParamsLst:
+		key = (doms.index(d), algs.index(a), weights.index(w), ps.problems.index(p))
+		exec_objs.append(ExecutionInfo(key, d, a, w, p, ps.problems.index(p))) 
+	
+	if not sys.argv.count("dump") > 0:
+		executeParallelSearches(exec_objs)
+	
+	outdict = {}
+		
+	for (d, a, w, p) in execParamsLst:
+		key = (doms.index(d), algs.index(a), weights.index(w), ps.problems.index(p))
+		pi = ps.problems.index(p)
+		ExecutionInfo.lookup[key].computeUtils()
+		
+		if d.name not in outdict:
+			outdict[d.name] = {}
+		
+		if a.name not in outdict[d.name]:
+			outdict[d.name][a.name] = {}
+		
+		if str(w) not in outdict[d.name][a.name]:
+			outdict[d.name][a.name][str(w)] = {}
+		
+		if str(pi) not in outdict[d.name][a.name][str(w)]:
+			outdict[d.name][a.name][str(w)][str(pi)] = {}
+		
+		outdict[d.name][a.name][str(w)][str(pi)]["params"] = ExecutionInfo.lookup[key].params
+		outdict[d.name][a.name][str(w)][str(pi)]["results"] = ExecutionInfo.lookup[key].results
+	
+	
+	with open(outfile, "w") as f:
+		json.dump(outdict, f, indent=4, sort_keys=True)
+
+	ExecutionInfo.lookup.clear()
+	
+	
+
+
 def trial_A(usedalgdom = False):
 	
 	algs = [AlgorithmInfo.lookup["Astar"]]
 	weights = NORM_WEIGHTS
 	
-	tiles_doms = [DomainInfo.lookup["tiles_8h_5"], DomainInfo.lookup["tiles_8wh_5"]]
+	doms_tiles = [DomainInfo.lookup["tiles_8h_5"], DomainInfo.lookup["tiles_8hw_5"]]
+	doms_pc = [DomainInfo.lookup["pancake_10_7_2"]]
+	doms_gn = [DomainInfo.lookup["gridnav_20"]]
 	
 	if usedalgdom:
-		return [(a,d) for a in algs for d in tiles_doms]
-
+		ad = [(a,d) for a in algs for d in doms_tiles]
+		ad.extend([(a,d) for a in algs for d in doms_pc])
+		ad.extend([(a,d) for a in algs for d in doms_gn])
+		return ad
+	
+	
+	
 	ps_t8 = ProblemSetInfo.lookup["tiles_8.json"]
 	ps_pc10 = ProblemSetInfo.lookup["pancake_10.json"]
 	ps_gn20 = ProblemSetInfo.lookup["gridnav_20.json"]
@@ -305,27 +326,13 @@ def trial_A(usedalgdom = False):
 	ps_gn20.load()
 	
 	exec_t8 = []
+	exec_pc10 = []
+	exec_gn20 = []
 	
-	execParamsLst = [ (d, a, w, p) for d in tiles_doms for a in algs for w in weights for p in ps_t8.problems ]
+	do_trial_A(doms_tiles, algs, weights, ps_t8, "trial_A_tiles.json")
+	do_trial_A(doms_pc, algs, weights, ps_pc10, "trial_A_pancake10.json")
+	do_trial_A(doms_gn, algs, weights, ps_gn20, "trial_A_gridnav20.json")
 	
-	for (d, a, w, p) in execParamsLst:
-		key = (tile_doms.index(d), algs.index(a), weights.index(w), ps_t8.problems.index(p))
-		exec_t8.append(ExecutionInfo(key, d, a, w, p)) 
-	
-	if not sys.argv.count("dump") > 0:
-		executeParallelSearches(exec_t8)
-
-	res_t8 = defaultdict(dict)
-	
-	for (d, a, w, p) in execParamsLst:
-		key = (tile_doms.index(d), algs.index(a), weights.index(w), ps_t8.problems.index(p))
-		ExecutionInfo.lookup[key].computeUtils()
-		res_t8[d.name][a.name][str(w)][str(pi)]["params"] = ExecutionInfo.lookup[key].params
-		res_t8[d.name][a.name][str(w)][str(pi)]["results"] = ExecutionInfo.lookup[key].results
-	
-	with open("trial_A_results.json", "w") as f:
-		json.dump(res_t8, f)
-
 
 
 
@@ -342,7 +349,7 @@ if __name__ == "__main__":
 		hdrs = []
 		algdominfo = []
 		
-		for (a,d) in USED_ALGDOM:
+		for (a,d) in usedAlgDoms:
 			if hdrs.count(a.hdr) == 0:
 				hdrs.append(a.hdr)
 			

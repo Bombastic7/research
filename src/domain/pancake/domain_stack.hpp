@@ -13,37 +13,12 @@
 
 
 namespace mjon661 { namespace pancake {
-
 	 
 	 
-	 template<unsigned N, bool Use_H>
-	 struct Pancake_DomainStack_single {
+	 template<unsigned N, unsigned Abt1Sz, unsigned AbtStep, bool Use_H>
+	 struct Pancake_DomainStack_IgnoreAbt {
 		 
-		 using domStack_t = Pancake_DomainStack_single<N, Use_H>;
-		 
-		 template<unsigned L>
-		 struct Domain : Pancake_Domain<N, Use_H> {
-			 static_assert(L == 0, "");
-			 
-			 Domain(domStack_t& pStack) :
-				Pancake_Domain<N, Use_H>(pStack.mInitState)
-			{}
-		 
-		};
-		 
-		 Pancake_DomainStack_single(Json const& jConfig) :
-			mInitState(jConfig.at("init").get<std::vector<cake_t>>())
-		{}
-		
-		const PancakeStack<N> mInitState;
-	 };
-	 
-	 
-	 
-	 template<unsigned N, unsigned Abt1Sz, unsigned AbtStep>
-	 struct Pancake_DomainStack_IgnoreAbt : Pancake_DomainStack_single<N, false> {
-		 
-		using domStack_t = Pancake_DomainStack_IgnoreAbt<N, Abt1Sz, AbtStep>;
+		using domStack_t = Pancake_DomainStack_IgnoreAbt<N, Abt1Sz, AbtStep, Use_H>;
 		
 		
 		static constexpr int cakesPerLevel(int L) {
@@ -71,10 +46,10 @@ namespace mjon661 { namespace pancake {
 		 
 
 		template<typename Ign>
-		struct Domain<0, Ign> : Pancake_DomainStack_single<N, false>::template Domain<0> {
+		struct Domain<0, Ign> : Pancake_Domain<N, Use_H> {
 
 			Domain(domStack_t& pStack) :
-				Pancake_DomainStack_single<N, false>::template Domain<0>(pStack)
+				Pancake_Domain<N, Use_H>(pStack.mInitState)
 			{}
 
 		};
@@ -114,13 +89,13 @@ namespace mjon661 { namespace pancake {
 
 
 		Pancake_DomainStack_IgnoreAbt(Json const& jConfig) :
-			Pancake_DomainStack_single<N, false>(jConfig),
-			mAbt1Kept(prepL1Kept(jConfig))
+			mAbt1Kept(prepL1Kept(jConfig)),
+			mInitState(jConfig.at("init").get<std::vector<cake_t>>())
 		{}
 
 
-
 		const std::array<cake_t, Abt1Sz> mAbt1Kept;
+		const PancakeStack<N> mInitState;
 
 	};
 

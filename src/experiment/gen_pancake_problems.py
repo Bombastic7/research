@@ -15,7 +15,7 @@ def _getRandomPerm(sz):
 
 
 def genPancakeProblemSet(sz, nprob):
-	probs = [ _getRandomPerm(sz) for i in range(nprob) ]
+	probs = [ {"init":_getRandomPerm(sz)} for i in range(nprob) ]
 	return probs
 
 

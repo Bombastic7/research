@@ -102,6 +102,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				unsigned Width, 
 				bool Use_EightWay, 
 				bool Use_LifeCost,
+				bool Use_H,
 				unsigned Max_Abt_Lvls, 
 				unsigned Merge_Height_Factor,
 				unsigned Merge_Width_Factor,
@@ -113,7 +114,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		using selfStack_t = GridNav_DomainStack_MergeAbt<	Height, 
 															Width,
 															Use_EightWay, 
-															Use_LifeCost, 
+															Use_LifeCost,
+															Use_H, 
 															Max_Abt_Lvls, 
 															Merge_Height_Factor, 
 															Merge_Width_Factor, 
@@ -165,7 +167,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 										selfStack_t::widthAtAbtLevel(L),
 										Use_EightWay,
 										Use_LifeCost,
-										false,
+										Use_H,
 										(L > 0)>;
 		
 		

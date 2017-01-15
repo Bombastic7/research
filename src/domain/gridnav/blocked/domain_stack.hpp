@@ -19,7 +19,7 @@
 
 namespace mjon661 { namespace gridnav { namespace blocked {
 
-
+/*
 	template<unsigned Height, unsigned Width, bool Use_EightWay, bool Use_LifeCost, bool Use_H>
 	struct GridNav_DomainStack_single {
 		
@@ -94,7 +94,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		GridNav_Map mMap;
 	};
 
-
+*/
 
 
 
@@ -221,6 +221,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				throw ConfigException("Could not open map file");
 			
 			mMapStack.read(ifs);
+			
+			if(jConfig.count("dump_maps")) {
+				std::string dumpStrPfx = jConfig.at("dump_maps");
+				mMapStack.dumpMaps(dumpStrPfx);
+			}
 		}
 		
 		

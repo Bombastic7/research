@@ -46,7 +46,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			Node* parent;
 		};
 		
-
+		struct CacheEntry {
+			PackedState pkd;
+			Cost u;
+			bool exact;
+		};
+		using CacheStore_t = CacheStore<Domain, CacheEntry>;
+		
 		
 		struct ClosedOps {
 			ClosedOps(Domain const& pDomain) :
@@ -99,8 +105,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
+			mCache				(),
 			mWf					(jConfig.at("wf")),
-			mWt					(jConfig.at("wt"))
+			mWt					(jConfig.at("wt")),
+			mCacheDelay			(jConfig.at("abt_cache_delay")),
+			mNsearches			(0)
 		{
 			gen_assert(mWt == 1);
 		}
@@ -116,6 +125,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			Json j;
 			j["used wf"] = mWf;
 			j["used wt"] = mWt;
+			j["used cache delay"] = mCacheDelay;
 			mStatsAcc.submit(j);
 			//mAbtSearch.submitStats();
 		}
@@ -123,26 +133,36 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 		Cost doSearch(BaseState const& pBaseState) {
+			mNsearches++;
+
+			State s0 = mAbtor(pBaseState);
+			PackedState pkd0;
 			
-			{
-				State s0 = mAbtor(pBaseState);
-				PackedState pkd0;
-				
-				mDomain.packState(s0, pkd0);
-
-				Node* n0 = mNodePool.construct();
-				
-				n0->pkd =		pkd0;
-				n0->g = 		Cost(0);
-				n0->u = 		Cost(0);
-				n0->depth =		0;
-				n0->in_op = 	mDomain.noOp;
-				n0->parent_op = mDomain.noOp;
-				n0->parent = 	nullptr;
-
-				mOpenList.push(n0);
-				mClosedList.add(n0);
+			mDomain.packState(s0, pkd0);
+			
+			CacheEntry* ent0 = mCache.retrieve(pkd0);
+			
+			if(mNsearches > mCacheDelay && ent0) {
+				mStatsAcc.s_cachedsol();
+				mStatsAcc.s_end();
+				return ent->u;
 			}
+			
+			mStatsAcc.s_hbf(mBehaviour.gethbf());
+
+			Node* n0 = mNodePool.construct();
+			
+			n0->pkd =		pkd0;
+			n0->g = 		Cost(0);
+			n0->u = 		Cost(0);
+			n0->depth =		0;
+			n0->in_op = 	mDomain.noOp;
+			n0->parent_op = mDomain.noOp;
+			n0->parent = 	nullptr;
+
+			mOpenList.push(n0);
+			mClosedList.add(n0);
+
 
 			Cost retCost = 0;
 			
@@ -160,14 +180,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				expand(n, s);
 			}
 
-			
-			mStatsAcc.s_openListSize(mOpenList.size());
-			mStatsAcc.s_closedListSize(mClosedList.getFill());
-			
+
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
-
+			
+			if(mNsearches > mCacheDelay) {
+				bool miss = mCache.get(pkd0, ent0);
+				slow_assert(miss);
+				ent0->u = retCost;
+				mStatsAcc.l_cacheAdd();
+			}
+			
 			mStatsAcc.s_end();
 			return retCost;
 		}
@@ -250,7 +274,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		ClosedList_t 			mClosedList;
 		NodePool_t 				mNodePool;
 		
-		const unsigned			mWf, mWt;
+		CacheStore_t			mCache;
+		
+		const unsigned			mWf, mWt, mCacheDelay;
+		unsigned 				mNsearches;
 	};
 	
 	

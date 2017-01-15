@@ -9,7 +9,7 @@ namespace mjon661 { namespace pancake {
 	using cost_t = int;
 
 
-	constexpr unsigned st_abtLvlToDomSz(unsigned lvl, unsigned N, unsigned Abt1Sz) {
-		return lvl == 0 ? N : Abt1Sz + 1 - lvl;
-	}
+	//~ constexpr unsigned st_abtLvlToDomSz(unsigned lvl, unsigned N, unsigned Abt1Sz) {
+		//~ return lvl == 0 ? N : Abt1Sz + 1 - lvl;
+	//~ }
 }}

@@ -3,6 +3,7 @@
 
 #include <array>
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -44,7 +45,22 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		return mWidth;
 	}
 
+	void GridNav_Map::dump(std::ostream& out, unsigned xbrk, unsigned ybrk) {
+		
+		for(unsigned i=0; i<mHeight; i++) {
+			for(unsigned j=0; j<mWidth; j++) {
+				out << std::to_string(mCells[i*mWidth+j]) << " ";
+				
+				if(xbrk != 0 && (j+1) % xbrk == 0)
+					out << "\t";				
+			}
 
+			if(ybrk != 0 && (i+1) % ybrk == 0)
+				out << "\n\n";
+				
+			out << "\n";
+		}
+	}
 
 	
 
@@ -110,11 +126,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					blockedCounts.at(y * selfWidth + x)++;
 			}
 			
-			
-			
-			for(unsigned i=0; i<selfSize; i++)
-				blockedCounts[i] = blockedCounts[i] * mFillFactor >= selfSize ? 1 : 0;
-			
+
+			for(unsigned i=0; i<selfSize; i++) {
+				blockedCounts[i] = (blockedCounts[i] * mFillFactor >= mHeightFactor*mWidthFactor) ? 1 : 0;
+			}
+
 			Lvl_t* selfLvl = new Lvl_t(selfHeight, selfWidth);
 			selfLvl->read(blockedCounts.begin(), blockedCounts.end());
 			
@@ -143,6 +159,23 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		return mBaseWidth;
 	}
 	
-
+	void GridNav_MapStack_MergeAbt::dumpMaps(std::string const& pFnamePrefix) {
+		
+		for(unsigned i=0; i<mMaps.size(); i++) {
+			
+			std::string fname = pFnamePrefix + std::to_string(i);
+			std::ofstream ofs(fname);
+			
+			if(!ofs) {
+				logDebug(std::string("Could not open ") + fname);
+				continue;
+			}
+			
+			else
+				mMaps[i]->dump(ofs, mWidthFactor, mHeightFactor);
+			
+			ofs << "\n\n";
+		}		
+	}
 
 }}}

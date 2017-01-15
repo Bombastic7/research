@@ -501,7 +501,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			OperatorSet(GridNav_Map const& pMap, idx_t pState) :
 				DomBase::OpSetBase(pState)
-				//mTestCopy(*this)//...........
 			{
 				if(Use_Relax)
 					return;
@@ -521,44 +520,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				}
 				
 				this->mN = canMove;
-				//slow_assert(assertCheck(pCells, pState));
 			}
-			
-			private:
-			/*
-			bool assertCheck(GridNavMap_OpOrBl<Height,Width> const& pCells, idx_t pState) {
-				for(int i=0; i<mTestCopy.mN; i++) {
-					
-					cell_t c = pCells[applyMove<Height, Width>(pState, mTestCopy.mMoves[i])];
-					
-					std::stringstream ss;
-					
-					ss << "\n" << prettyPrintDir(this->mMoves[i]) << " " << applyMove<Height, Width>(pState, mTestCopy.mMoves[i]) << 
-					" " << (int)c << "\n" << " " << pState << " " <<
-					 (pState % Width) << " " << (pState/Width) << "\n" << std::to_string(this->mN) << " ";
-					 
-					for(int j=0; j<this->mN; j++)
-						ss << prettyPrintDir(this->mMoves[j]) << " ";
-					
-					ss << "\n" << std::to_string(mTestCopy.mN) << " ";
-					
-						for(int j=0; j<mTestCopy.mN; j++)
-							ss << prettyPrintDir(mTestCopy.mMoves[j]) << " ";
-							
-					std::string msg(ss.str());
-					
-					if(c == 0)
-						slow_assert(contains(this->mMoves, mTestCopy.mMoves[i], this->mN), "%s", msg.c_str());
-					else if(c == 1)
-						slow_assert(!contains(this->mMoves, mTestCopy.mMoves[i], this->mN), "%s", msg.c_str());
-					else
-						slow_assert(false, "%d", c);
-				}
-				return true;
-			}
-			*/
-			
-			//const typename DomBase::OpSetBase mTestCopy; //...........
 			
 		};
 		

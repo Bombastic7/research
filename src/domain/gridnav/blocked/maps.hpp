@@ -35,6 +35,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		unsigned getWidth() const;
 
+		void dump(std::ostream& out, unsigned xbrk = 0, unsigned ybrk = 0);
 		
 		protected:
 		const unsigned mHeight, mWidth;
@@ -94,7 +95,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		unsigned getBaseWidth() const;
 		
-		
+		void dumpMaps(std::string const& pPfx);
 		
 		protected:
 

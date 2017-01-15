@@ -241,7 +241,7 @@ DOMS =	[
 		#DomainInfo("tiles_15h_5", tiles_stack(4,4,False,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		#DomainInfo("tiles_15hw_5", tiles_stack(4,4,True,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2, True), "domain/pancake/fwd.hpp", True, "pancake_10"),
-		DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, True, 3, 3, 2), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
+		DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, True, 3, 3, 4), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
 		]
 
 PROBLEM_SETS =	[
@@ -302,7 +302,7 @@ def do_trial_A(doms, algs, weights, ps, outfile):
 
 def trial_A(usedalgdom = False):
 	
-	algs = [AlgorithmInfo.lookup["Astar"]]
+	algs = [AlgorithmInfo.lookup["Bugsy_Norm"], AlgorithmInfo.lookup["UGSA"], AlgorithmInfo.lookup["Astar"]]
 	weights = NORM_WEIGHTS
 	
 	doms_tiles = [DomainInfo.lookup["tiles_8h_5"], DomainInfo.lookup["tiles_8hw_5"]]

@@ -89,6 +89,7 @@ namespace mjon661 { namespace tiles {
 		
 		//Change in h/d when pTile moves from pSrc to pDest.
 		void increment(idx_t pSrc, idx_t pDest, tile_t pTile, int& out_dh, int& out_dd) const {
+			slow_assert(pTile != 0);
 			out_dh = mCostInc[pTile][pSrc][pDest];
 			out_dd = mDistInc[pTile][pSrc][pDest];
 		}

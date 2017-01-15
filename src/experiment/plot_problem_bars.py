@@ -1,13 +1,14 @@
 #!/bin/python
 
 import sys
+import os
 import json
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 #(figure for each domain) * (subplot col for each val) * (subplot row for each weight) * (x tick for each algorithm) * (bar for each problem)
-def plotA(resultSet, valsOfInterest):
+def plotA(resultSet, valsOfInterest, savePlots = False):
 
 	doms = [i for i in resultSet.iterkeys()]
 	algs = [i for i in resultSet[doms[0]].iterkeys()]
@@ -85,23 +86,45 @@ def plotA(resultSet, valsOfInterest):
 			ax.set_xticks([(x+0.5) for x in range(len(algs))])
 			ax.set_xticklabels(algs, rotation="vertical")
 
-	plt.show()
+
 
 
 
 if __name__ == "__main__":
 	if len(sys.argv) == 1:
-		print "<resultfile> <valname0> [<valname1>...]"
+		print "[-o] <resultfile> <valname0> [<valname1>...]"
 		exit(0)
 	
-	with open(sys.argv[1]) as f:
+	resfile = sys.argv[1]
+	doBigPlot = False
+	
+	if sys.argv[1] == "-o":
+		resfile = sys.argv[2]
+		doBigPlot = True
+	
+	
+	with open(resfile) as f:
 		resultSet = json.load(f)
 
 	
-	valsOfInterest = sys.argv[2:]
+	if doBigPlot:
+		valsOfInterest = sys.argv[3:]
+		
+		doms = [i for i in resultSet.iterkeys()]
+		
+		for di in range(len(doms)):
+			outdir = "plots/{0}/".format(doms[di])
+			os.makedirs(outdir)
+			
+			for vi in range(len(valsOfInterest)):
+				plotA(resultSet, [valsOfInterest[vi]], True)
+				plt.savefig(outdir + valsOfInterest[vi] + ".png")
+				plt.close()
+		
 
-	
-	
-	plotA(resultSet, valsOfInterest)
+	else:
+		valsOfInterest = sys.argv[2:]
+		plotA(resultSet, valsOfInterest)
+		plt.show()
 	
 	#doProbPlot(sys.argv[1], sys.argv[2:], False)

@@ -1,6 +1,9 @@
 #pragma once
 
 #include <string>
+#include <iostream>
+#include <fstream>
+#include <vector>
 
 #include "util/debug.hpp"
 #include "util/json.hpp"
@@ -10,43 +13,27 @@
 namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	
 
-	/*
-	 * Full stats for base level, per-search and per-level for abstract levels.
-	 */
 	template<typename = void>
 	struct SimpleStatsManager {
 		
 		template<unsigned L>
 		struct StatsAcc {
-			void a_expd() {mExpd++;}
-			void a_gend() { mGend++; }
-			void a_dups() { if(L==0) mDups++; }
-			void a_reopnd() { if(L==0) mReopnd++; }
 			
-			void l_cacheMadeExact() {}
-			void l_cacheImprove() { }
-			void l_cacheAdd() {  }
 			
-			void s_openListSize(unsigned sz) {  }
-			void s_closedListSize(unsigned sz) { }
-			void s_solutionPartial() {  }
-			void s_solutionFull() { ; }
-			void s_cachePartial() { }
-			void s_cacheMiss() {  }
-			void s_cacheHit() {  }
-			
-			void s_end() { 				
-				mNsearches++;
-				mTotalExpd += mExpd;
-				mTotalGend += mGend;
-				if(L != 0)
-					searchCountsReset();
-			}
-
-			
-			unsigned mExpd, mGend, mDups, mReopnd;
-			unsigned mNsearches, mTotalExpd, mTotalGend;
-			
+			struct S_Record {
+				unsigned expd, gend, dups, reopnd;
+				bool cachedsol;
+				unsigned nsearch;
+				void reset() { expd = gend = dups = reopnd = 0; cachesol = false, nsearch = -1;}
+				
+				static void writeNames(std::ostream& out) {
+					out << "n expd gend dups reopnd cachedsol\n";
+				}
+				
+				void writeRow(std::ostream& out) {
+					out << nsearch << " " << expd << " " << gend << " " << dups << " " << reopnd << " " << (int)cachedsol << "\n";
+				}
+			};
 			
 			StatsAcc(SimpleStatsManager<>& pManager) :
 				mManager(pManager)
@@ -54,35 +41,72 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				reset();
 			}
 			
-			void searchCountsReset() {
-				mExpd = mGend = mDups = mReopnd = 0;
+			
+			void a_expd() { mSrecord.expd++; }
+			void a_gend() { mSrecord.gend++; }
+			void a_dups() { mSrecord.dups++; }
+			void a_reopnd() { mSrecord.reopnd++; }
+
+			void l_cacheAdd() { mLcachedStates++;  }
+			
+			void s_cachedsol() { mSrecord.cachedsol = true; }
+			
+			void s_end() { 
+				mSrecord.nsearch = mLnsearches++;
+				mLtotalExpd += mSrecord.expd;
+				mLtotalGend += mSrecord.gend;
+				
+				mLallSearches.push_back(mSrecord);
+				mSrecord.reset();
 			}
+
+			
+			S_Record mSrecord;
+			unsigned mLnsearches, mLtotalExpd, mLtotalGend, mLcachedStates;
+			std::vector<S_Record> mLallSearches;
+			
+
+
+
 			
 			void reset() {
-				searchCountsReset();
-				mNsearches = 0;
-				mTotalExpd = mTotalGend = mNsearches = 0;
-	
+				mLnsearches = mLtotalExpd = mLtotalGend = mLcachedStates = 0;
+				mSrecord.reset();
+				mLallSearches.clear();
 			}
 
 			
 			void submit(Json j = Json()) {
 				
 				if(L == 0) {
-					mManager.mReport["_base_expd"] = mExpd;
-					mManager.mReport["_base_gend"] = mGend;
-					j["expd"] = mExpd;
-					j["gend"] = mGend;
-					j["dups"] = mDups;
-					j["reopnd"] = mReopnd;
+					S_Record l0search = mLallSearches.at(0);
+					j["expd"] = l0search.expd;
+					j["gend"] = l0search.gend;
+					j["dups"] = l0search.dups;
+					j["reopnd"] = l0search.reopnd;
+				}
+				
+				if(L > 1) {
+					j["NSearches"] = mLnsearches;
+					j"Cached stats"] = mLcachedStates;
+					
+					std::string dumpfile = std::string("ugsa_stats_dump_" +  std::to_string(L));
+					std::ofstream ofs(dumpfile);
+					
+					if(!ofs)
+						logDebug(std::string("Cound not open " + dumpfile);
+					else {
+						j["stats outfile"] = dumpfile;
+						S_Record::writeNames(ofs);
+						for(unsigned i=0; i<mLallSearches.size(); i++) {
+							mLallSearches.writeRow(ofs);
+						}
+					}
 				}
 
-				j["NSearches"] = mNsearches;
-
-
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;
-				mManager.mAllExpd += mTotalExpd;
-				mManager.mAllGend += mTotalGend;
+				mManager.mTexpd += mLtotalExpd;
+				mManager.mTgend += mLtotalGend;
 			}
 			
 			private:
@@ -97,18 +121,21 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 		
 		Json report() {
-			mReport["_all_expd"] = mAllExpd;
-			mReport["_all_gend"] = mAllGend;
+			mReport["_all_expd"] = mTexpd;
+			mReport["_all_gend"] = mTgend;
+			
+			mReport["_base_expd"] = mReport.at("Level 0").at("expd");
+			mReport["_base_gend"] = mReport.at("Level 0").at("gend");
 			return mReport;
 		}
 		
 		
 		void reset() {
-			mAllExpd = mAllGend = 0;
+			mTexpd = mTgend = 0;
 			mReport = Json();
 		}
 		
-		unsigned mAllExpd, mAllGend;
+		unsigned mTexpd, mTgend;
 		Json mReport;
 	};
 }}}

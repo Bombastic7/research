@@ -23,7 +23,6 @@ namespace mjon661 { namespace gridnav {
 			
 			if((i+1) % pWidth == 0) {
 				out << "\n";
-				std::cout << "\n";
 			}
 		}
 	}

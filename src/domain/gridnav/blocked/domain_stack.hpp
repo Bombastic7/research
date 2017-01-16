@@ -254,7 +254,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		
 		unsigned relaxedCostAtLevel(unsigned L) {
-			return 10;
+			if(L == 0)
+				return 2 * mathutil::max(Merge_Height_Factor, Merge_Width_Factor);
+
+			return mathutil::pow(mathutil::min(Merge_Height_Factor, Merge_Width_Factor), L);
 		}
 		
 		const idx_t mInitPos, mGoalPos;

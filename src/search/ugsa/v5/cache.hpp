@@ -1,17 +1,11 @@
 #pragma once
 
-#include <algorithm>
-#include <iostream>
-#include <vector>
-#include <array>
-#include <cmath>
-#include <string>
 #include "search/closedlist.hpp"
 #include "search/nodepool.hpp"
 #include "util/exception.hpp"
 #include "util/json.hpp"
 #include "util/debug.hpp"
-#include "util/time.hpp"	
+	
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav5 {	

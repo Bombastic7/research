@@ -24,14 +24,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				unsigned expd, gend, dups, reopnd;
 				bool cachedsol;
 				unsigned nsearch;
-				void reset() { expd = gend = dups = reopnd = 0; cachesol = false, nsearch = -1;}
+				double hbf;
+				void reset() { expd = gend = dups = reopnd = 0; cachedsol = false, nsearch = -1; hbf = 0;}
 				
 				static void writeNames(std::ostream& out) {
-					out << "n expd gend dups reopnd cachedsol\n";
+					out << "n expd gend dups reopnd hbf cachedsol\n";
 				}
 				
 				void writeRow(std::ostream& out) {
-					out << nsearch << " " << expd << " " << gend << " " << dups << " " << reopnd << " " << (int)cachedsol << "\n";
+					out << nsearch << " " << expd << " " << gend << " " << dups << " " << reopnd << " " << hbf << " " << (int)cachedsol << "\n";
 				}
 			};
 			
@@ -50,6 +51,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			void l_cacheAdd() { mLcachedStates++;  }
 			
 			void s_cachedsol() { mSrecord.cachedsol = true; }
+			void s_hbf(double v) {mSrecord.hbf = v;}
 			
 			void s_end() { 
 				mSrecord.nsearch = mLnsearches++;
@@ -86,22 +88,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					j["reopnd"] = l0search.reopnd;
 				}
 				
-				if(L > 1) {
+				if(L > 0) {
 					j["NSearches"] = mLnsearches;
-					j"Cached stats"] = mLcachedStates;
+					j["Cached stats"] = mLcachedStates;
 					
-					std::string dumpfile = std::string("ugsa_stats_dump_" +  std::to_string(L));
-					std::ofstream ofs(dumpfile);
+					std::stringstream ss;
+					S_Record::writeNames(ss);
 					
-					if(!ofs)
-						logDebug(std::string("Cound not open " + dumpfile);
-					else {
-						j["stats outfile"] = dumpfile;
-						S_Record::writeNames(ofs);
-						for(unsigned i=0; i<mLallSearches.size(); i++) {
-							mLallSearches.writeRow(ofs);
-						}
+					for(unsigned i=0; i<mLallSearches.size(); i++) {
+						mLallSearches[i].writeRow(ss);
 					}
+					
+					j["search log"] = ss.str();
 				}
 
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;

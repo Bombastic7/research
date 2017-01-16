@@ -61,7 +61,7 @@ namespace mjon661 { namespace pancake {
 		
 	};
 
-
+/*
 	template<unsigned L, unsigned N, unsigned Abt1Sz>
 	struct DropAndTaper {
 		
@@ -100,6 +100,6 @@ namespace mjon661 { namespace pancake {
 		std::array<bool, N> mKeptLookup;	//Is a cake kept from L to L+1?
 		std::array<cake_t, N> mMapping;		//New cake values assigned to old ones, so we always have a permutation.
 	};
-	
+*/
 
 }}

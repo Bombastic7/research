@@ -37,6 +37,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		struct Node {
 			Cost g, f;
+			unsigned depth;
 			PackedState pkd;
 			Operator in_op, parent_op;
 			Node* parent;
@@ -119,11 +120,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				Node* n0 = mNodePool.construct();
 
 				n0->g = 		Cost(0);
+				n0->depth =		0;
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
 				
-				n0->f = mAbtSearch.doSearch(mInitState);
+				SolValues abtRes = mAbtSearch.doSearch(mInitState);
+				mBehaviour.setInitNodeValues(abtRes.cost, abtRes.depth);
+				mBehaviour.informAbtSearch(0, abtRes.cost, 0, abtRes.depth);
+				
+				n0->f = abtRes.cost;
 				
 				mDomain.packState(mInitState, n0->pkd);
 				
@@ -192,6 +198,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
 			Cost 		kid_g   = pParentNode->g + edge.cost();
+			unsigned 	kid_depth = pParentNode->depth + 1;
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -205,6 +212,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					kid_dup->f			-= kid_dup->g;
 					kid_dup->f			+= kid_g;
 					kid_dup->g			= kid_g;
+					kid_dup->depth		= kid_depth;
 					kid_dup->in_op		= pInOp;
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
@@ -219,12 +227,17 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				Node* kid_node 		= mNodePool.construct();
 
 				kid_node->g 		= kid_g;
+				kid_node->depth		= kid_depth;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
 				
-				kid_node->f = kid_g + mAbtSearch.doSearch(edge.state());
+				SolValues abtRes = mAbtSearch.doSearch(mInitState);
+				if(abtRes.searched)
+					mBehaviour.informAbtSearch(kid_g, abtRes.cost, kid_depth, abtRes.depth);
+				
+				kid_node->f = kid_g + abtRes.cost;
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);

@@ -8,13 +8,20 @@
 #include <string>
 #include "structs/simple_hashmap.hpp"
 #include "util/json.hpp"
+#include "search/ugsa/v5/abtcorr.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav5 {	
 
 
+	struct SolValues {
+		unsigned cost;
+		unsigned depth;
+		bool searched;
+	};
+
 	template<typename = void>
-	struct SearchBehaviour {
+	struct SearchBehaviour : public AbtCorrection<> {
 		
 		
 		SearchBehaviour(Json const& jConfig) {
@@ -26,6 +33,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mDirty = true;
 		}
 		
+
 		double gethbf() {
 			if(mDirty)
 				computehbf();
@@ -34,6 +42,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 		
 		void reset() {
+			AbtCorrection<>::reset();
 			mLevelCounts.clear();
 			mCachedBF = 0;
 			mDirty = false;
@@ -43,6 +52,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			
 			Json jReport;
 			jReport["hbf"] = gethbf();
+			jReport["cost comp"] = this->getCostComp();
+			jReport["dist comp"] = this->getDistComp();
+			jReport["comp samples"] = this->getNsamples();
 			
 			Json jflvls = {};
 			

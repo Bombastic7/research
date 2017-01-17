@@ -125,10 +125,11 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		}
 		
 		void submitStats() {
+			mAbtSearch.submitStats();
+			
 			Json j;
 			j["used caching"] = mDoCaching;
 			j["used depth-best"] = Use_Depth;
-			//mAbtSearch.submitStats();
 			mStatsAcc.submit(j);
 		}
 		

@@ -221,8 +221,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			n->parent->unexpdChildren--;
 			
 			if(n->parent->unexpdChildren == 0) {
-				mExpandedFront--;
-				mExpandedBack++;
+				if(n->parent != &mDummyNode) {
+					mExpandedFront--;
+					mExpandedBack++;
+				}
 			}
 						
 			OperatorSet ops = mDomain.createOperatorSet(s);

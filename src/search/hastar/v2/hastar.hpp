@@ -27,8 +27,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		HAstar(DomStack& pStack, Json const& jConfig) :
 			mStatsManager(),
-			mConf(jConfig),
-			mAlgo(pStack, mStatsManager, mConf)
+			mAlgo(pStack, jConfig, mStatsManager)
 		{
 			
 		}
@@ -41,7 +40,6 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		Json report() {
 			mAlgo.submitStats();
 			Json j = mStatsManager.report();
-			j["used conf"] = mConf.report();
 			return j;
 		}
 		
@@ -52,7 +50,6 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 
 
 		StatsManager mStatsManager;
-		AlgoConf<> mConf;
 		HAstar_Base<DomStack, Top_Abt_Level_Used, StatsManager> mAlgo;
 		
 	};
@@ -70,4 +67,52 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 	
 	template<typename D>
 	using HAstar_StatsSimple_1lvl = HAstar<D, SimpleStatsManager<>, 1>;
+	
+	
+	
+	
+	
+	
+	
+	template<typename DomStack, typename StatsManager, bool Use_Depth, unsigned Top_Limit>
+	struct PDB_HAstar {
+		
+		static const unsigned Top_Abt_Level_Used = mathutil::min(DomStack::Top_Abstract_Level, Top_Limit);
+		
+		using BaseDomain = typename DomStack::template Domain<0>;
+		using State = typename BaseDomain::State;
+		using Cost = CostDepthImpl<Use_Depth, typename Domain::Cost>::type;
+		
+		using Algo_t = HAstar_Abt<DomStack, 1, Top_Abt_Level_Used+1, Use_Depth, StatsManager>;
+		
+		
+		
+		PDB_HAstar(DomStack& pStack) :
+			mStatsManager(),
+			mAlgo(pStack, {{"do_caching":true}}, mStatsManager)
+		{}
+		
+		Cost eval(State const& pState) {
+			return mAlgo.doSearch(pState);
+		}
+
+		Json report() {
+			mAlgo.submitStats();
+			Json j = mStatsManager.report();
+			return j;
+		}
+		
+		void reset() {
+			mAlgo.reset();
+			mAlgo.clearCache();
+			mStatsManager.reset();
+		}
+
+		StatsManager mStatsManager;
+		Algo_t mAlgo;
+	};
+
+
+	template<typename DomStack, bool Use_Depth>
+	using PDB_HAstar_SimpleStats<DomStack, SimpleStatsManager, Use_Depth, 10000>;
 }}}

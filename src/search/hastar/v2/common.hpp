@@ -102,23 +102,24 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 	};
 	
 	
-	template<typename = void>
-	struct AlgoConf {
-		
-		AlgoConf(Json const& j) {
-			if(j.count("do_caching") && !((bool)j.at("do_caching")))
-				doCaching = false;
-			else
-				doCaching = true;
+	template<typename T>
+	T getParamOrDefault(Json const& jConfig, std::string const& pKey, T pDef) {
+		if(jConfig.count(pKey))
+			return static_cast<T>(jConfig.at(pKey));
+		else
+			return pDef;
 		}
-		
-		Json report() {
-			Json j;
-			j["do_caching"] = doCaching;
-			return j;
-			
-		}
-		
-		bool doCaching;
+	}
+	
+	
+
+	template<bool B, typename Cost>
+	struct CostDepthImpl {
+		using type = Cost;
+	};
+	
+	template<typename Cost>
+	struct CostDepthImpl<true, Cost> {
+		using type = unsigned;
 	};
 }}}

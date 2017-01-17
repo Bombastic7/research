@@ -15,10 +15,10 @@
 namespace mjon661 { namespace pancake {
 	 
 	 
-	 template<unsigned N, unsigned Abt1Sz, unsigned AbtStep, bool Use_H>
+	 template<unsigned N, unsigned Abt1Sz, unsigned AbtStep, bool Use_H, bool Use_Weight>
 	 struct Pancake_DomainStack_IgnoreAbt {
 		 
-		using domStack_t = Pancake_DomainStack_IgnoreAbt<N, Abt1Sz, AbtStep, Use_H>;
+		using domStack_t = Pancake_DomainStack_IgnoreAbt<N, Abt1Sz, AbtStep, Use_H, Use_Weight>;
 		
 		
 		static constexpr int cakesPerLevel(int L) {
@@ -38,7 +38,7 @@ namespace mjon661 { namespace pancake {
 		 
 		 
 		template<unsigned L, typename = void>
-		struct Domain : public Domain_NoH_Relaxed<N, cakesPerLevel(L)> {
+		struct Domain : public Domain_NoH_Relaxed<N, cakesPerLevel(L), Use_Weight> {
 			
 			Domain(domStack_t&) {}
 		};
@@ -46,10 +46,10 @@ namespace mjon661 { namespace pancake {
 		 
 
 		template<typename Ign>
-		struct Domain<0, Ign> : Pancake_Domain<N, Use_H> {
+		struct Domain<0, Ign> : Pancake_Domain<N, Use_H, Use_Weight> {
 
 			Domain(domStack_t& pStack) :
-				Pancake_Domain<N, Use_H>(pStack.mInitState)
+				Pancake_Domain<N, Use_H, Use_Weight>(pStack.mInitState)
 			{}
 
 		};

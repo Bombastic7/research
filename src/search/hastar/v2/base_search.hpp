@@ -22,7 +22,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 
 		public:
 		
-		using AbtSearch = HAstar_Abt<D, 1, Top+1, StatsManager>;
+		using AbtSearch = HAstar_Abt<D, 1, Top+1, false, StatsManager>;
 		
 		using Domain = typename D::template Domain<0>;
 		using Cost = typename Domain::Cost;
@@ -86,9 +86,9 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		
 
-		HAstar_Base(D& pDomStack, StatsManager& pStats, AlgoConf<> const& pConf) :
+		HAstar_Base(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
 			mStatsAcc			(pStats),
-			mAbtSearch			(pDomStack, pStats, pConf),
+			mAbtSearch			(pDomStack, jConfig, pStats),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),

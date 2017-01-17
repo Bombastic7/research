@@ -15,16 +15,16 @@
 namespace mjon661 { namespace algorithm { namespace hastarv2 {
 
 
-	template<typename D, unsigned L, unsigned Bound, typename StatsManager>
+	template<typename D, unsigned L, unsigned Bound, bool Use_Depth, typename StatsManager>
 	class HAstar_Abt {
 		
 
 		public:
 		
-		using AbtSearch = HAstar_Abt<D, L+1, Bound, StatsManager>;
+		using AbtSearch = HAstar_Abt<D, L+1, Bound, Use_Depth, StatsManager>;
 		
 		using Domain = typename D::template Domain<L>;
-		using Cost = typename Domain::Cost;
+		//using Cost = typename Domain::Cost;
 		using Operator = typename Domain::Operator;
 		using OperatorSet = typename Domain::OperatorSet;
 		using State = typename Domain::State;
@@ -36,7 +36,9 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		using BaseState = typename D::template Domain<L-1>::State;
 		
 
-
+		
+		using Cost = CostDepthImpl<Use_Depth, typename Domain::Cost>::type;
+		
 
 		struct Node {
 			Cost g, f;
@@ -98,7 +100,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		
 
-		HAstar_Abt(D& pDomStack, StatsManager& pStats, AlgoConf<> const& pConf) :
+		HAstar_Abt(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, pStats, pConf),
 			mAbtor				(pDomStack),
@@ -108,7 +110,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			mNodePool			(),
 			mCache				(mDomain),
 			mBestExactNode		(nullptr),
-			mConf				(pConf)
+			mDoCaching			(getParamOrDefault(jConfig, "do_caching", true))
 		{}
 
 		
@@ -124,7 +126,11 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		void submitStats() {
 			mStatsAcc.submit();
-			mAbtSearch.submitStats();
+			
+			Json j;
+			j["used caching"] = mDoCaching;
+			j["used depth-best"] = Use_Depth;
+			mAbtSearch.submitStats(j);
 		}
 		
 		
@@ -139,7 +145,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				
 				Cost fval;
 				
-				if(mConf.doCaching) {
+				if(mDoCaching) {
 					CacheEntry* ent = mCache.retrieve(pkd0);
 				
 					if(ent && ent->exact) {
@@ -207,7 +213,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				expand(n, s);
 			}
 			
-			if(mConf.doCaching) {
+			if(mDoCaching) {
 				for(auto it = mClosedList.begin(); it != mClosedList.end(); ++it) {
 					Node* n = *it;
 					
@@ -248,7 +254,6 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			mNodePool.clear();
 			mBestExactNode = nullptr;
 
-
 			mStatsAcc.s_end();
 			return retCost;
 		}
@@ -273,7 +278,13 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
 
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
-			Cost		kid_g	 	= pParentNode->g + edge.cost();
+			Cost		kid_g;
+			
+			if(Use_Depth)
+				kid_g = pParentNode->g + 1;
+			else 
+				pParentNode->g + edge.cost();
+			
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -298,7 +309,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 					
 					mOpenList.pushOrUpdate(kid_dup);
 					
-					if(mConf.doCaching) {
+					if(mDoCaching) {
 						CacheEntry* ent = mCache.retrieve(kid_pkd);
 						slow_assert(ent);
 						
@@ -317,7 +328,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				CacheEntry* ent = nullptr;
 				Cost hval;
 				
-				if(mConf.doCaching) {
+				if(mDoCaching) {
 					bool miss = mCache.get(kid_pkd, ent);
 				
 					if(miss) {
@@ -343,7 +354,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
 				
-				if(mConf.doCaching && ent->exact && (!mBestExactNode || mBestExactNode->f > kid_node->f)) {
+				if(mDoCaching && ent->exact && (!mBestExactNode || mBestExactNode->f > kid_node->f)) {
 					mBestExactNode = kid_node;
 				}
 			}
@@ -365,11 +376,11 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		CacheStore_t			mCache;
 		Node*					mBestExactNode;
 		
-		AlgoConf<>				mConf;
+	const bool					mDoCaching;
 	};
 	
 	
-	template<typename D, unsigned Bound, typename StatsManager>
+	template<typename D, unsigned Bound, bool Use_Depth, typename StatsManager>
 	struct HAstar_Abt<D, Bound, Bound, StatsManager> {
 		
 		HAstar_Abt(D& pDomStack, StatsManager& pStats, AlgoConf<> const&) {}

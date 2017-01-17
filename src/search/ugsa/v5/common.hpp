@@ -15,7 +15,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 	struct SolValues {
-		unsigned cost;
+		unsigned u, g;
 		unsigned depth;
 		bool searched;
 	};
@@ -29,8 +29,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 		
 		void informExpansion(unsigned pLvl) {
-			mLevelCounts[pLvl].val++;
+			mLevelCounts[mExpd + pLvl].val++;
 			mDirty = true;
+			mExpd++;
 		}
 		
 
@@ -46,6 +47,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mLevelCounts.clear();
 			mCachedBF = 0;
 			mDirty = false;
+			mExpd = 0;
 		}
 		
 		Json report() {
@@ -55,6 +57,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			jReport["cost comp"] = this->getCostComp();
 			jReport["dist comp"] = this->getDistComp();
 			jReport["comp samples"] = this->getNsamples();
+			jReport["expd"] = mExpd;
 			
 			Json jflvls = {};
 			
@@ -101,6 +104,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		SimpleHashMap<unsigned, unsigned, 10000> mLevelCounts;
 		double mCachedBF;
 		bool mDirty;
+		unsigned mExpd;
 		
 	};
 }}}

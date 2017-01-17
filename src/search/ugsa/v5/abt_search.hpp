@@ -16,7 +16,7 @@
 namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
-	template<typename D, unsigned L, unsigned Bound, typename StatsManager>
+	template<typename D, typename UCalc, unsigned L, unsigned Bound, typename StatsManager>
 	class UGSAv5_Abt {
 		
 
@@ -49,9 +49,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		struct CacheEntry {
 			PackedState pkd;
-			Cost u;
-			unsigned depth;
-			bool exact;
+			SolValues vals;
 		};
 		using CacheStore_t = CacheStore<Domain, CacheEntry>;
 		
@@ -99,19 +97,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 
-		UGSAv5_Abt(D& pDomStack, Json const& jConfig, SearchBehaviour<>& pBehaviour, StatsManager& pStats) :
+		UGSAv5_Abt(D& pDomStack, Json const& jConfig, UCalc const& pucalc, StatsManager& pStats) :
 			mStatsAcc			(pStats),
-			mBehaviour			(pBehaviour),
+			mUCalc				(pucalc),
 			mAbtor				(pDomStack),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mCache				(mDomain),
-			mWf					(jConfig.at("wf")),
-			mWt					(jConfig.at("wt")),
 			mCacheDelay			(jConfig.at("abt_cache_delay")),
-			mUseGForUCost		(jConfig.at("use_g_for_ucost")),
 			mUseCaching			(jConfig.at("use_caching")),
 			mNsearches			(0)
 		{
@@ -121,7 +116,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		void reset() {
 			mStatsAcc.reset();
-			//mAbtSearch.reset();
+			clearCache();
+			mNsearches = 0;
+		}
+		
+		void clearCache() {
+			mCache.clear();
 		}
 
 		
@@ -136,9 +136,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 		
-		SolValues doSearch(BaseState const& pBaseState) {
-			mNsearches++;
-
+		bool doSearch(BaseState const& pBaseState, SolValues& pSolVals) {
 			State s0 = mAbtor(pBaseState);
 			PackedState pkd0;
 			
@@ -152,19 +150,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				if(mNsearches > mCacheDelay && ent0) {
 					mStatsAcc.s_cachedsol();
 					mStatsAcc.s_end();
-					SolValues v;
-					v.searched = false;
-					return v;
+					
+					pSolVals = ent0->vals;
+					return false;
 				}
 			}
-			
-			mStatsAcc.s_hbf(mBehaviour.gethbf());
 
+			mNsearches++;
+			
 			Node* n0 = mNodePool.construct();
 			
 			n0->pkd =		pkd0;
 			n0->g = 		Cost(0);
-			n0->u = 		Cost(0);
+			n0->u = 		mUCalc(0, 0);
 			n0->depth =		0;
 			n0->in_op = 	mDomain.noOp;
 			n0->parent_op = mDomain.noOp;
@@ -195,21 +193,22 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			if(mUseCaching && mNsearches > mCacheDelay) {
 				bool miss = mCache.get(pkd0, ent0);
 				slow_assert(miss);
-				ent0->u = goalNode->u;
-				ent0->depth = goalNode->depth;
+				ent0->vals.u = goalNode->u;
+				ent0->vals.g = goalNode->g;
+				ent0->vals.depth = goalNode->depth;
 				mStatsAcc.l_cacheAdd();
 			}
 			
-			srchRes.cost = goalNode->u;
-			srchRes.depth = goalNode->depth;
-			srchRes.searched = true;
+			srchRes.vals.u = goalNode->u;
+			srchRes.vals.g = goalNode->g;
+			srchRes.vals.depth = goalNode->depth;
 			
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
 			
 			mStatsAcc.s_end();
-			return srchRes;
+			return true;
 		}
 		
 		
@@ -234,14 +233,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			Edge		edge 		= mDomain.createEdge(pParentState, pInOp);
 			Cost		kid_g	 	= pParentNode->g + edge.cost();
 			unsigned	kid_depth	= pParentNode->depth + 1;
-			
-			Cost		kid_u		= 0;
-			
-			if(mUseGForUCost)
-				kid_u = mWf * kid_g + std::pow( mBehaviour.gethbf(), kid_g);
-			else
-				kid_u = mWf * kid_g + std::pow( mBehaviour.gethbf(), kid_depth);
-			
+			Cost		kid_u		= mUCalc(kid_g, kid_depth);
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -251,7 +243,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			if(kid_dup) {
 				mStatsAcc.a_dups();
 				if(kid_dup->u > kid_u) {
-					kid_dup->u			=kid_u;
+					kid_dup->u			= kid_u;
 					kid_dup->g			= kid_g;
 					kid_dup->depth		= kid_depth;
 					kid_dup->in_op		= pInOp;
@@ -287,7 +279,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 		StatsAcc				mStatsAcc;
-		SearchBehaviour<>&		mBehaviour;
+		UCalc const&			mUCalc;
 		BaseAbstractor			mAbtor;
 		const Domain			mDomain;
 		
@@ -297,7 +289,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		CacheStore_t			mCache;
 		
-		const unsigned			mWf, mWt, mCacheDelay;
+		const unsigned			mCacheDelay;
 		const bool				mUseGForUCost, mUseCaching;
 		unsigned 				mNsearches;
 	};

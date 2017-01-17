@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <algorithm>
 #include <iterator>
+#include <cmath>
 //#include <boost/multiprecision/cpp_int.hpp>
 #include "util/debug.hpp"
 #include "util/impl/LambertW/LambertW.h"
@@ -121,4 +122,14 @@ namespace mjon661 { namespace mathutil {
 		return utl::LambertW<Branch>(x);
 	}
 	
+	
+	template<typename T>
+	double sumOfPowers(T b, unsigned n, unsigned start = 0) {
+		T s = 0;
+		
+		for(unsigned i=start; i<=start+n; i++)
+			s += std::pow(b, i);
+		
+		return s;
+	}
 }}

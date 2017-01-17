@@ -20,7 +20,7 @@ namespace mjon661 { namespace pancake {
 	
 	//Pancake domain, No heuristics
 
-	template<unsigned N>
+	template<unsigned N, bool Use_Weight>
 	class Domain_NoH {
 		
 		public:
@@ -100,7 +100,7 @@ namespace mjon661 { namespace pancake {
 		
 		Edge createEdge(State& pState, Operator op) const {
 			pState.flip(op);
-			return Edge(1, pState, op);
+			return Edge( (Use_Weight ? op : 1) , pState, op);
 		}
 		
 		void destroyEdge(Edge& pEdge) const {
@@ -281,15 +281,16 @@ namespace mjon661 { namespace pancake {
 	};
 	
 	
+	template<unsigned N, bool Use_H, bool Use_Weight>
+	struct Pancake_Domain;
 	
-	
-	template<unsigned N, bool Use_H>
-	struct Pancake_Domain : public Domain_NoH<N> {
-		using Domain_NoH<N>::Domain_NoH;
+	template<unsigned N, bool Use_Weight>
+	struct Pancake_Domain<N, false, Use_Weight> : public Domain_NoH<N, Use_Weight> {
+		using Domain_NoH<N, Use_Weight>::Domain_NoH;
 	};
 	
 	template<unsigned N>
-	struct Pancake_Domain<N, true> : public Domain_GapH<N> {
+	struct Pancake_Domain<N, true, false> : public Domain_GapH<N> {
 		using Domain_GapH<N>::Domain_GapH;
 	};
 	
@@ -298,7 +299,7 @@ namespace mjon661 { namespace pancake {
 	
 	
 	
-	template<unsigned N, unsigned Sz>
+	template<unsigned N, unsigned Sz, bool Use_Weight>
 	struct Domain_NoH_Relaxed {
 		
 		public:
@@ -365,7 +366,7 @@ namespace mjon661 { namespace pancake {
 		
 		Edge createEdge(State& pState, Operator op) const {
 			pState.flip(op);
-			return Edge(1, pState, op);
+			return Edge( (Use_Weight ? op : 1), pState, op);
 		}
 		
 		void destroyEdge(Edge& pEdge) const {

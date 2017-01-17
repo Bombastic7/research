@@ -163,9 +163,9 @@ namespace mjon661 { namespace pancake {
 	//Pancake domain, gap heuristic
 	
 	template<unsigned N>
-	struct Domain_GapH : public Domain_NoH<N> {
+	struct Domain_GapH : public Domain_NoH<N, false> {
 		
-		using base_t = Domain_NoH<N>;
+		using base_t = Domain_NoH<N, false>;
 		using base_t::Cost;
 		using base_t::Operator;
 		using base_t::PackedState;

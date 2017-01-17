@@ -45,8 +45,8 @@ def tiles_stack(height, width, weighted, useH, Abt1Sz):
 	return declStr
 
 
-def pancake_stack_ignore(Ncakes, Abt1Sz, AbtStep, useH):
-	declStr = "pancake::Pancake_DomainStack_IgnoreAbt<{0},{1},{2},{3}>".format(Ncakes, Abt1Sz, AbtStep, _bstr(useH))
+def pancake_stack_ignore(Ncakes, Abt1Sz, AbtStep, useH, useWeight):
+	declStr = "pancake::Pancake_DomainStack_IgnoreAbt<{0},{1},{2},{3},{4}>".format(Ncakes, Abt1Sz, AbtStep, _bstr(useH), _bstr(useWeight))
 	return declStr	
 
 def gridnav_blocked_stack_merge(height, width, mv8, cstLC, useH, hfact, wfact, fillfact, maxAbtLvl = 1000):
@@ -227,7 +227,7 @@ def executeParallelSearches(execLst):
 ALGS = [
 		AlgorithmInfo("Astar", "algorithm::Astar", "search/astar.hpp", False, False),
 		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsSimple", "search/hastar/v2/hastar.hpp", True, False),
-		AlgorithmInfo("UGSA", "algorithm::ugsav5::UGSAv5_StatsSimple", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"abt_cache_delay":200, "use_g_for_ucost":False, "use_caching":True}),
+		AlgorithmInfo("UGSA", "algorithm::ugsav5::UGSAv5_StatsSimple", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"abt_cache_delay":200, "use_caching":True}),
 		#AlgorithmInfo("Bugsy", "algorithm::Bugsy", "search/bugsy.hpp", False, True)
 		AlgorithmInfo("Bugsy_Norm", "algorithm::Bugsy_Norm", "search/bugsy.hpp", False, True)
 
@@ -240,7 +240,7 @@ DOMS =	[
 		DomainInfo("tiles_8hw_5", tiles_stack(3,3,True,True,5), "domain/tiles/fwd.hpp", True, "tiles_8"),
 		#DomainInfo("tiles_15h_5", tiles_stack(4,4,False,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		#DomainInfo("tiles_15hw_5", tiles_stack(4,4,True,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
-		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2, True), "domain/pancake/fwd.hpp", True, "pancake_10"),
+		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2, True, False), "domain/pancake/fwd.hpp", True, "pancake_10"),
 		DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, True, 3, 3, 4), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
 		]
 
@@ -335,6 +335,14 @@ def trial_A(usedalgdom = False):
 	
 
 
+def trial_test_ugsa():
+	dom = DomainInfo.lookup["tiles_8h_5"]
+	alg = AlgorithmInfo.lookup["UGSA"]
+	probset = ProblemSetInfo.lookup["tiles_8.json"]
+	weight = (1,1)
+	
+	do_trial_A([dom], [alg], [weight], probset, "ugsa_test.txt")
+
 
 
 if __name__ == "__main__":
@@ -371,6 +379,8 @@ if __name__ == "__main__":
 	elif sys.argv[1] == "trial_A":
 		trial_A()
 
+	elif sys.argv[1] == "trial_test_ugsa":
+		trial_test_ugsa()
 
 
 	"""

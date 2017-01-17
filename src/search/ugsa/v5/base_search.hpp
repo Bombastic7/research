@@ -81,7 +81,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				mInst(pInst)
 			{}
 			
-			Cost operator()(Cost g, unsigned depth) {
+			Cost operator()(Cost g, unsigned depth) const {
 				//return mInst.mWf * g + mathutil::sumOfPowers(mInst.mBehaviour.gethbf(), depth);
 				return g;
 			}
@@ -117,8 +117,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mInitState			(mDomain.createState()),
-			mExpandedFront		(0),
-			mExpandedBack		(0)
+			mExpandedBack		(0),
+			mExpandedFront		(0)
 		{}
 
 		
@@ -151,7 +151,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				
 				n0->unexpdChildren = -1;
 				
-				SolValues abtRes = mAbtSearch.doSearch(mInitState, 1);
+				SolValues abtRes;
+				mAbtSearch.doSearch(mInitState, abtRes);
 				mBehaviour.setInitNodeValues(abtRes.g, abtRes.depth);
 				mBehaviour.informAbtSearch(0, abtRes.g, 0, abtRes.depth);
 				
@@ -210,7 +211,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 			mBehaviour.informExpansion(n->f);
 
-			slow_assert(n->unexpdChildren == -1);
+			slow_assert(n->unexpdChildren == (unsigned)-1);
 			unsigned gendChildren = 0;
 			
 			slow_assert(n->parent->unexpdChildren >= 1);
@@ -301,8 +302,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				kid_node->parent	= pParentNode;
 				kid_node->unexpdChildren = -1;
 				
-				SolValues abtRes = mAbtSearch.doSearch(mInitState);
-				if(abtRes.searched)
+				SolValues abtRes;
+				if(mAbtSearch.doSearch(mInitState, abtRes))
 					mBehaviour.informAbtSearch(kid_g, abtRes.g, kid_depth, abtRes.depth);
 				
 				kid_node->f = kid_g + abtRes.u;

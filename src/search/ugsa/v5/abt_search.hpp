@@ -109,9 +109,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mCacheDelay			(jConfig.at("abt_cache_delay")),
 			mUseCaching			(jConfig.at("use_caching")),
 			mNsearches			(0)
-		{
-			gen_assert(mWt == 1);
-		}
+		{}
 
 		
 		void reset() {
@@ -127,9 +125,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		void submitStats() {
 			Json j;
-			j["used wf"] = mWf;
-			j["used wt"] = mWt;
-			j["used cache delay"] = mCacheDelay;
+			j["used caching"] = mUseCaching;
+			
+			if(mUseCaching)
+				j["used cache delay"] = mCacheDelay;
+			
 			mStatsAcc.submit(j);
 			//mAbtSearch.submitStats();
 		}
@@ -173,7 +173,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 			Node* goalNode;
-			SolValues srchRes;
 			
 			while(true) {				
 				Node* n = mOpenList.pop();
@@ -199,9 +198,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				mStatsAcc.l_cacheAdd();
 			}
 			
-			srchRes.vals.u = goalNode->u;
-			srchRes.vals.g = goalNode->g;
-			srchRes.vals.depth = goalNode->depth;
+			pSolVals.u = goalNode->u;
+			pSolVals.g = goalNode->g;
+			pSolVals.depth = goalNode->depth;
 			
 			mOpenList.clear();
 			mClosedList.clear();
@@ -290,7 +289,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		CacheStore_t			mCache;
 		
 		const unsigned			mCacheDelay;
-		const bool				mUseGForUCost, mUseCaching;
+		const bool				mUseCaching;
 		unsigned 				mNsearches;
 	};
 	

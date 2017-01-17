@@ -17,7 +17,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	struct SolValues {
 		unsigned u, g;
 		unsigned depth;
-		bool searched;
 	};
 
 	template<typename = void>

@@ -90,16 +90,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				
 				if(L > 0) {
 					j["NSearches"] = mLnsearches;
-					j["Cached stats"] = mLcachedStates;
+					j["Cached states"] = mLcachedStates;
 					
 					std::stringstream ss;
-					S_Record::writeNames(ss);
+					//S_Record::writeNames(ss);
 					
 					for(unsigned i=0; i<mLallSearches.size(); i++) {
 						mLallSearches[i].writeRow(ss);
 					}
 					
-					j["search log"] = ss.str();
+					//j["search log"] = ss.str();
 				}
 
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;

@@ -118,7 +118,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mNodePool			(),
 			mInitState			(mDomain.createState()),
 			mExpandedBack		(0),
-			mExpandedFront		(0)
+			mExpandedFront		(0),
+			mDummyNode			()
 		{}
 
 		
@@ -139,7 +140,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 		void doSearch(Solution<Domain>& pSolution) {
-				
+			mDummyNode.unexpdChildren = 1;
+			mDummyNode.parent = nullptr;
+			
 			{
 				Node* n0 = mNodePool.construct();
 
@@ -147,7 +150,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				n0->depth =		0;
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
-				n0->parent = 	nullptr;
+				n0->parent = 	&mDummyNode;
 				
 				n0->unexpdChildren = -1;
 				
@@ -186,7 +189,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		void prepareSolution(Solution<Domain>& sol, Node* pGoalNode) {
 			std::vector<Node*> reversePath;
 			
-			for(Node *n = pGoalNode; n; n = n->parent)
+			for(Node *n = pGoalNode; n != &mDummyNode; n = n->parent)
 				reversePath.push_back(n);
 			
 			sol.states.clear();
@@ -303,7 +306,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				kid_node->unexpdChildren = -1;
 				
 				SolValues abtRes;
-				if(mAbtSearch.doSearch(mInitState, abtRes))
+				if(mAbtSearch.doSearch(edge.state(), abtRes))
 					mBehaviour.informAbtSearch(kid_g, abtRes.g, kid_depth, abtRes.depth);
 				
 				kid_node->f = kid_g + abtRes.u;
@@ -331,5 +334,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		unsigned 				mExpandedBack;
 		unsigned				mExpandedFront;
+		
+		Node					mDummyNode;
 	};
 }}}

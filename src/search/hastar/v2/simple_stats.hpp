@@ -66,8 +66,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			}
 
 			
-			void submit() {
-				Json j;
+			void submit(Json j = Json()) {
 				
 				if(L == 0) {
 					mManager.mReport["_base_expd"] = mExpd;

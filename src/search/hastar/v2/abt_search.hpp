@@ -37,7 +37,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 
 		
-		using Cost = CostDepthImpl<Use_Depth, typename Domain::Cost>::type;
+		using Cost = typename CostDepthImpl<Use_Depth, typename Domain::Cost>::type;
 		
 
 		struct Node {
@@ -102,7 +102,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 
 		HAstar_Abt(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
 			mStatsAcc			(pStats),
-			mAbtSearch			(pDomStack, pStats, pConf),
+			mAbtSearch			(pDomStack, jConfig, pStats),
 			mAbtor				(pDomStack),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
@@ -125,12 +125,11 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		}
 		
 		void submitStats() {
-			mStatsAcc.submit();
-			
 			Json j;
 			j["used caching"] = mDoCaching;
 			j["used depth-best"] = Use_Depth;
-			mAbtSearch.submitStats(j);
+			//mAbtSearch.submitStats();
+			mStatsAcc.submit(j);
 		}
 		
 		
@@ -283,7 +282,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			if(Use_Depth)
 				kid_g = pParentNode->g + 1;
 			else 
-				pParentNode->g + edge.cost();
+				kid_g = pParentNode->g + edge.cost();
 			
 			
 			PackedState kid_pkd;
@@ -381,9 +380,9 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 	
 	
 	template<typename D, unsigned Bound, bool Use_Depth, typename StatsManager>
-	struct HAstar_Abt<D, Bound, Bound, StatsManager> {
+	struct HAstar_Abt<D, Bound, Bound, Use_Depth, StatsManager> {
 		
-		HAstar_Abt(D& pDomStack, StatsManager& pStats, AlgoConf<> const&) {}
+		HAstar_Abt(D& pDomStack, Json const&, StatsManager& pStats) {}
 		
 		typename D::template Domain<Bound-1>::Cost doSearch(typename D::template Domain<Bound-1>::State const&) {return 0;}
 		void reset() {}

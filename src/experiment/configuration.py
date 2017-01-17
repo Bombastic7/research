@@ -302,7 +302,7 @@ def do_trial_A(doms, algs, weights, ps, outfile):
 
 def trial_A(usedalgdom = False):
 	
-	algs = [AlgorithmInfo.lookup["Bugsy_Norm"], AlgorithmInfo.lookup["UGSA"], AlgorithmInfo.lookup["Astar"]]
+	algs = [AlgorithmInfo.lookup["Bugsy_Norm"], AlgorithmInfo.lookup["UGSA"], AlgorithmInfo.lookup["Astar"], AlgorithmInfo.lookup["HAstar"]]
 	weights = NORM_WEIGHTS
 	
 	doms_tiles = [DomainInfo.lookup["tiles_8h_5"], DomainInfo.lookup["tiles_8hw_5"]]
@@ -337,11 +337,13 @@ def trial_A(usedalgdom = False):
 
 def trial_test_ugsa():
 	dom = DomainInfo.lookup["tiles_8h_5"]
-	alg = AlgorithmInfo.lookup["UGSA"]
+	algs = [AlgorithmInfo.lookup["Astar"], AlgorithmInfo.lookup["HAstar"], AlgorithmInfo.lookup["UGSA"]]
 	probset = ProblemSetInfo.lookup["tiles_8.json"]
 	weight = (1,1)
 	
-	do_trial_A([dom], [alg], [weight], probset, "ugsa_test.txt")
+	probset.load()
+	
+	do_trial_A([dom], algs, [weight], probset, "ugsa_test.json")
 
 
 

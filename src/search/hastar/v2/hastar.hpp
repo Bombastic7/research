@@ -81,7 +81,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		using BaseDomain = typename DomStack::template Domain<0>;
 		using State = typename BaseDomain::State;
-		using Cost = CostDepthImpl<Use_Depth, typename Domain::Cost>::type;
+		using Cost = typename CostDepthImpl<Use_Depth, typename BaseDomain::Cost>::type;
 		
 		using Algo_t = HAstar_Abt<DomStack, 1, Top_Abt_Level_Used+1, Use_Depth, StatsManager>;
 		
@@ -89,7 +89,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		PDB_HAstar(DomStack& pStack) :
 			mStatsManager(),
-			mAlgo(pStack, {{"do_caching":true}}, mStatsManager)
+			mAlgo(pStack, {{"do_caching", true}}, mStatsManager)
 		{}
 		
 		Cost eval(State const& pState) {
@@ -114,5 +114,5 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 
 
 	template<typename DomStack, bool Use_Depth>
-	using PDB_HAstar_SimpleStats<DomStack, SimpleStatsManager, Use_Depth, 10000>;
+	using PDB_HAstar_SimpleStats = PDB_HAstar<DomStack, SimpleStatsManager<>, Use_Depth, 10000>;
 }}}

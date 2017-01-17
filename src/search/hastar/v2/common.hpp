@@ -108,7 +108,6 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			return static_cast<T>(jConfig.at(pKey));
 		else
 			return pDef;
-		}
 	}
 	
 	

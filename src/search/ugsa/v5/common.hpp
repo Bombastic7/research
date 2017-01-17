@@ -67,7 +67,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				jflvls.push_back(j);
 			}
 			
-			jReport["flvls"] = jflvls;
+			//jReport["flvls"] = jflvls;
 			
 			return jReport;
 		}

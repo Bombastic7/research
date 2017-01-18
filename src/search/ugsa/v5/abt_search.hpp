@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <string>
 #include <cmath>
 #include "search/closedlist.hpp"
@@ -40,19 +41,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 		struct Node {
-			Cost g, u;
+			Cost g;
 			unsigned depth;
+			ucost_t u;
 			PackedState pkd;
 			Operator in_op, parent_op;
 			Node* parent;
 		};
-		
-		struct CacheEntry {
-			PackedState pkd;
-			SolValues vals;
-		};
-		using CacheStore_t = CacheStore<Domain, CacheEntry>;
-		
+
 		
 		struct ClosedOps {
 			ClosedOps(Domain const& pDomain) :
@@ -104,59 +100,24 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
-			mNodePool			(),
-			mCache				(mDomain),
-			mCacheDelay			(jConfig.at("abt_cache_delay")),
-			mUseCaching			(jConfig.at("use_caching")),
-			mNsearches			(0)
+			mNodePool			()
 		{}
 
 		
 		void reset() {
 			mStatsAcc.reset();
-			clearCache();
-			mNsearches = 0;
 		}
 		
-		void clearCache() {
-			mCache.clear();
-		}
 
-		
 		void submitStats() {
-			Json j;
-			j["used caching"] = mUseCaching;
-			
-			if(mUseCaching)
-				j["used cache delay"] = mCacheDelay;
-			
-			mStatsAcc.submit(j);
-			//mAbtSearch.submitStats();
+			mStatsAcc.submit();
 		}
-		
-		
 		
 		bool doSearch(BaseState const& pBaseState, SolValues& pSolVals) {
 			State s0 = mAbtor(pBaseState);
 			PackedState pkd0;
 			
 			mDomain.packState(s0, pkd0);
-			
-			CacheEntry* ent0;
-			
-			if(mUseCaching) {
-				ent0 = mCache.retrieve(pkd0);
-			
-				if(mNsearches > mCacheDelay && ent0) {
-					mStatsAcc.s_cachedsol();
-					mStatsAcc.s_end();
-					
-					pSolVals = ent0->vals;
-					return false;
-				}
-			}
-
-			mNsearches++;
 			
 			Node* n0 = mNodePool.construct();
 			
@@ -188,16 +149,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				expand(n, s);
 			}
 
-
-			if(mUseCaching && mNsearches > mCacheDelay) {
-				bool miss = mCache.get(pkd0, ent0);
-				slow_assert(miss);
-				ent0->vals.u = goalNode->u;
-				ent0->vals.g = goalNode->g;
-				ent0->vals.depth = goalNode->depth;
-				mStatsAcc.l_cacheAdd();
-			}
-			
 			pSolVals.u = goalNode->u;
 			pSolVals.g = goalNode->g;
 			pSolVals.depth = goalNode->depth;
@@ -232,8 +183,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			Edge		edge 		= mDomain.createEdge(pParentState, pInOp);
 			Cost		kid_g	 	= pParentNode->g + edge.cost();
 			unsigned	kid_depth	= pParentNode->depth + 1;
-			Cost		kid_u		= mUCalc(kid_g, kid_depth);
+			double		kid_u_flt	= mUCalc(kid_g, kid_depth);
+			ucost_t		kid_u		= kid_u_flt;
 			
+			slow_assert(std::numeric_limits<ucost_t>::max() > kid_u_flt);
+			
+
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
 
@@ -285,12 +240,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		OpenList_t 				mOpenList;
 		ClosedList_t 			mClosedList;
 		NodePool_t 				mNodePool;
-		
-		CacheStore_t			mCache;
-		
-		const unsigned			mCacheDelay;
-		const bool				mUseCaching;
-		unsigned 				mNsearches;
 	};
 	
 	

@@ -61,6 +61,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				mLallSearches.push_back(mSrecord);
 				mSrecord.reset();
 			}
+			
+			unsigned getExpd() {
+				return mLallSearches.expd;
+			}
 
 			
 			S_Record mSrecord;

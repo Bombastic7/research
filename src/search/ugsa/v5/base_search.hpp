@@ -37,7 +37,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 		struct Node {
-			Cost g, f;
+			ucost_t u;
+			Cost g;
 			unsigned depth;
 			PackedState pkd;
 			Operator in_op, parent_op;
@@ -70,7 +71,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		struct OpenOps {
 			bool operator()(Node * const a, Node * const b) const {
-				return a->f == b->f ? a->g > b->g : a->f < b->f;
+				return a->u == b->u ? a->g > b->g : a->u < b->u;
 			}
 		};
 		
@@ -82,8 +83,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			{}
 			
 			Cost operator()(Cost g, unsigned depth) const {
-				//return mInst.mWf * g + mathutil::sumOfPowers(mInst.mBehaviour.gethbf(), depth);
-				return g;
+				return mInst.mWf * g + mathutil::sumOfPowers(mInst.mVarCurHBF, mInst.mVarCurBaseDepth, mInst.mVarCurBaseDepth + depth);
 			}
 			
 			this_t& mInst;
@@ -117,10 +117,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mInitState			(mDomain.createState()),
-			mExpandedBack		(0),
-			mExpandedFront		(0),
-			mDummyNode			()
-		{}
+			mWf					(jConfig.at("wf")),
+			mUseResorting		(jConfig.at("resort")),
+			mExpdNextResort		(),
+			mVarCurBaseDepth	(),
+			mVarCurHBF			()
+		{
+			fast_assert(jConfig.at("wt") == 1);
+		}
 
 		
 		void reset() {
@@ -129,20 +133,27 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mNodePool.clear();
 			mStatsAcc.reset();
 			mAbtSearch.reset();
-			mBehaviour.reset();
-			mExpandedBack = mExpandedFront = 0;
+			mExpansionStats.reset();
 		}
 		
 		void submitStats() {
-			mStatsAcc.submit(mBehaviour.report());
+			Json j;
+			j["hbf"] = mExpansionStats.computeHBF();
+			j["bf"] = mExpansionStats.computeDepthBF();
+			
+			mStatsAcc.submit(j);
 			mAbtSearch.submitStats();
 		}
 		
 		
 		void doSearch(Solution<Domain>& pSolution) {
-			mDummyNode.unexpdChildren = 1;
-			mDummyNode.parent = nullptr;
+			if(mUseResorting) {
+				mExpdNextResort = 64;
+			}
 			
+			mVarCurHBF = 1;
+			mVarCurBaseDepth = 0;
+				
 			{
 				Node* n0 = mNodePool.construct();
 
@@ -150,16 +161,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				n0->depth =		0;
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
-				n0->parent = 	&mDummyNode;
+				n0->parent = 	nullptr;
 				
-				n0->unexpdChildren = -1;
-				
+
 				SolValues abtRes;
 				mAbtSearch.doSearch(mInitState, abtRes);
-				mBehaviour.setInitNodeValues(abtRes.g, abtRes.depth);
-				mBehaviour.informAbtSearch(0, abtRes.g, 0, abtRes.depth);
 				
-				n0->f = abtRes.u;
+				n0->u = abtRes.u;
 				
 				mDomain.packState(mInitState, n0->pkd);
 				
@@ -180,6 +188,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				}
 				
 				expand(n, s);
+				
+				if(mStatsAcc.getExpd() >= mExpdNextResort)
+					resortOpenList();
+					mExpdNextResort *= 2;
 			}
 		}
 		
@@ -189,7 +201,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		void prepareSolution(Solution<Domain>& sol, Node* pGoalNode) {
 			std::vector<Node*> reversePath;
 			
-			for(Node *n = pGoalNode; n != &mDummyNode; n = n->parent)
+			for(Node *n = pGoalNode; n != nullptr; n = n->parent)
 				reversePath.push_back(n);
 			
 			sol.states.clear();
@@ -212,21 +224,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		void expand(Node* n, State& s) {
 			mStatsAcc.a_expd();			
 
-			mBehaviour.informExpansion(n->f);
-
-			slow_assert(n->unexpdChildren == (unsigned)-1);
-			unsigned gendChildren = 0;
-			
-			slow_assert(n->parent->unexpdChildren >= 1);
-			n->parent->unexpdChildren--;
-			
-			if(n->parent->unexpdChildren == 0) {
-				if(n->parent != &mDummyNode) {
-					mExpandedFront--;
-					mExpandedBack++;
-				}
-			}
-						
+			mExpansionStats.informExpansion(n->f, n->depth);
+	
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
 			for(unsigned i=0; i<ops.size(); i++) {
@@ -234,22 +233,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					continue;
 				
 				mStatsAcc.a_gend();
-				if(considerkid(n, s, ops[i]))
-					gendChildren++;
+				considerkid(n, s, ops[i]);
 			}
-			
-			n->unexpdChildren = gendChildren;
-			
-			if(gendChildren == 0)
-				mExpandedBack++;
-			else
-				mExpandedFront++;
-			
-			slow_assert(mExpandedFront + mExpandedBack == mStatsAcc.mSrecord.expd);
 		}
 		
 		
-		bool considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
+		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
 
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
 			Cost 		kid_g   = pParentNode->g + edge.cost();
@@ -257,8 +246,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
-
-			bool wasGend = true;
+			
 			
 			Node* kid_dup = mClosedList.find(kid_pkd);
 
@@ -266,35 +254,20 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				mStatsAcc.a_dups();
 				if(kid_dup->g > kid_g) {
 					
-					kid_dup->f			-= kid_dup->g;
-					kid_dup->f			+= kid_g;
-					kid_dup->g			= kid_g;
+					kid_dup->u			-= kid_dup->g / mWf;
+					kid_dup->u			+= kid_g * mWf;
+					kid_dup->g			= kid_g * mWf;
 					kid_dup->depth		= kid_depth;
 					kid_dup->in_op		= pInOp;
 					kid_dup->parent_op	= edge.parentOp();
-					
+					kid_dup->parent		= pParentNode;
 					
 					if(!mOpenList.contains(kid_dup)) {
 						mStatsAcc.a_reopnd();
-						
 					}
-					else {
-						slow_assert(kid_dup->parent->unexpdChildren >= 1);
-						kid_dup->parent->unexpdChildren--;
-						
-						if(kid_dup->parent->unexpdChildren == 0) {
-							mExpandedFront--;
-							mExpandedBack++;
-						}
-					}
-					
-					kid_dup->parent		= pParentNode;
-					kid_dup->unexpdChildren = -1;
-					
+
 					mOpenList.pushOrUpdate(kid_dup);
-				} 
-				else
-					wasGend = false;
+				}
 			}
 			else {
 				Node* kid_node 		= mNodePool.construct();
@@ -305,25 +278,43 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
-				kid_node->unexpdChildren = -1;
+				
+				if(!mUseResorting)
+					mVarCurHBF = mExpansionStats.computeHBF();
+				
+				mVarCurBaseDepth = kid_depth;
 				
 				SolValues abtRes;
-				if(mAbtSearch.doSearch(edge.state(), abtRes))
-					mBehaviour.informAbtSearch(kid_g, abtRes.g, kid_depth, abtRes.depth);
+				mAbtSearch.doSearch(edge.state(), abtRes);
 				
-				kid_node->f = kid_g + abtRes.u;
+				kid_node->u = kid_g * mWf + abtRes.u;
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
 			}
 			
 			mDomain.destroyEdge(edge);
-			return wasGend;
+		}
+		
+		void resortOpenList() {
+			mVarCurHBF = mBehaviour.computeHBF();
+			
+			for(unsigned i=0; i<mOpenList.size(); i++) {
+				Node* n = mOpenList.at(i);
+				mVarCurBaseDepth = n->depth;
+				
+				State s;
+				mDomain.unpackState(s, n->pkd);
+				
+				SolValues abtRes;
+				mAbtSearch.doSearch(s, abtRes);
+				n->u = n->g * mWf + abtRes.u;
+			}
 		}
 
 
 		StatsAcc				mStatsAcc;
-		SearchBehaviour<>		mBehaviour;
+		ExpansionStats<>		mExpansionStats;
 		UCalcHBF				mUCalc;
 		AbtSearch				mAbtSearch;
 		const Domain			mDomain;
@@ -334,9 +325,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		const State		 		mInitState;
 		
-		unsigned 				mExpandedBack;
-		unsigned				mExpandedFront;
-		
-		Node					mDummyNode;
+		const unsigned			mWf;
+		const bool				mUseResorting;
+		unsigned				mExpdNextResort;
+		unsigned				mVarCurBaseDepth;
+		double					mVarCurHBF;
 	};
 }}}

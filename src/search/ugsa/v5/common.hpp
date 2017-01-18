@@ -13,12 +13,14 @@
 
 namespace mjon661 { namespace algorithm { namespace ugsav5 {	
 
-
+	using ucost_t = unsigned;
+	
 	struct SolValues {
 		unsigned u, g;
 		unsigned depth;
 	};
 
+	/*
 	template<typename = void>
 	struct SearchBehaviour : public AbtCorrection<> {
 		
@@ -106,4 +108,5 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		unsigned mExpd;
 		
 	};
+	*/
 }}}

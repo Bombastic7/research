@@ -55,6 +55,26 @@ namespace mjon661 {
 		bool empty() {
 			return mFill == 0;
 		}
+		
+		bool contains(K pKey) {
+			unsigned h = ModuloHash::doHash(pKey);
+			slow_assert(h < Table_Size);
+			
+			if(!mHashTable[h])
+				return false;
+			
+			HTentry* current = mHashTable[h];
+			
+			while(current->nxt) {
+				if(current->key == pKey)
+					return true;
+				
+				current = current->nxt;
+			}
+
+			return false;
+		}
+
 
 		HTentry& operator[](K pKey) {
 			
@@ -92,7 +112,9 @@ namespace mjon661 {
 
 
 		void clear() {
-			mHashTable.fill(nullptr);
+			for(unsigned i=0; i<mKeyList.size(); i++)
+				mHashTable[ModuloHash::doHash(mKeyList[i])] = nullptr;
+
 			mPool.clear();
 			mKeyList.clear();
 			mFill = 0;

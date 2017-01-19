@@ -4,7 +4,12 @@
 UGSA.
 base search is best-first on u. f is g + remcost (as returned by abtsearch).
 
-abtsearch is best-first on u = F(g, depth) = wf * g + sum(hbf ** [baseState.depth, baseState.depth + depth])
+//abtsearch is best-first on u = F(g, depth) = wf * g + sum(hbf ** [baseState.depth, baseState.depth + depth]) <- true u
+
+abtsearch is best-first on u = F(g, depth) = wf * g + sum(hbf ** [0, depth])
+is lower bound on 'true' u.
+
+
 returns (g,depth,u) of solution with best u. g is it's path cost, depth is its depth.
 
 hbf is online estimation. If not resorting, hbf used in each instance of abtsearch is up-to-date (i.e. better than in prev instances).
@@ -28,7 +33,8 @@ ugsa_d(s0):
 		var phaseHBF = 1
 
 	
-	var abtRes = abtsearch(s0, [ abt_g, abt_depth -> wf * abt_g + sum(hbf ** [0, abt_depth]) ] )
+	var ucalc =  [ abt_g, abt_depth -> wf * abt_g + sum(hbf ** [0, abt_depth]) ] 
+	var abtRes = abtsearch(s0, ucalc)
 	
 	n0 = {	state:s0,
 			g:0,
@@ -64,7 +70,7 @@ ugsa_d(s0):
 			
 			_hbf = phaseHBF if DO_RESORT else computeHBF(expStats)
 			
-			abtRes = abtsearch(e.state(), [ abt_g, abt_depth -> wf * abt_g + sum(_hbf ** [0, kid_depth+abt_depth]) ] )
+			abtRes = abtsearch(e.state(), ucalc)
 			
 			var childNode = {state:		e.state,
 							 g:			n.g+e.cost,

@@ -29,7 +29,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		double computeDepthBF() {
 			return doComputeBF(mDepthCounts);
-
+		}
 		
 		private:
 		

@@ -227,7 +227,8 @@ def executeParallelSearches(execLst):
 ALGS = [
 		AlgorithmInfo("Astar", "algorithm::Astar", "search/astar.hpp", False, False),
 		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsSimple", "search/hastar/v2/hastar.hpp", True, False),
-		AlgorithmInfo("UGSA", "algorithm::ugsav5::UGSAv5_StatsSimple", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"abt_cache_delay":200, "use_caching":True}),
+		AlgorithmInfo("UGSA_r", "algorithm::ugsav5::UGSAv5_StatsSimple", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":True, "use_caching":True}),
+		AlgorithmInfo("UGSA_nr", "algorithm::ugsav5::UGSAv5_StatsSimple", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False, "use_caching":False}),
 		#AlgorithmInfo("Bugsy", "algorithm::Bugsy", "search/bugsy.hpp", False, True)
 		AlgorithmInfo("Bugsy_Norm", "algorithm::Bugsy_Norm", "search/bugsy.hpp", False, True)
 
@@ -254,7 +255,7 @@ PROBLEM_SETS =	[
 WEIGHTS = ((1,0),(1,0.01),(1,0.1),(1,1),(1,10),(1,100),(0,1))
 NORM_WEIGHTS = ((1,1), (10, 1), (100, 1), (1000, 1), (1000000, 1))
 
-
+USED_ALGDOMS = set()
 
 
 def do_trial_A(doms, algs, weights, ps, outfile):
@@ -334,16 +335,24 @@ def trial_A(usedalgdom = False):
 	do_trial_A(doms_gn, algs, weights, ps_gn20, "trial_A_gridnav20.json")
 	
 
+#USED_ALGDOMS.update(trial_A(True))
 
-def trial_test_ugsa():
-	dom = DomainInfo.lookup["tiles_8h_5"]
-	algs = [AlgorithmInfo.lookup["Astar"], AlgorithmInfo.lookup["HAstar"], AlgorithmInfo.lookup["UGSA"]]
+
+def trial_test_ugsa(usedalgdoms = False):
+	doms = [DomainInfo.lookup["tiles_8h_5"]]
+	algs = [AlgorithmInfo.lookup["UGSA_r"], AlgorithmInfo.lookup["UGSA_nr"]]
 	probset = ProblemSetInfo.lookup["tiles_8.json"]
-	weight = (1,1)
+	weights = [(1,1), (10,1), (100,1), (1000,1)]
 	
+	if usedalgdoms:
+		ad = [(a,d) for a in algs for d in doms]
+		return ad
+
 	probset.load()
 	
-	do_trial_A([dom], algs, [weight], probset, "ugsa_test.json")
+	do_trial_A(doms, algs, weights, probset, "ugsa_test.json")
+
+USED_ALGDOMS.update(trial_test_ugsa(True))
 
 
 
@@ -355,7 +364,7 @@ if __name__ == "__main__":
 		#print "db <results> <dbtable>"
 
 	if sys.argv[1] == "gencode":
-		usedAlgDoms = trial_A(True)
+		usedAlgDoms = list(USED_ALGDOMS)
 		hdrs = []
 		algdominfo = []
 		

@@ -50,7 +50,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 			void l_cacheAdd() { mLcachedStates++;  }
 			
-			void s_cachedsol() { mSrecord.cachedsol = true; }
+			void s_cachedSolution() { mWasCachedSolution = true; }
 			void s_hbf(double v) {mSrecord.hbf = v;}
 			
 			void s_end() { 
@@ -58,19 +58,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				mLtotalExpd += mSrecord.expd;
 				mLtotalGend += mSrecord.gend;
 				
-				mLallSearches.push_back(mSrecord);
+				//mLallSearches.push_back(mSrecord);
 				mSrecord.reset();
 			}
 			
 			unsigned getExpd() {
-				return mLallSearches.expd;
+				return mSrecord.expd;
 			}
 
 			
 			S_Record mSrecord;
 			unsigned mLnsearches, mLtotalExpd, mLtotalGend, mLcachedStates;
 			std::vector<S_Record> mLallSearches;
-			
+			bool mWasCachedSolution;
 
 
 

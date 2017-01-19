@@ -23,7 +23,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		public:
 		
-		//using AbtSearch = HAstar_Abt<D, L+1, Bound, StatsManager>;
+		using AbtSearch = HAstar_Abt<D, UCalc, L+1, Bound, StatsManager>;
 		
 		using Domain = typename D::template Domain<L>;
 		using Cost = typename Domain::Cost;
@@ -41,14 +41,22 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 		struct Node {
-			Cost g;
+			Cost g, f;
 			unsigned depth;
-			ucost_t u;
 			PackedState pkd;
 			Operator in_op, parent_op;
 			Node* parent;
 		};
 
+		struct CacheEntry {
+			PackedState pkd;
+			Cost g;
+			unsigned d;
+			bool exact;
+		};
+		
+		using CacheStore_t = CacheStore<Domain, CacheEntry>;
+		
 		
 		struct ClosedOps {
 			ClosedOps(Domain const& pDomain) :
@@ -73,7 +81,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		struct OpenOps {
 			bool operator()(Node * const a, Node * const b) const {
-				return a->u == b->u ? a->g > b->g : a->u < b->u;
+				return a->f == b->f ? a->g > b->g : a->f < b->f;
 			}
 		};
 		
@@ -93,31 +101,46 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 
-		UGSAv5_Abt(D& pDomStack, Json const& jConfig, UCalc const& pucalc, StatsManager& pStats) :
+		UGSAv5_Abt(D& pDomStack, Json const& jConfig, UCalc& pucalc, StatsManager& pStats) :
 			mStatsAcc			(pStats),
 			mUCalc				(pucalc),
 			mAbtor				(pDomStack),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
-			mNodePool			()
+			mNodePool			(),
+			mCache				(mDomain)
 		{}
 
 		
 		void reset() {
 			mStatsAcc.reset();
 		}
-		
 
 		void submitStats() {
 			mStatsAcc.submit();
 		}
 		
-		bool doSearch(BaseState const& pBaseState, SolValues& pSolVals) {
+		void clearCache() {
+			mCache.clear();
+		}
+		
+		bool doSearch(BaseState const& pBaseState, Cost& out_goal_g, unsigned& out_goal_depth) {
+			
 			State s0 = mAbtor(pBaseState);
 			PackedState pkd0;
 			
 			mDomain.packState(s0, pkd0);
+			
+			CacheEntry* ent = mCache.retrieve(pkd0);
+			
+			if(ent && ent->exact) {
+				out_goal_g = ent->h;
+				out_goal_depth = ent->d;
+				mStatsAcc.s_cachedSolution();
+				mStatsAcc.s_end();
+				return false;
+			}
 			
 			Node* n0 = mNodePool.construct();
 			
@@ -156,6 +179,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
+			
+			if(mUseCaching) {
+				CacheEntry* ent;
+				bool miss = mCache.get(pkd0, ent);
+				slow_assert(miss);
+				ent->vals = pSolVals;
+			}
 			
 			mStatsAcc.s_end();
 			return true;
@@ -233,13 +263,17 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 		StatsAcc				mStatsAcc;
-		UCalc const&			mUCalc;
+		UCalc&					mUCalc;
 		BaseAbstractor			mAbtor;
 		const Domain			mDomain;
 		
 		OpenList_t 				mOpenList;
 		ClosedList_t 			mClosedList;
 		NodePool_t 				mNodePool;
+		
+		CacheStore_t			mCache;
+		
+		const bool				mUseCaching;
 	};
 	
 	

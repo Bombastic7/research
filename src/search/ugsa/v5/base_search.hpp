@@ -11,6 +11,7 @@
 
 #include "search/ugsa/v5/common.hpp"
 #include "search/ugsa/v5/abt_search.hpp"
+#include "search/ugsa/v5/expansion_stats.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav5 {
@@ -38,7 +39,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		struct Node {
 			ucost_t u;
-			Cost g;
+			Cost g, f;
 			unsigned depth;
 			PackedState pkd;
 			Operator in_op, parent_op;
@@ -82,10 +83,22 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				mInst(pInst)
 			{}
 			
-			Cost operator()(Cost g, unsigned depth) const {
-				return mInst.mWf * g + mathutil::sumOfPowers(mInst.mVarCurHBF, mInst.mVarCurBaseDepth, mInst.mVarCurBaseDepth + depth);
+			void clearCache() {
+				mSumPowCache.clear();
 			}
 			
+			Cost operator()(Cost g, unsigned depth) {
+				return g;//..............
+				if(!mSumPowCache.contains(depth)) {
+					mSumPowCache[depth].val = 
+						mInst.mWf * g + 
+						mathutil::sumOfPowers(mInst.mVarCurHBF, mInst.mVarCurBaseDepth, mInst.mVarCurBaseDepth + depth);
+				}
+				
+				return mSumPowCache[depth].val;
+			}
+			
+			SimpleHashMap<unsigned, unsigned, 100> mSumPowCache;
 			this_t& mInst;
 		};
 		
@@ -109,7 +122,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		UGSAv5_Base(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
 			mStatsAcc			(pStats),
-			mBehaviour			(jConfig),
+			mExpansionStats		(),
 			mUCalc				(*this),
 			mAbtSearch			(pDomStack, jConfig, mUCalc, pStats),
 			mDomain				(pDomStack),
@@ -121,7 +134,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mUseResorting		(jConfig.at("resort")),
 			mExpdNextResort		(),
 			mVarCurBaseDepth	(),
-			mVarCurHBF			()
+			mVarCurHBF			(),
+			mTest_solvedFull	(0),
+			mTest_solvedCached	(0)
 		{
 			fast_assert(jConfig.at("wt") == 1);
 		}
@@ -147,6 +162,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 		void doSearch(Solution<Domain>& pSolution) {
+			mUCalc.clearCache();
+			
 			if(mUseResorting) {
 				mExpdNextResort = 64;
 			}
@@ -166,8 +183,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 				SolValues abtRes;
 				mAbtSearch.doSearch(mInitState, abtRes);
+				mUCalc.clearCache();
 				
 				n0->u = abtRes.u;
+				n0->f = abtRes.g;
 				
 				mDomain.packState(mInitState, n0->pkd);
 				
@@ -189,9 +208,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				
 				expand(n, s);
 				
-				if(mStatsAcc.getExpd() >= mExpdNextResort)
+				if(mUseResorting && mStatsAcc.getExpd() >= mExpdNextResort) {
+					std::cout << "Resort: " << mStatsAcc.getExpd() << " " << mExpdNextResort << " ";
+					mAbtSearch.clearCache();
 					resortOpenList();
 					mExpdNextResort *= 2;
+					std::cout << mExpdNextResort << "\n";
+					std::cout << mOpenList.size() << " " << mClosedList.getFill() << "\n";
+					std::cout << mTest_solvedCached << " " << mTest_solvedFull << "\n\n";
+					mTest_solvedFull = mTest_solvedCached = 0;
+				}
 			}
 		}
 		
@@ -256,6 +282,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					
 					kid_dup->u			-= kid_dup->g / mWf;
 					kid_dup->u			+= kid_g * mWf;
+					
+					kid_dup->f			-= kid_dup->g;
+					kid_dup->f			+= kid_g;
+					
 					kid_dup->g			= kid_g * mWf;
 					kid_dup->depth		= kid_depth;
 					kid_dup->in_op		= pInOp;
@@ -286,8 +316,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				
 				SolValues abtRes;
 				mAbtSearch.doSearch(edge.state(), abtRes);
+				mUCalc.clearCache();
 				
 				kid_node->u = kid_g * mWf + abtRes.u;
+				kid_node->f = kid_g + abtRes.g;
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -297,7 +329,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 		
 		void resortOpenList() {
-			mVarCurHBF = mBehaviour.computeHBF();
+			mVarCurHBF = mExpansionStats.computeHBF();
 			
 			for(unsigned i=0; i<mOpenList.size(); i++) {
 				Node* n = mOpenList.at(i);
@@ -307,7 +339,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				mDomain.unpackState(s, n->pkd);
 				
 				SolValues abtRes;
-				mAbtSearch.doSearch(s, abtRes);
+				bool full = mAbtSearch.doSearch(s, abtRes);
+				mUCalc.clearCache();
+				if(full)
+					mTest_solvedFull++;
+				else
+					mTest_solvedCached++;
+				
 				n->u = n->g * mWf + abtRes.u;
 			}
 		}
@@ -330,5 +368,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		unsigned				mExpdNextResort;
 		unsigned				mVarCurBaseDepth;
 		double					mVarCurHBF;
+		
+		unsigned mTest_solvedFull, mTest_solvedCached;
 	};
 }}}

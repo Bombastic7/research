@@ -24,7 +24,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		public:
 		
-
+		using AbtSearch = UGSAv5_Abt<D, 1, Top+1, StatsManager>;
 		
 		using Domain = typename D::template Domain<0>;
 		using Cost = typename Domain::Cost;
@@ -39,8 +39,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		struct Node {
 			ucost_t u;
-			Cost g, f;
-			unsigned depth;
+			Cost g;
 			PackedState pkd;
 			Operator in_op, parent_op;
 			Node* parent;
@@ -77,7 +76,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		};
 		
 		
-		
+		/*
 		struct UCalcHBF {
 			UCalcHBF(this_t& pInst) :
 				mInst(pInst)
@@ -101,8 +100,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			SimpleHashMap<unsigned, unsigned, 100> mSumPowCache;
 			this_t& mInst;
 		};
+		*/
 		
-		using AbtSearch = UGSAv5_Abt<D, UCalcHBF, 1, Top+1, StatsManager>;
 		
 		
 		
@@ -134,9 +133,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mUseResorting		(jConfig.at("resort")),
 			mExpdNextResort		(),
 			mVarCurBaseDepth	(),
-			mVarCurHBF			(),
-			mTest_solvedFull	(0),
-			mTest_solvedCached	(0)
+			mVarCurHBF			()
 		{
 			fast_assert(jConfig.at("wt") == 1);
 		}
@@ -162,7 +159,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 		void doSearch(Solution<Domain>& pSolution) {
-			mUCalc.clearCache();
 			
 			if(mUseResorting) {
 				mExpdNextResort = 64;
@@ -175,18 +171,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				Node* n0 = mNodePool.construct();
 
 				n0->g = 		Cost(0);
-				n0->depth =		0;
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
 				
-
-				SolValues abtRes;
-				mAbtSearch.doSearch(mInitState, abtRes);
-				mUCalc.clearCache();
+				Cost hval;
+				unsigned dval;
+				
+				mAbtSearch.doSearch(mInitState, hval, dval);
 				
 				n0->u = abtRes.u;
-				n0->f = abtRes.g;
+				//n0->f = hval;
+				
 				
 				mDomain.packState(mInitState, n0->pkd);
 				
@@ -209,14 +205,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				expand(n, s);
 				
 				if(mUseResorting && mStatsAcc.getExpd() >= mExpdNextResort) {
-					std::cout << "Resort: " << mStatsAcc.getExpd() << " " << mExpdNextResort << " ";
-					mAbtSearch.clearCache();
+					//update hbf
 					resortOpenList();
 					mExpdNextResort *= 2;
-					std::cout << mExpdNextResort << "\n";
-					std::cout << mOpenList.size() << " " << mClosedList.getFill() << "\n";
-					std::cout << mTest_solvedCached << " " << mTest_solvedFull << "\n\n";
-					mTest_solvedFull = mTest_solvedCached = 0;
 				}
 			}
 		}
@@ -250,7 +241,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		void expand(Node* n, State& s) {
 			mStatsAcc.a_expd();			
 
-			mExpansionStats.informExpansion(n->f, n->depth);
+			//mExpansionStats.informExpansion(n->f, n->depth);
 	
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
@@ -268,7 +259,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
 			Cost 		kid_g   = pParentNode->g + edge.cost();
-			unsigned 	kid_depth = pParentNode->depth + 1;
+			//unsigned 	kid_depth = pParentNode->depth + 1;
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -283,11 +274,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					kid_dup->u			-= kid_dup->g / mWf;
 					kid_dup->u			+= kid_g * mWf;
 					
-					kid_dup->f			-= kid_dup->g;
-					kid_dup->f			+= kid_g;
+					//kid_dup->f			-= kid_dup->g;
+					//kid_dup->f			+= kid_g;
 					
-					kid_dup->g			= kid_g * mWf;
-					kid_dup->depth		= kid_depth;
+					kid_dup->g			= kid_g;
 					kid_dup->in_op		= pInOp;
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
@@ -303,7 +293,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				Node* kid_node 		= mNodePool.construct();
 
 				kid_node->g 		= kid_g;
-				kid_node->depth		= kid_depth;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
@@ -366,9 +355,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		const unsigned			mWf;
 		const bool				mUseResorting;
 		unsigned				mExpdNextResort;
-		unsigned				mVarCurBaseDepth;
-		double					mVarCurHBF;
+		//unsigned				mVarCurBaseDepth;
+		//double					mVarCurHBF;
 		
-		unsigned mTest_solvedFull, mTest_solvedCached;
+		//unsigned mTest_solvedFull, mTest_solvedCached;
 	};
 }}}

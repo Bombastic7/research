@@ -210,7 +210,9 @@ namespace mjon661 { namespace algorithm {
 			mNodePool			()
 		{}
 		
-		Node* doSearch(State const& s0) {			
+		Node* doSearch(State const& s0) {
+			mBehaviour.reset();
+					
 			{		
 				Node* n0 = mNodePool.construct();
 				

@@ -19,6 +19,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		unsigned u, g;
 		unsigned depth;
 	};
+	
+	enum struct HeuristicModes {
+		Min_Cost,
+		Min_Dist,
+		Min_Cost_Or_Dist,
+		Min_Cost_And_Dist
+	};
 
 	/*
 	template<typename = void>

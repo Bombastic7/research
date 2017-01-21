@@ -49,16 +49,27 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			void a_reopnd() { mSrecord.reopnd++; }
 
 			void l_cacheAdd() { mLcachedStates++;  }
+			void l_cacheImprove() {}
+			void l_cacheMadeExact() {}
 			
-			void s_cachedSolution() { mWasCachedSolution = true; }
-			void s_hbf(double v) {mSrecord.hbf = v;}
+			void s_cacheMiss() {}
+			void s_cachePartial() {}
+			void s_cacheHit() {}
 			
+			void s_solutionFull() {}
+			void s_solutionPartial() {}
+
+
+			void s_openListSize(unsigned) {}
+			void s_closedListSize(unsigned) {}
+
+
 			void s_end() { 
 				mSrecord.nsearch = mLnsearches++;
 				mLtotalExpd += mSrecord.expd;
 				mLtotalGend += mSrecord.gend;
 				
-				//mLallSearches.push_back(mSrecord);
+				if(L == 0) mLallSearches.push_back(mSrecord);
 				mSrecord.reset();
 			}
 			

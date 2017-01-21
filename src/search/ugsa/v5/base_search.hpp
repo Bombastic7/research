@@ -20,12 +20,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 	template<typename> struct ComputeHBF;
 
-	template<typename D, unsigned Top, HeuristicModes H_Mode, typename UCalc, typename StatsManager>
+	template<typename D, unsigned Top, HeuristicModes H_Mode, typename StatsManager>
 	struct UGSABaseHeuristic;
 	
-	
-	template<typename D, unsigned Top, typename UCalc, typename StatsManager>
-	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost, UCalc, StatsManager> {
+	/*
+	template<typename D, unsigned Top, typename StatsManager>
+	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost, StatsManager> {
 		
 		using Domain = typename D::template Domain<0>;
 		using State = typename Domain::State;
@@ -45,8 +45,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		AbtSearch mAbtSearch;
 	};
 	
-	template<typename D, unsigned Top, typename UCalc, typename StatsManager>
-	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Dist, UCalc, StatsManager> {
+	template<typename D, unsigned Top, typename StatsManager>
+	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Dist, StatsManager> {
 		using Domain = typename D::template Domain<0>;
 		using State = typename Domain::State;
 		using Cost = typename Domain::Cost;
@@ -64,9 +64,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		AbtSearch mAbtSearch;
 	};
+	*/
 	
-	template<typename D, unsigned Top, typename UCalc, typename StatsManager>
-	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost_And_Dist, UCalc, StatsManager> {
+	template<typename D, unsigned Top, typename StatsManager>
+	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost_Or_Dist, StatsManager> {
 		using Domain = typename D::template Domain<0>;
 		using State = typename Domain::State;
 		using Cost = typename Domain::Cost;
@@ -80,7 +81,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mAbtSearch_dist(pDomStack, jConfig, pStats)
 		{}
 		
-		bool eval(State const&, Cost& out_h, unsigned& out_d, bool b) {
+		bool eval(State const&, Cost& out_h, unsigned& out_d, bool b = true) {
 			if(b)
 				return mAbtSearchCost.doSearch(s, out_h, out_d);
 			return mAbtSearchDist.doSearch(s, out_h, out_d);
@@ -90,8 +91,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		AbtSearch_dist mAbtSearchDist;
 	};
 
-	template<typename D, unsigned Top, typename UCalc, typename StatsManager>
-	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost_Or_Dist, UCalc, StatsManager> {
+	template<typename D, unsigned Top, typename StatsManager>
+	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost_And_Dist, StatsManager> {
 		using Domain = typename D::template Domain<0>;
 		using State = typename Domain::State;
 		using Cost = typename Domain::Cost;
@@ -105,7 +106,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mAbtSearchDist(pDomStack, jConfig, pStats)
 		{}
 		
-		bool eval(State const&, Cost& out_h, unsigned& out_d, bool) {
+		bool eval(State const&, Cost& out_h, unsigned& out_d, bool b = true) {
 			
 			bool res = mAbtSearchCost.doSearch(s, out_h);
 			res = mAbtSearchDist.doSearch(s, out_d) || res;
@@ -142,7 +143,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		using Edge = typename Domain::Edge;
 		using StatsAcc = typename StatsManager::template StatsAcc<0>;
 		
-
+		using HeuristicModule = UGSABaseHeuristic<D, Top, H_Mode, StatsManager>;
+		
 
 		struct Node {
 			ucost_t u;
@@ -199,7 +201,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		UGSAv5_Base(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
 			mStatsAcc			(pStats),
 			mComputeHBF			(),
-			mAbtSearch			(pDomStack, jConfig, pStats),
+			mHeuristics			(pDomStack, jConfig, pStats),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
@@ -242,11 +244,25 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				
 				Cost hval;
 				unsigned dval;
+				ucost_t uval;
 				
-				mAbtSearch.doSearch(mInitState, hval, dval);
+				mHeuristics.eval(mInitState, hval, dval);
+				uval = compute_u(hval, dval);
+				
+				if(UGSABaseHeuristic::Has_Mult) {
+					Cost hval2;
+					ucost uval2;
+					mHeuristics.eval(mInitState, hval2, dval, false);
+					uval2 = mathutil::min(uval, compute_u(hval2, dval);
+					
+					if(uval2 < uval) {
+						uval = uval2;
+						hval = hval2;
+					}
+				}
 				
 				n0->f = hval;
-				n0->u = compute_u(hval, dval);
+				n0->u = uval;
 				
 				mDomain.packState(mInitState, n0->pkd);
 				
@@ -360,11 +376,25 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				
 				Cost hval;
 				unsigned dval;
+				ucost_t uval;
 				
-				mAbtSearch.doSearch(edge.state(), hval, dval);
+				mHeuristics.eval(mInitState, hval, dval);
+				uval = compute_u(hval, dval);
 				
+				if(UGSABaseHeuristic::Has_Mult) {
+					Cost hval2;
+					ucost uval2;
+					mHeuristics.eval(mInitState, hval2, dval, false);
+					uval2 = mathutil::min(uval, compute_u(hval2, dval);
+					
+					if(uval2 < uval) {
+						uval = uval2;
+						hval = hval2;
+					}
+				}
+
 				kid_node->f			= kid_g + hval;
-				kid_node->u			= compute_u(kid_node->f, dval);
+				kid_node->u			= uval;
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -388,7 +418,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 		
 		ucost_t compute_u(Cost f, unsigned d) {
-
+			
 			return f * mWf + mComputeHBF.raiseToPower(d);
 		}
 
@@ -396,8 +426,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		StatsAcc				mStatsAcc;
 		ComputeHBF<Cost>		mComputeHBF;
-		
-		AbtSearch				mAbtSearch;
+		HeuristicsModule		mHeuristics;
+
 		const Domain			mDomain;
 		
 		OpenList_t 				mOpenList;

@@ -20,35 +20,100 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 	template<typename> struct ComputeHBF;
 
-	template<typename D, unsigned Top, HeuristicModes H_Mode, typename StatsManager>
+	template<typename D, unsigned Top, HeuristicModes H_Mode, typename UCalc, typename StatsManager>
 	struct UGSABaseHeuristic;
 	
 	
-	template<typename D, unsigned Top, typename StatsManager>
-	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost, StatsManager> {
+	template<typename D, unsigned Top, typename UCalc, typename StatsManager>
+	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost, UCalc, StatsManager> {
 		
+		using Domain = typename D::template Domain<0>;
+		using State = typename Domain::State;
+		using Cost = typename Domain::Cost;
 		using AbtSearch = UGSAv5_Abt<D, 1, Top+1, true, StatsManager>;
+
+		static const bool Has_Mult = false;
+
+		UGSABaseHeuristic(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
+			mAbtSearch(pDomStack, jConfig, pStats)
+		{}
+		
+		bool eval(State const&, Cost& out_h, unsigned& out_d, bool) {
+			return mAbtSearch.doSearch(s, out_h, out_d);
+		}
+
+		AbtSearch mAbtSearch;
 	};
 	
-	template<typename D, unsigned Top, typename StatsManager>
-	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Dist, StatsManager> {
-		
+	template<typename D, unsigned Top, typename UCalc, typename StatsManager>
+	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Dist, UCalc, StatsManager> {
+		using Domain = typename D::template Domain<0>;
+		using State = typename Domain::State;
+		using Cost = typename Domain::Cost;
 		using AbtSearch = UGSAv5_Abt<D, 1, Top+1, false, StatsManager>;
+		
+		static const bool Has_Mult = false;
+
+		UGSABaseHeuristic(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
+			mAbtSearch(pDomStack, jConfig, pStats)
+		{}
+		
+		bool eval(State const&, Cost& out_h, unsigned& out_d, bool) {
+			return mAbtSearch.doSearch(s, out_h, out_d);
+		}
+		
+		AbtSearch mAbtSearch;
 	};
 	
-	template<typename D, unsigned Top, typename StatsManager>
-	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost_And_Dist, StatsManager> {
-		
+	template<typename D, unsigned Top, typename UCalc, typename StatsManager>
+	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost_And_Dist, UCalc, StatsManager> {
+		using Domain = typename D::template Domain<0>;
+		using State = typename Domain::State;
+		using Cost = typename Domain::Cost;
 		using AbtSearch_cost = UGSAv5_Abt<D, 1, Top+1, true, StatsManager>;
 		using AbtSearch_dist = UGSAv5_Abt<D, 1, Top+1, false, StatsManager>;
 		
+		static const bool Has_Mult = true;
+
+		UGSABaseHeuristic(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
+			mAbtSearch_cost(pDomStack, jConfig, pStats),
+			mAbtSearch_dist(pDomStack, jConfig, pStats)
+		{}
+		
+		bool eval(State const&, Cost& out_h, unsigned& out_d, bool b) {
+			if(b)
+				return mAbtSearchCost.doSearch(s, out_h, out_d);
+			return mAbtSearchDist.doSearch(s, out_h, out_d);
+		}
+		
+		AbtSearch_cost mAbtSearchCost;
+		AbtSearch_dist mAbtSearchDist;
 	};
 
-	template<typename D, unsigned Top, typename StatsManager>
-	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost_Or_Dist, StatsManager> {
-		
+	template<typename D, unsigned Top, typename UCalc, typename StatsManager>
+	struct UGSABaseHeuristic<D, Top, HeuristicModes::Min_Cost_Or_Dist, UCalc, StatsManager> {
+		using Domain = typename D::template Domain<0>;
+		using State = typename Domain::State;
+		using Cost = typename Domain::Cost;
 		using AbtSearch_cost = UGSAv5_Abt2<D, 1, Top+1, true, StatsManager>;
 		using AbtSearch_dist = UGSAv5_Abt2<D, 1, Top+1, false, StatsManager>;
+		
+		static const bool Has_Mult = false;
+
+		UGSABaseHeuristic(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
+			mAbtSearchCost(pDomStack, jConfig, pStats),
+			mAbtSearchDist(pDomStack, jConfig, pStats)
+		{}
+		
+		bool eval(State const&, Cost& out_h, unsigned& out_d, bool) {
+			
+			bool res = mAbtSearchCost.doSearch(s, out_h);
+			res = mAbtSearchDist.doSearch(s, out_d) || res;
+			return res;
+		}
+		
+		AbtSearch_cost mAbtSearchCost;
+		AbtSearch_dist mAbtSearchDist;
 	};
 	
 	

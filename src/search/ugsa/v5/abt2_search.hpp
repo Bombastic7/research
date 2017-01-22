@@ -144,7 +144,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mAbtSearch.clearCache();
 		}
 		
-		void submitStats() {
+		void submitStats(int branch = -1) {
+			std::string descStr = "min ";
+			descStr += Minimise_Cost ? "cost" : "dist";
+			
+			Json j;
+			j["alg desc"] = descStr;
+			mStatsAcc.submit(j, branch);
 			mAbtSearch.submitStats();
 		}
 

@@ -7,15 +7,14 @@
 #include "util/math.hpp"
 #include "search/solution.hpp"
 
+#include "search/ugsa/v5/common.hpp"
 #include "search/ugsa/v5/base_search.hpp"
 #include "search/ugsa/v5/simple_stats.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	
-
-	
-	template<typename DomStack, typename StatsManager, unsigned Top_Limit>
+	template<typename DomStack, HeuristicModes H_Mode, typename StatsManager, unsigned Top_Limit>
 	struct UGSAv5 {
 		
 		using BaseDomain = typename DomStack::template Domain<0>;
@@ -46,10 +45,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 		StatsManager mStatsManager;
-		UGSAv5_Base<DomStack, Top_Abt_Level_Used, StatsManager> mAlgo;
+		UGSAv5_Base<DomStack, Top_Abt_Level_Used, H_Mode, StatsManager> mAlgo;
 		
 	};
 	
 	template<typename DomStack>
-	using UGSAv5_StatsSimple = UGSAv5<DomStack, SimpleStatsManager<>, 1000>;
+	using UGSAv5_Cost = UGSAv5<DomStack, HeuristicModes::Min_Cost, SimpleStatsManager<>, 1000>;
+	
+	template<typename DomStack>
+	using UGSAv5_Dist = UGSAv5<DomStack, HeuristicModes::Min_Dist, SimpleStatsManager<>, 1000>;
+	
+	template<typename DomStack>
+	using UGSAv5_CostOrDist = UGSAv5<DomStack, HeuristicModes::Min_Cost_Or_Dist, SimpleStatsManager<>, 1000>;
+	
+	template<typename DomStack>
+	using UGSAv5_CostAndDist = UGSAv5<DomStack, HeuristicModes::Min_Cost_And_Dist, SimpleStatsManager<>, 1000>;
 }}}

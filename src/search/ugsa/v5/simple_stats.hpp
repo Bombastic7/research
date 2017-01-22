@@ -93,9 +93,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			}
 
 			
-			void submit(Json j = Json()) {
+			void submit(Json j = Json(), int branch = -1) {
 				
 				if(L == 0) {
+					gen_assert(branch == -1);
+					
 					S_Record l0search = mLallSearches.at(0);
 					j["expd"] = l0search.expd;
 					j["gend"] = l0search.gend;
@@ -117,7 +119,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					//j["search log"] = ss.str();
 				}
 
-				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;
+				std::string lvlkey = std::string("Level ") + std::to_string(L);
+		
+				if(branch >= 0)
+					mManager.mReport[lvlkey][std::string("branch ") + std::to_string(branch)] = j;
+				else
+					mManager.mReport[lvlkey] = j;
+					
 				mManager.mTexpd += mLtotalExpd;
 				mManager.mTgend += mLtotalGend;
 			}

@@ -227,9 +227,11 @@ def executeParallelSearches(execLst):
 ALGS = [
 		AlgorithmInfo("Astar", "algorithm::Astar", "search/astar.hpp", False, False),
 		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsSimple", "search/hastar/v2/hastar.hpp", True, False),
-		AlgorithmInfo("UGSA_r", "algorithm::ugsav5::UGSAv5_StatsSimple", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":True, "use_caching":True}),
-		AlgorithmInfo("UGSA_nr", "algorithm::ugsav5::UGSAv5_StatsSimple", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False, "use_caching":False}),
-		#AlgorithmInfo("Bugsy", "algorithm::Bugsy", "search/bugsy.hpp", False, True)
+		AlgorithmInfo("UGSA_Cost", "algorithm::ugsav5::UGSAv5_Cost", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
+		AlgorithmInfo("UGSA_Dist", "algorithm::ugsav5::UGSAv5_Dist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
+		AlgorithmInfo("UGSA_CostOrDist", "algorithm::ugsav5::UGSAv5_CostOrDist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
+		AlgorithmInfo("UGSA_CostAndDist", "algorithm::ugsav5::UGSAv5_CostAndDist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
+		AlgorithmInfo("Bugsy", "algorithm::Bugsy", "search/bugsy.hpp", False, True)
 		AlgorithmInfo("Bugsy_Norm", "algorithm::Bugsy_Norm", "search/bugsy.hpp", False, True)
 
 		]
@@ -239,8 +241,8 @@ ALGS = [
 DOMS =	[
 		DomainInfo("tiles_8h_5", tiles_stack(3,3,False,True,5), "domain/tiles/fwd.hpp", True, "tiles_8"),
 		DomainInfo("tiles_8hw_5", tiles_stack(3,3,True,True,5), "domain/tiles/fwd.hpp", True, "tiles_8"),
-		#DomainInfo("tiles_15h_5", tiles_stack(4,4,False,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
-		#DomainInfo("tiles_15hw_5", tiles_stack(4,4,True,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
+		DomainInfo("tiles_15h_7", tiles_stack(4,4,False,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
+		DomainInfo("tiles_15hw_7", tiles_stack(4,4,True,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2, True, False), "domain/pancake/fwd.hpp", True, "pancake_10"),
 		DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, True, 3, 3, 4), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
 		]
@@ -340,7 +342,7 @@ def trial_A(usedalgdom = False):
 
 def trial_test_ugsa(usedalgdoms = False):
 	doms = [DomainInfo.lookup["tiles_8h_5"]]
-	algs = [AlgorithmInfo.lookup["UGSA_r"], AlgorithmInfo.lookup["UGSA_nr"]]
+	algs = [a for a in AlgorithmInfo.lookup if a.name.count("UGSA") > 0]
 	probset = ProblemSetInfo.lookup["tiles_8.json"]
 	weights = [(1,1), (10,1), (100,1), (1000,1)]
 	

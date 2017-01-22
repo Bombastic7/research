@@ -1,6 +1,6 @@
 #pragma once
 
-#include <limit>
+#include <limits>
 #include <string>
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
@@ -55,7 +55,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 	template<typename D, unsigned L, unsigned Bound, bool Minimise_Cost, typename StatsManager>
 	class UGSAv5_Abt {
-		static_assert(L == 1, "");
 
 		public:
 		
@@ -81,15 +80,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			Cost g, f;
 			unsigned depth;
 			
-			static Cost& getprim(Cost pg, unsigned pdepth) {return pg;}
-			static unsigned& getsec(Cost pg, unsigned pdepth) {return pdepth;}
+			static Cost& getprim(Cost& pg, unsigned& pdepth) {return pg;}
+			static unsigned& getsec(Cost& pg, unsigned& pdepth) {return pdepth;}
 			Cost& y() {return f;}
 			Cost& x() {return g;}
-			Cost& w() {return depth;}
+			unsigned& w() {return depth;}
 			
 			PackedState pkd;
 			Operator in_op, parent_op;
-			Node* parent;
+			NodeImpl<B>* parent;
 		};
 		
 		template<typename Ign>
@@ -101,15 +100,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			Cost g;
 			unsigned depth, dtot;
 			
-			static unsigned& getprim(Cost pg, unsigned pdepth) {return pdepth;}
-			static Cost& getsec(Cost pg, unsigned pdepth) {return pg;}
+			static unsigned& getprim(Cost& pg, unsigned& pdepth) {return pdepth;}
+			static Cost& getsec(Cost& pg, unsigned& pdepth) {return pg;}
 			unsigned& y() {return dtot;}
 			unsigned& x() {return depth;}
 			Cost& w() {return g;}
 			
 			PackedState pkd;
 			Operator in_op, parent_op;
-			Node* parent;
+			NodeImpl<false, Ign>* parent;
 		};
 		
 		using Node = NodeImpl<Minimise_Cost>;
@@ -127,8 +126,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			unsigned d;
 			bool exact;
 			
-			Cost prim() {return h;}
-			unsigned sec() {return d;}
+			Cost& prim() {return h;}
+			unsigned& sec() {return d;}
 		};
 		
 		template<typename Ign>
@@ -138,8 +137,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			unsigned d;
 			bool exact;
 			
-			unsigned prim() {return d;}
-			Cost sec() {return h;}
+			unsigned& prim() {return d;}
+			Cost& sec() {return h;}
 		};
 		
 		using CacheEntry = CacheEntryImpl<Minimise_Cost>;
@@ -290,9 +289,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 				if(mDomain.checkGoal(s) || n == mBestExactNode) {
-					out_h = n->f;
-					out_d = n->depth;
 					goalNode = n;
+					
+					if(mDomain.checkGoal(s))
+						slow_assert(goalNode->y() == goalNode->x());
+
 					break;
 				}
 				
@@ -334,6 +335,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					ent->exact = true;
 				}
 			}
+			
+			if(Minimise_Cost) {
+				out_h = goalNode->y();
+				out_d = goalNode->w();
+			}
+			else {
+				out_h = goalNode->w();
+				out_d = goalNode->y();
+			}
 
 			mStatsAcc.s_openListSize(mOpenList.size());
 			mStatsAcc.s_closedListSize(mClosedList.getFill());
@@ -369,8 +379,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			Edge		edge 		= mDomain.createEdge(pParentState, pInOp);
 			Cost		kid_g		= pParentNode->g + edge.cost();
 			unsigned	kid_depth 	= pParentNode->depth + 1;
-			PrimVal_t&	kid_x		= getprim(kid_g, kid_depth);
-			SecVal_t&	kid_w		= getsec(kid_g, kid_depth);
+			PrimVal_t&	kid_x		= Node::getprim(kid_g, kid_depth);
+			SecVal_t&	kid_w		= Node::getsec(kid_g, kid_depth);
 
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -459,8 +469,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	};
 	
 	
-	template<typename D, unsigned Bound, typename StatsManager>
-	struct UGSAv5_Abt<D, Bound, Bound, StatsManager> {
+	template<typename D, unsigned Bound, bool Minimise_Cost, typename StatsManager>
+	struct UGSAv5_Abt<D, Bound, Bound, Minimise_Cost, StatsManager> {
 		
 		using Domain = typename D::template Domain<Bound-1>;
 		using Cost = typename Domain::Cost;

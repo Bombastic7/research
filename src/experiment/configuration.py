@@ -231,7 +231,7 @@ ALGS = [
 		AlgorithmInfo("UGSA_Dist", "algorithm::ugsav5::UGSAv5_Dist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
 		AlgorithmInfo("UGSA_CostOrDist", "algorithm::ugsav5::UGSAv5_CostOrDist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
 		AlgorithmInfo("UGSA_CostAndDist", "algorithm::ugsav5::UGSAv5_CostAndDist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
-		AlgorithmInfo("Bugsy", "algorithm::Bugsy", "search/bugsy.hpp", False, True)
+		AlgorithmInfo("Bugsy", "algorithm::Bugsy", "search/bugsy.hpp", False, True),
 		AlgorithmInfo("Bugsy_Norm", "algorithm::Bugsy_Norm", "search/bugsy.hpp", False, True)
 
 		]
@@ -342,7 +342,7 @@ def trial_A(usedalgdom = False):
 
 def trial_test_ugsa(usedalgdoms = False):
 	doms = [DomainInfo.lookup["tiles_8h_5"]]
-	algs = [a for a in AlgorithmInfo.lookup if a.name.count("UGSA") > 0]
+	algs = [a for a in AlgorithmInfo.lookup.itervalues() if a.name.count("UGSA") > 0]
 	probset = ProblemSetInfo.lookup["tiles_8.json"]
 	weights = [(1,1), (10,1), (100,1), (1000,1)]
 	

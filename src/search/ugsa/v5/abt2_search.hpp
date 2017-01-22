@@ -17,7 +17,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 	template<typename D, unsigned L, unsigned Bound, bool Min_Cost, typename StatsManager>
 	class UGSAv5_Abt2 {
-		static_assert(L > 1, "");
 
 		public:
 		
@@ -43,7 +42,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			Cost g, f;
 			PackedState pkd;
 			Operator in_op, parent_op;
-			Node* parent;
+			NodeImpl<B>* parent;
 			
 			Cost& x() {return g;}
 			Cost& y() {return f;}
@@ -56,7 +55,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			unsigned depth, dtot;
 			PackedState pkd;
 			Operator in_op, parent_op;
-			Node* parent;
+			NodeImpl<false, Ign>* parent;
 			
 			unsigned& x() {return depth;}
 			unsigned& y() {return dtot;}
@@ -146,7 +145,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		void submitStats(int branch = -1) {
 			std::string descStr = "min ";
-			descStr += Minimise_Cost ? "cost" : "dist";
+			descStr += Min_Cost ? "cost" : "dist";
 			
 			Json j;
 			j["alg desc"] = descStr;
@@ -361,7 +360,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	
 	
 	template<typename D, unsigned Bound, bool Min_Cost, typename StatsManager>
-	struct UGSAv5_Abt2<D, Bound, Bound, StatsManager> {
+	struct UGSAv5_Abt2<D, Bound, Bound, Min_Cost, StatsManager> {
 		
 		using Domain = typename D::template Domain<Bound-1>;
 		using Cost = typename Domain::Cost;
@@ -377,7 +376,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			using type = unsigned;
 		};
 		
-		using PrimVal_t = typename PVtype<Min_Cost>;
+		using PrimVal_t = typename PVtype<Min_Cost>::type;
 		
 		
 		UGSAv5_Abt2(D& pDomStack, Json const&, StatsManager& pStats) {}

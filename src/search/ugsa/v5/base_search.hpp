@@ -204,7 +204,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				mHBF = mConstantBF;
 		}
 		
-		bool shoudResort(unsigned pExpd) {
+		bool shouldResort(unsigned pExpd) {
 			if(mUseConstantBF || mNextResort > pExpd)
 				return false;
 			
@@ -222,8 +222,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 	
 		template<typename Nd>
-		void compute_u(Nd* n, Cost h, unsigned d) {
-			n->u = compute_u(n->f, n->depth+d);
+		ucost_t compute_u(Nd* n, Cost h, unsigned d) {
+			return compute_u(n->f, n->depth+d);
 		}
 		
 		template<typename Nd>
@@ -314,7 +314,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mAllExpDelays.push_back(0);
 		}
 		
-		bool shoudResort(unsigned pExpd) {
+		bool shouldResort(unsigned pExpd) {
 			if(mNextResort > pExpd)
 				return false;
 			
@@ -334,8 +334,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 	
 		template<typename Nd>
-		void compute_u(Nd* n, Cost h, unsigned d) {
-			n->u = compute_u(n->f, d);
+		ucost_t compute_u(Nd* n, Cost h, unsigned d) {
+			return compute_u(n->f, d);
 		}
 		
 		ucost_t compute_u(Cost f, unsigned d) {
@@ -360,11 +360,42 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	
 
 
-
+	/*
+	 * 	There are 3 components: the base space search algorithm, the h/d heuristics, and the u calculation.
+	 * 
+	 * 	Base space search algorithm is below.
+	 * 	
+	 * 	Heuristic components are specialisations of UGSABaseHeuristic.
+	 * 		Min_Cost: return cost and depth of the cheapest solution path in abstract space.
+	 * 		Min_Dist: return cost and depth of the shortest.
+	 * 		Min_Cost_Or_Dist: minimum of Min_Cost and Min_Dist.
+	 * 		Min_Cost_And_Dist: return cost of cheapest path, depth of shortest path.
+	 * 
+	 * 		UGSABaseHeuristic(DomStack, jConfig, StatsManager)
+	 * 		bool eval(state, out_h, out_d, bool useFirstOption)
+	 * 		void reset()
+	 * 		void clearCache()
+	 * 		void submitStats()
+	 * 
+	 * 
+	 * 	U Calculation component:
+	 * 		ctor(jConfig)
+	 * 		void reset()
+	 * 		bool shouldResort()
+	 * 		Json report()
+	 * 		void inform_expansion(Node)		
+	 * 		ucost_t compute_u(Node n, Cost h, unsigned d)
+	 * 		
+	 * 		compute_u() expects all values, besides n->u to be set.
+	 * 
+	 * 		If shouldResort() returns true, the base space search algorithm should 
+	 * 			immediately revaluate u for all open nodes, and resort the open list.
+	 * 
+	 */
 	template<typename D, unsigned Top, HeuristicModes H_Mode, UCalcMode U_Mode, typename StatsManager>
 	class UGSAv5_Base {
 		
-		using this_t = UGSAv5_Base<D, Top, H_Mode, StatsManager>;
+		using this_t = UGSAv5_Base<D, Top, H_Mode, U_Mode, StatsManager>;
 
 		public:
 
@@ -388,12 +419,29 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			PackedState pkd;
 			Operator in_op, parent_op;
 			Node* parent;
+			
+			void set_expdAtGen(unsigned) {}
+			void set_depth(unsigned) {}
+			unsigned get_depth() {return 0;}
 		};
 		
 		template<typename Ign>
 		struct NodeBase<U_Mode::Delay, Ign> : public NodeBase<U_Mode::HBF> {
 			using compu_t = ComputeDelay<Cost>;
 			unsigned expdAtGen;
+			unsigned depth;
+			
+			void set_expdAtGen(unsigned n) {
+				expdAtGen = n;
+			}
+			
+			void set_depth(unsigned d) {
+				depth = d;
+			}
+			
+			unsigned get_depth() {
+				return depth;
+			}
 		};
 		
 		using Node = NodeBase<U_Mode>;
@@ -449,7 +497,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		UGSAv5_Base(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
 			mStatsAcc			(pStats),
-			mComputeHBF			(),
+			mCompU				(jConfig),
 			mHeuristics			(pDomStack, jConfig, pStats),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
@@ -469,22 +517,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mNodePool.clear();
 			mStatsAcc.reset();
 			mHeuristics.reset();
-			mComputeHBF.reset();
+			mCompU.reset();
 		}
 		
 		void submitStats() {
-			Json j = mComputeHBF.report();
-			//j["hbf"] = mExpansionStats.computeHBF();
+			Json j;
+			j["compute u"] = mCompU.report();
 
-			
 			mStatsAcc.submit(j);
 			mHeuristics.submitStats();
 		}
 		
 		
 		void doSearch(Solution<Domain>& pSolution) {
-
-			
 			{
 				Node* n0 = mNodePool.construct();
 
@@ -493,9 +538,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
 				
-				eval_heuristics(mInitState, 0, n0->f, n0->u);
-				n0->expdAtGen = 0;
+				n0->set_expdAtGen(0);
+				n0->set_depth(0);
 				
+				eval_heuristics(n0, mInitState);
+
 				mDomain.packState(mInitState, n0->pkd);
 				
 				mOpenList.push(n0);
@@ -516,13 +563,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				
 				expand(n, s);
 				
-				if(mStatsAcc.getExpd() == mNextResort) {
-					mLast_expDelay = mNext_expDelayAcc / (mNextResort - mNextResort/Delay_Resort_Fact);
-					mNext_expDelayAcc = 0;
-					mNextResort *= Delay_Resort_Fact;
-					mNresorts++;
+				if(mCompU.shouldResort()) {
 					resortOpenList();
-					mAllExpDelays.push_back(mLast_expDelay);
 				}
 			}
 			
@@ -556,13 +598,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 		void expand(Node* n, State& s) {
-			
-			
-
 			mStatsAcc.a_expd();
+			mCompU.inform_expansion(n, mStatsAcc.getExpd());
 
-			//mComputeHBF.inform_expansion(n->u);
-	
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
 			for(unsigned i=0; i<ops.size(); i++) {
@@ -579,6 +617,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
 			Cost 		kid_g   = pParentNode->g + edge.cost();
+			unsigned	kid_depth = pParentNode->get_depth() + 1;
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -597,11 +636,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					kid_dup->u			+= kid_g * mWf;
 					
 					kid_dup->g			= kid_g;
-					
+
 					kid_dup->in_op		= pInOp;
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
-					kid_dup->expdAtGen	= mStatsAcc.getExpd();
+
+					kid_dup->set_expdAtGen(mStatsAcc.getExpd());
+					kid_dup->set_depth(kid_depth);
 					
 					if(!mOpenList.contains(kid_dup)) {
 						mStatsAcc.a_reopnd();
@@ -618,9 +659,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
-				kid_node->expdAtGen	= mStatsAcc.getExpd();
+
+				kid_node->set_expdAtGen(mStatsAcc.getExpd());
+				kid_node->set_depth(kid_depth);
 				
-				eval_heuristics(edge.state(), kid_g, kid_node->f, kid_node->u);
+				eval_heuristics(kid_node, edge.state());
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
@@ -636,40 +679,36 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				State s;
 				mDomain.unpackState(s, n->pkd);
 
-				eval_heuristics(s, n->g, n->f, n->u);
+				eval_heuristics(n, s);
 			}
 			mOpenList.reinit();
 		}
 		
-		void eval_heuristics(State const& s, Cost g, Cost& out_f, ucost_t& out_u) {
+		void eval_heuristics(Node* n, State const& s) {
 			Cost hval;
 			unsigned dval;
 			ucost_t uval;
 			
 			mHeuristics.eval(mInitState, hval, dval);
-			uval = compute_u(g + hval, dval);
+			n->f = n->g + hval;
+
+			uval = mCompU.compute_u(n, hval, dval);
 			
 			if(HeuristicsModule::Has_Mult) {
 				Cost hval2;
 				ucost_t uval2;
 				mHeuristics.eval(mInitState, hval2, dval, false);
-				uval2 = compute_u(g + hval2, dval);
+				n->f = n->g + hval2;
+				uval2 = mCompU.compute_u(n, hval2, dval);
 				
 				if(uval2 < uval) {
 					uval = uval2;
 					hval = hval2;
 				}
 			}
-			out_f = g + hval;
-			out_u = uval;
+			n->f = g + hval;
+			n->u = uval;
 		}
-		
-		ucost_t compute_u(Cost f, unsigned d) {
-			
-			//return f * mWf + mComputeHBF.raiseToPower(d);
-			return f*mWf + mLast_expDelay*d;
-		}
-
 
 
 		StatsAcc				mStatsAcc;

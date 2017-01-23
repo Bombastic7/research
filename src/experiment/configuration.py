@@ -227,10 +227,11 @@ def executeParallelSearches(execLst):
 ALGS = [
 		AlgorithmInfo("Astar", "algorithm::Astar", "search/astar.hpp", False, False),
 		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsSimple", "search/hastar/v2/hastar.hpp", True, False),
-		AlgorithmInfo("UGSA_Cost", "algorithm::ugsav5::UGSAv5_Cost", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
-		AlgorithmInfo("UGSA_Dist", "algorithm::ugsav5::UGSAv5_Dist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
-		AlgorithmInfo("UGSA_CostOrDist", "algorithm::ugsav5::UGSAv5_CostOrDist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
-		AlgorithmInfo("UGSA_CostAndDist", "algorithm::ugsav5::UGSAv5_CostAndDist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
+		AlgorithmInfo("UGSA_Cost_Delay", "algorithm::ugsav5::UGSAv5_Cost_Delay", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
+		AlgorithmInfo("UGSA_Cost_HBF", "algorithm::ugsav5::UGSAv5_Cost_HBF", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
+		#AlgorithmInfo("UGSA_Dist", "algorithm::ugsav5::UGSAv5_Dist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
+		#AlgorithmInfo("UGSA_CostOrDist", "algorithm::ugsav5::UGSAv5_CostOrDist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
+		#AlgorithmInfo("UGSA_CostAndDist", "algorithm::ugsav5::UGSAv5_CostAndDist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
 		AlgorithmInfo("Bugsy", "algorithm::Bugsy", "search/bugsy.hpp", False, True),
 		AlgorithmInfo("Bugsy_Norm", "algorithm::Bugsy_Norm", "search/bugsy.hpp", False, True)
 

@@ -250,7 +250,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 		
 		ucost_t compute_u(Cost f, unsigned dtot) {
-			return f * mWf + mComputeHBF.raiseToPower(dtot);
+			return f * mWf + raiseToPower(dtot);
 		}
 		
 		unsigned raiseToPower(unsigned n) {
@@ -294,7 +294,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 
-
+	template<typename Cost>
 	struct ComputeDelay {
 
 		static const unsigned Delay_Resort_Fact = 2;
@@ -410,30 +410,25 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		using HeuristicsModule = UGSABaseHeuristic<D, Top, H_Mode, StatsManager>;
 		
-	
-		template<U_Mode U, typename = void>
+		
+		template<typename = void>
 		struct NodeBase {
-			using compu_t = ComputeHBF<Cost>;
 			ucost_t u;
 			Cost g, f;
 			PackedState pkd;
 			Operator in_op, parent_op;
-			Node* parent;
+			NodeBase<>* parent;
 			
 			void set_expdAtGen(unsigned) {}
 			void set_depth(unsigned) {}
 			unsigned get_depth() {return 0;}
-		};
-		
-		template<typename Ign>
-		struct NodeBase<U_Mode::Delay, Ign> : public NodeBase<U_Mode::HBF> {
-			using compu_t = ComputeDelay<Cost>;
-			unsigned expdAtGen;
-			unsigned depth;
 			
-			void set_expdAtGen(unsigned n) {
-				expdAtGen = n;
-			}
+		};
+	
+		template<UCalcMode U, typename = void>
+		struct NodeImpl : public NodeBase<> {
+			using compu_t = ComputeHBF<Cost>;
+			unsigned depth;
 			
 			void set_depth(unsigned d) {
 				depth = d;
@@ -444,7 +439,17 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			}
 		};
 		
-		using Node = NodeBase<U_Mode>;
+		template<typename Ign>
+		struct NodeImpl<UCalcMode::Delay, Ign> : public NodeBase<> {
+			using compu_t = ComputeDelay<Cost>;
+			unsigned expdAtGen;
+			
+			void set_expdAtGen(unsigned n) {
+				expdAtGen = n;
+			}
+		};
+		
+		using Node = NodeImpl<U_Mode>;
 		using Ucompute_t = typename Node::compu_t;
 		
 		
@@ -563,7 +568,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				
 				expand(n, s);
 				
-				if(mCompU.shouldResort()) {
+				if(mCompU.shouldResort(mStatsAcc.getExpd())) {
 					resortOpenList();
 				}
 			}
@@ -577,7 +582,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		void prepareSolution(Solution<Domain>& sol, Node* pGoalNode) {
 			std::vector<Node*> reversePath;
 			
-			for(Node *n = pGoalNode; n != nullptr; n = n->parent)
+			for(Node *n = pGoalNode; n != nullptr; n = static_cast<Node*>(n->parent))
 				reversePath.push_back(n);
 			
 			sol.states.clear();
@@ -598,9 +603,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 		void expand(Node* n, State& s) {
-			mStatsAcc.a_expd();
 			mCompU.inform_expansion(n, mStatsAcc.getExpd());
-
+			mStatsAcc.a_expd();
+			
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
 			for(unsigned i=0; i<ops.size(); i++) {
@@ -706,7 +711,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					hval = hval2;
 				}
 			}
-			n->f = g + hval;
+			n->f = n->g + hval;
 			n->u = uval;
 		}
 

@@ -26,6 +26,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		Min_Cost_Or_Dist,
 		Min_Cost_And_Dist
 	};
+	
+	enum struct UCalcMode {
+		HBF,
+		Delay,
+		CostOnly,
+		DistOnly
+	};
 
 	/*
 	template<typename = void>

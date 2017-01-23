@@ -2,6 +2,7 @@
 
 #include <array>
 #include <string>
+#include <vector>
 #include <cmath>
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
@@ -19,6 +20,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 	template<typename> struct ComputeHBF;
+
 
 	template<typename D, unsigned Top, HeuristicModes H_Mode, typename StatsManager>
 	struct UGSABaseHeuristic;
@@ -175,7 +177,191 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 
-	template<typename D, unsigned Top, HeuristicModes H_Mode, typename StatsManager>
+
+	template<typename Cost>
+	struct ComputeHBF {
+		
+		static const unsigned Resort_Fact = 2;
+
+
+		ComputeHBF(Json const& jConfig) :
+			mWf(jConfig.at("wf")),
+			mUseConstantBF(jConfig.at("constant bf")),
+			mConstantBF(jsonOptOrDef(jConfig, "constant bf", 0))
+		{
+			reset();
+		}
+		
+		void reset() {
+			mFCount_cur = mFCount_prevSum = 0;
+			mCurF = 0;
+			mHBF = 1;
+			mPowCache.clear();
+			mNobserved = 0;
+			mNextResort = 16;
+			
+			if(mUseConstantBF)
+				mHBF = mConstantBF;
+		}
+		
+		bool shoudResort(unsigned pExpd) {
+			if(mUseConstantBF || mNextResort > pExpd)
+				return false;
+			
+			mNextResort *= Resort_Fact;
+			return true;
+		}
+
+		Json report() {
+			Json j;
+			j["mFCount_cur"] = mFCount_cur;
+			j["mFCount_prevSum"] = mFCount_prevSum;
+			j["mNobserved"] = mNobserved;
+			j["mTest_fLvls"] = mTest_fLvls;
+			return j;
+		}
+	
+		template<typename Nd>
+		void compute_u(Nd* n, Cost h, unsigned d) {
+			n->u = compute_u(n->f, n->depth+d);
+		}
+		
+		template<typename Nd>
+		void inform_expansion(Nd* n, unsigned) {
+
+			Cost pF = n->u;
+			
+			slow_assert(pF >= mCurF);
+			slow_assert(pF != 0);		//If pF is 0, mNobserved will be incorrect.
+			
+			if(pF == mCurF)
+				mFCount_cur++;
+				
+			else {
+				if(mFCount_prevSum != 0 && !mUseConstantBF)
+					mHBF = (double)(mFCount_cur + mFCount_prevSum) / mFCount_prevSum;
+
+				mFCount_prevSum += mFCount_cur;
+				mFCount_cur = 1;
+				mCurF = pF;
+				mPowCache.clear();
+				mNobserved++;
+			}
+		}
+		
+		ucost_t compute_u(Cost f, unsigned dtot) {
+			return f * mWf + mComputeHBF.raiseToPower(dtot);
+		}
+		
+		unsigned raiseToPower(unsigned n) {
+			if(n <= mPowCache.size())
+				for(unsigned i=mPowCache.size(); i<=n; i++)
+					mPowCache.push_back(std::pow(mHBF, i));
+			
+			return mPowCache[n];
+		}
+		
+		double getHBF() {
+			return mHBF;
+		}
+		
+		unsigned getObservedLevels() {
+			return mNobserved;
+		}
+		
+
+		
+		private:
+
+		unsigned mFCount_cur;
+		unsigned mFCount_prevSum;
+		unsigned mNobserved;
+		
+		Cost mCurF;
+		double mHBF;
+		
+		std::vector<unsigned> mPowCache;
+		std::vector<Cost> mTest_fLvls;
+
+		unsigned mNextResort;
+		
+		const unsigned mWf;
+		const bool mUseConstantBF;
+		const double mConstantBF;
+	};
+
+
+
+
+
+
+	struct ComputeDelay {
+
+		static const unsigned Delay_Resort_Fact = 2;
+		
+		ComputeDelay(Json const& jConfig) :
+			mWf(jConfig.at("wf"))
+		{
+			reset();
+		}
+
+		void reset() {
+			mNextResort = 16;
+			mNext_expDelayAcc = 0;
+			mLast_expDelay = 0;
+			mNresorts = 0;
+			mAllExpDelays.clear();
+			mAllExpDelays.push_back(0);
+		}
+		
+		bool shoudResort(unsigned pExpd) {
+			if(mNextResort > pExpd)
+				return false;
+			
+			mLast_expDelay = mNext_expDelayAcc / (mNextResort - mNextResort/Delay_Resort_Fact);
+			mNext_expDelayAcc = 0;
+			mNextResort *= Delay_Resort_Fact;
+			mNresorts++;
+			mAllExpDelays.push_back(mLast_expDelay);
+			return true;
+		}
+		
+		Json report() {
+			Json j;
+			j["exp delays"] = mAllExpDelays;
+			j["resorts"] = mNresorts;
+			return j;
+		}
+	
+		template<typename Nd>
+		void compute_u(Nd* n, Cost h, unsigned d) {
+			n->u = compute_u(n->f, d);
+		}
+		
+		ucost_t compute_u(Cost f, unsigned d) {
+			return f * mWf + d * mLast_expDelay;
+		}
+		
+		template<typename Nd>
+		void inform_expansion(Nd* n, unsigned pExpd) {
+			mNext_expDelayAcc += pExpd - n->expdAtGen;
+		}
+		
+		
+		unsigned				mNextResort;
+		unsigned				mNresorts;
+		double					mLast_expDelay;
+		double					mNext_expDelayAcc;
+		std::vector<double>		mAllExpDelays;
+		const unsigned 			mWf;
+	};
+
+
+	
+
+
+
+	template<typename D, unsigned Top, HeuristicModes H_Mode, UCalcMode U_Mode, typename StatsManager>
 	class UGSAv5_Base {
 		
 		using this_t = UGSAv5_Base<D, Top, H_Mode, StatsManager>;
@@ -193,15 +379,27 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		using HeuristicsModule = UGSABaseHeuristic<D, Top, H_Mode, StatsManager>;
 		
-
-		struct Node {
+	
+		template<U_Mode U, typename = void>
+		struct NodeBase {
+			using compu_t = ComputeHBF<Cost>;
 			ucost_t u;
 			Cost g, f;
 			PackedState pkd;
 			Operator in_op, parent_op;
 			Node* parent;
 		};
-
+		
+		template<typename Ign>
+		struct NodeBase<U_Mode::Delay, Ign> : public NodeBase<U_Mode::HBF> {
+			using compu_t = ComputeDelay<Cost>;
+			unsigned expdAtGen;
+		};
+		
+		using Node = NodeBase<U_Mode>;
+		using Ucompute_t = typename Node::compu_t;
+		
+		
 		
 		struct ClosedOps {
 			ClosedOps(Domain const& pDomain) :
@@ -246,6 +444,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 									  
 		using NodePool_t = NodePool<Node, typename ClosedList_t::Wrapped_t>;
 		
+
 		
 
 		UGSAv5_Base(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
@@ -276,6 +475,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		void submitStats() {
 			Json j = mComputeHBF.report();
 			//j["hbf"] = mExpansionStats.computeHBF();
+
 			
 			mStatsAcc.submit(j);
 			mHeuristics.submitStats();
@@ -283,7 +483,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 		void doSearch(Solution<Domain>& pSolution) {
-				
+
+			
 			{
 				Node* n0 = mNodePool.construct();
 
@@ -293,6 +494,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				n0->parent = 	nullptr;
 				
 				eval_heuristics(mInitState, 0, n0->f, n0->u);
+				n0->expdAtGen = 0;
 				
 				mDomain.packState(mInitState, n0->pkd);
 				
@@ -313,6 +515,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				}
 				
 				expand(n, s);
+				
+				if(mStatsAcc.getExpd() == mNextResort) {
+					mLast_expDelay = mNext_expDelayAcc / (mNextResort - mNextResort/Delay_Resort_Fact);
+					mNext_expDelayAcc = 0;
+					mNextResort *= Delay_Resort_Fact;
+					mNresorts++;
+					resortOpenList();
+					mAllExpDelays.push_back(mLast_expDelay);
+				}
 			}
 			
 			mStatsAcc.s_end();
@@ -345,9 +556,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 		void expand(Node* n, State& s) {
-			mStatsAcc.a_expd();			
+			
+			
 
-			mComputeHBF.inform_expansion(n->u);
+			mStatsAcc.a_expd();
+
+			//mComputeHBF.inform_expansion(n->u);
 	
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
@@ -387,6 +601,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					kid_dup->in_op		= pInOp;
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
+					kid_dup->expdAtGen	= mStatsAcc.getExpd();
 					
 					if(!mOpenList.contains(kid_dup)) {
 						mStatsAcc.a_reopnd();
@@ -403,7 +618,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
-
+				kid_node->expdAtGen	= mStatsAcc.getExpd();
+				
 				eval_heuristics(edge.state(), kid_g, kid_node->f, kid_node->u);
 				
 				mOpenList.push(kid_node);
@@ -422,6 +638,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 				eval_heuristics(s, n->g, n->f, n->u);
 			}
+			mOpenList.reinit();
 		}
 		
 		void eval_heuristics(State const& s, Cost g, Cost& out_f, ucost_t& out_u) {
@@ -449,13 +666,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		ucost_t compute_u(Cost f, unsigned d) {
 			
-			return f * mWf + mComputeHBF.raiseToPower(d);
+			//return f * mWf + mComputeHBF.raiseToPower(d);
+			return f*mWf + mLast_expDelay*d;
 		}
 
 
 
 		StatsAcc				mStatsAcc;
-		ComputeHBF<Cost>		mComputeHBF;
+		Ucompute_t				mCompU;
 		HeuristicsModule		mHeuristics;
 
 		const Domain			mDomain;
@@ -468,87 +686,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		const unsigned			mWf;
 		const bool				mUseResorting;
+		
+
 	};
 	
 	
 	
-	template<typename Cost>
-	struct ComputeHBF {
-
-		ComputeHBF() {
-			reset();
-		}
-		
-		void reset() {
-			mFCount_cur = mFCount_prevSum = 0;
-			mCurF = 0;
-			mHBF = 1;
-			mPowCache.clear();
-			mNobserved = 0;
-		}
-		
-		unsigned raiseToPower(unsigned n) {
-			return std::pow(2, n); //.........
-			
-			if(n <= mPowCache.size())
-				for(unsigned i=mPowCache.size(); i<=n; i++)
-					mPowCache.push_back(std::pow(mHBF, i));
-			
-			return mPowCache[n];
-		}
-		
-		double getHBF() {
-			return mHBF;
-		}
-		
-		unsigned getObservedLevels() {
-			return mNobserved;
-		}
-		
-		void inform_expansion(Cost pF) {
-			mTest_fLvls.push_back(pF);
-			return; //..........
-			
-			slow_assert(pF >= mCurF);
-			slow_assert(pF != 0);		//If pF is 0, mNobserved will be incorrect.
-			
-			if(pF == mCurF)
-				mFCount_cur++;
-				
-			else {
-				if(mFCount_prevSum != 0)
-					mHBF = (double)(mFCount_cur + mFCount_prevSum) / mFCount_prevSum;
-
-				mFCount_prevSum += mFCount_cur;
-				mFCount_cur = 1;
-				
-				mCurF = pF;
-				
-				mPowCache.clear();
-				
-				mNobserved++;
-			}
-		}
-		
-		Json report() {
-			Json j;
-			j["mFCount_cur"] = mFCount_cur;
-			j["mFCount_prevSum"] = mFCount_prevSum;
-			j["mNobserved"] = mNobserved;
-			j["mTest_fLvls"] = mTest_fLvls;
-			return j;
-		}
-		
-		private:
-
-		unsigned mFCount_cur;
-		unsigned mFCount_prevSum;
-		unsigned mNobserved;
-		
-		Cost mCurF;
-		double mHBF;
-		
-		std::vector<unsigned> mPowCache;
-		std::vector<Cost> mTest_fLvls;
-	};
+	
+	
 }}}

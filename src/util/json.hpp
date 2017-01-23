@@ -5,6 +5,13 @@
 namespace mjon661 {
 	using Json = nlohmann::json;
 	
+	template<typename T>
+	T jsonOptOrDef(Json const& j, std::string const& key, T defVal) {
+		if(j.count(key))
+			return j.at(defVal);
+		return defVal;
+	}
+	
 	/*
 	namespace impl {
 		void json_check_object(const Json& j, const Json& tmplt) {

@@ -32,7 +32,8 @@ EXPERIMENT_FILES:=\
 	$(BUILDDIR)/experiment/gen_gridnav_problems.py\
 	$(BUILDDIR)/experiment/gen_searcher.py\
 	$(BUILDDIR)/experiment/plot_problem_bars.py\
-	$(BUILDDIR)/experiment/ugsa_analyse.py
+	$(BUILDDIR)/experiment/ugsa_analyse.py\
+	$(BUILDDIR)/experiment/plot2.py\
 
 BINS+=$(EXPERIMENT_FILES)
 

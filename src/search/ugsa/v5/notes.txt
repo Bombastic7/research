@@ -35,13 +35,13 @@ expand(n):
 	
 		edge = edge of n.state to child
 		
-		childnode = Node {state=child, g = n.g + edge.cost, depth = n.depth + 1, parent=n}
+		childnode = Node {state=child, g = n.g + edge.cost, depth = n.depth + 1, parent=n, f=Null, u=Null}
 		
 		eval_heuristics(childnode)
 		
 		
-		if child in closedlist and dupnode.g > childnode.g:
-			remove dupnode from closedlist, and openlist if present.
+		if child in closedlist and duplicateNode.g > childnode.g:
+			remove duplicateNode from closedlist, and openlist if present.
 		
 		
 		if child not in closedlist:
@@ -66,6 +66,7 @@ eval_heuristics(n):
 	n.u = best.uval
 
 
+
 eval_u(n, h, d):
 	return ...
 
@@ -77,13 +78,13 @@ eval_u(n, h, d):
 	eval_u(n, h, d) returns n's u using n's g, f, depth, and supplied h and d arguments, as well as dynamically changing 
 	search behaviour statistics.
 	
-	Thus there are two components that can be seperated: the method in eval_heuristics() to compute one or more h/d heuristic values,
-	and the method used to determin a node's u value.
+	Thus there are two components that can be seperated: the method in eval_heuristics() to compute which of pair
+	h/d heuristic values to use, and the method used to determin a node's u value.
 	
-	Min_Cost: 			return cost and depth of the cheapest solution path in abstract space.
-	Min_Dist: 			return cost and depth of the shortest.
-	Min_Cost_Or_Dist: 	minimum of Min_Cost and Min_Dist.
-	Min_Cost_And_Dist: 	return cost of cheapest path, depth of shortest path.
+	Min_Cost: 			use cost and depth of the cheapest solution path in abstract space.
+	Min_Dist: 			use cost and depth of the shortest.
+	Min_Cost_Or_Dist: 	use Min_Cost or Min_Dist, such that the method used gives the node the smallest(or largest?) predicted u value.
+	Min_Cost_And_Dist: 	use cost of cheapest path, depth of shortest path.
 	
 	
 	Compute u methods:
@@ -91,4 +92,107 @@ eval_u(n, h, d):
 	Delay: u = wf*f + d * [avg expansions between a node being generated and expanded]
 	
 	HBF: u = wf*f + bf ** (depth+d) - bf ** depth,  where bf is the heuristic branching factor (on u) of the base space.
+	
+	
+	
+	
+	
+	
+	Resorting and Caching of search statistics:
+	A resort is a reevaluation of all node's u value, and a resorting of the openlist. It is a way to update the open nodes
+	with newer (and more accurate) search statistics. Resorts should occur with decreasing frequency as the search progresses.
+
+	Search statistics may be cached and updated periodically.
+	
+	The Delay method caches, and updates immediately prior to a resort. i.e. all open nodes generated after resort i and before
+	resort i+1 use the same search statistics values to compute u.
+	
+	The HBF method doesn't cache, each node generated uses the latest search statistics. Resorts are still performed, as HBF starts with
+	poor accuracy that improves over time.
+	
+	
+	
+	Delay method:
+	{
+		init():
+			nextResort = 16
+			lastAvgDelay = 0
+			nextAvgDelayAcc = 0
+
+		inform_expansion(n, curExpd):
+			nextAvgDelayAcc += curExpd - n.expdAtGen
+		
+		should_resort(curExpd):
+			if curExpd >= nextResort:
+				nextResort *= 2
+				lastAvgDelay = nextAvgDelayAcc / (curExpd / 2)  //i.e. curExpd/2 = expansions since last resort.
+				nextAvgDelayAcc = 0
+				return true
+			
+			return false
+
+		
+		compute_u(n, h, d):
+			return wf*n.f + d*lastAvgDelay
+		
+		
+		var nextResort, lastAvgDelay, nextAvgDelayAcc
+	}
+	
+	
+	HBF method:
+	{
+		init():
+			nextResort = 16
+			estHbf = 1
+			prevLvlsSum = 0
+			curLvlCount = 0
+			curLvl = Null;
+		
+		inform_expansion(n, curExpd):
+			assert(n.u >= curLvl)
+			
+			if(n.u == curLvl):
+				curLvlCount++
+			else:
+				if(curLvl != Null and prevLvlSum != 0):
+					estHbf =  (curLvlCount + prevLvlsSum) / prevLvlsSum
+
+				prevLvlsSum 	+= curLvlCount
+				curLvlCount 	= 1
+				curLvl			= n.u
+		
+		should_resort(curExpd):
+			if curExpd >= nextResort:
+				nextResort 		*= 2
+				curLvlCount 	= 0
+				curLvl			= Null
+				return true
+			return false
+		
+		compute_u(n, h, d):
+			return wf*n.f + estHbf ** (n.depth + d) - estHbf ** n.depth
+		
+		
+		var nextResort, estHbf, prevLvlsSum, curLvlCount, curLvl
+	}
+	
+	
+	
+	Static options:
+	UCalcMode U_Mode,
+	UGSABaseHeuristic H_Mode,
+	
+	Runtime options:
+	"wf": wf value used in u calculation
+	"wt": must be 1
+	
+	U_Mode == HBF:
+		"constant bf": number to override bf value in u calculation with. (Optional).
+	
+	Hardcoded options:
+	For both U calc methods:
+		Initial_Resort_Expd = 16 // first resort occurs after 16 expansions.
+		Resort_Fact = 2 // resort every 16 * 2**N expansions.
+		
 */

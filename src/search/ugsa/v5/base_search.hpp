@@ -182,7 +182,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	struct ComputeHBF {
 		
 		static const unsigned Resort_Fact = 2;
-
+		static const ucost_t Null_Level = (ucost_t)-1;
+		
 
 		ComputeHBF(Json const& jConfig) :
 			mWf(jConfig.at("wf")),
@@ -193,15 +194,22 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 		
 		void reset() {
-			mFCount_cur = mFCount_prevSum = 0;
-			mCurF = 0;
+			mCount_cur = mCount_prevSum = mNobserved = 0;
+			mLvl_cur = mLvl_prev = Null_Level;
 			mHBF = 1;
 			mPowCache.clear();
+			mCountseenLvls.clear();
+			mSeenLvlsEachResort.clear();
 			mNobserved = 0;
 			mNextResort = 16;
 			
 			if(mUseConstantBF)
 				mHBF = mConstantBF;
+			
+			mSeenLvlsEachResort.push_back(std::map<ucost_t, unsigned>());
+			mComputedHBFs.push_back(std::vector<double>());
+			
+			mComputedHBFs.back().push_back(mHBF);
 		}
 		
 		bool shouldResort(unsigned pExpd) {
@@ -209,54 +217,66 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				return false;
 			
 			mNextResort *= Resort_Fact;
+			mCount_cur = 0;
+			mLvl_cur = mLvl_prev = Null_Level;
+			
+			mSeenLvlsEachResort.push_back(std::map<ucost_t, unsigned>());
+			mComputedHBFs.push_back(std::vector<double>());
+			
+			mComputedHBFs.back().push_back(mHBF);
 			return true;
 		}
 
 		Json report() {
 			Json j;
-			j["mFCount_cur"] = mFCount_cur;
-			j["mFCount_prevSum"] = mFCount_prevSum;
-			j["mNobserved"] = mNobserved;
-			j["mTest_fLvls"] = mTest_fLvls;
+			j["seen levels"] = mSeenLvlsEachResort;
+			j["all hbf computed"] = mComputedHBFs;
 			return j;
 		}
 	
 		template<typename Nd>
 		ucost_t compute_u(Nd* n, Cost h, unsigned d) {
-			return compute_u(n->f, n->depth+d);
+			return compute_u(n->f, n->depth, d);
 		}
 		
 		template<typename Nd>
 		void inform_expansion(Nd* n, unsigned) {
+			ucost_t plvl = n->u;
 
-			Cost pF = n->u;
+			slow_assert(mLvl_cur <= plvl || mLvl_cur == Null_Level);
 			
-			slow_assert(pF >= mCurF);
-			slow_assert(pF != 0);		//If pF is 0, mNobserved will be incorrect.
+			mSeenLvlsEachResort.back()[plvl]++;
 			
-			if(pF == mCurF)
-				mFCount_cur++;
-				
+			if(plvl == mLvl_cur)
+				mCount_cur++;
+			
+			else if(mLvl_cur == Null_Level) {
+				mLvl_cur = plvl;
+				slow_assert(mCount_cur == 0);
+				mCount_cur = 1;
+			}
 			else {
-				if(mFCount_prevSum != 0 && !mUseConstantBF)
-					mHBF = (double)(mFCount_cur + mFCount_prevSum) / mFCount_prevSum;
-
-				mFCount_prevSum += mFCount_cur;
-				mFCount_cur = 1;
-				mCurF = pF;
-				mPowCache.clear();
-				mNobserved++;
+				if(!mUseConstantBF && mLvl_prev != Null_Level) {
+					mHBF = (double)mCount_cur / mCount_prev;
+					mPowCache.clear();
+					mComputedHBFs.back().push_back(mHBF);
+				}
+				
+				mCount_prev = mCount_cur;
+				mLvl_prev = mLvl_cur;
+				mLvl_cur = plvl;
+				mCount_cur = 1;
 			}
 		}
 		
-		ucost_t compute_u(Cost f, unsigned dtot) {
-			return f * mWf + raiseToPower(dtot);
+		ucost_t compute_u(Cost f, unsigned depth, unsigned drem) {
+			return f * mWf + raiseToPower(dtot) - raiseToPower(drem);
 		}
 		
 		unsigned raiseToPower(unsigned n) {
 			if(n <= mPowCache.size())
 				for(unsigned i=mPowCache.size(); i<=n; i++)
-					mPowCache.push_back(std::pow(mHBF, i));
+					mPowCache.push_back((ucost_t)std::pow(mHBF, i));
 			
 			return mPowCache[n];
 		}
@@ -265,24 +285,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			return mHBF;
 		}
 		
-		unsigned getObservedLevels() {
-			return mNobserved;
-		}
-		
-
-		
 		private:
 
-		unsigned mFCount_cur;
-		unsigned mFCount_prevSum;
-		unsigned mNobserved;
-		
-		Cost mCurF;
+		unsigned mCount_cur;
+		unsigned mCount_prev;
+
+		ucost_t mLvl_cur;
+		ucost_t mLvl_prev;
 		double mHBF;
 		
-		std::vector<unsigned> mPowCache;
-		std::vector<Cost> mTest_fLvls;
-
+		std::vector<ucost_t> mPowCache;
+		std::vector<std::map<ucost_t, unsigned>> mSeenLvlsEachResort;
+		std::vector<std::vector<double>> mComputedHBFs;
+		
 		unsigned mNextResort;
 		
 		const unsigned mWf;
@@ -509,8 +524,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mInitState			(mDomain.createState()),
-			mWf					(jConfig.at("wf")),
-			mUseResorting		(jConfig.at("resort"))
+			mWf					(jConfig.at("wf"))
 		{
 			fast_assert(jConfig.at("wt") == 1);
 		}
@@ -729,8 +743,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		const State		 		mInitState;
 		
 		const unsigned			mWf;
-		const bool				mUseResorting;
-		
 
 	};
 	

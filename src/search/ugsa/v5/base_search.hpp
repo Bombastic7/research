@@ -186,7 +186,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		ComputeHBF(Json const& jConfig) :
 			mWf(jConfig.at("wf")),
-			mUseConstantBF(jConfig.at("constant bf")),
+			mUseConstantBF(jConfig.count("constant bf") > 0),
 			mConstantBF(jsonOptOrDef(jConfig, "constant bf", 0))
 		{
 			reset();

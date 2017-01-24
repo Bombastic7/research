@@ -209,6 +209,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					out_h = n->y();
 					goalNode = n;
 					mStatsAcc.s_solutionFull();
+					
+					if(mDomain.checkGoal(s))
+						slow_assert(n->y() == n->x());
+
 					break;
 				}
 

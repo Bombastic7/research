@@ -1,7 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <string>
+#include <utility>
 #include <vector>
 #include <cmath>
 #include "search/closedlist.hpp"
@@ -194,13 +196,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 		
 		void reset() {
-			mCount_cur = mCount_prevSum = mNobserved = 0;
+			mCount_cur = mCount_prev = 0;
 			mLvl_cur = mLvl_prev = Null_Level;
 			mHBF = 1;
 			mPowCache.clear();
-			mCountseenLvls.clear();
+			mComputedHBFs.clear();
 			mSeenLvlsEachResort.clear();
-			mNobserved = 0;
 			mNextResort = 16;
 			
 			if(mUseConstantBF)
@@ -217,7 +218,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				return false;
 			
 			mNextResort *= Resort_Fact;
-			mCount_cur = 0;
+			mCount_cur = mCount_prev = 0;
 			mLvl_cur = mLvl_prev = Null_Level;
 			
 			mSeenLvlsEachResort.push_back(std::map<ucost_t, unsigned>());
@@ -228,9 +229,25 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 
 		Json report() {
-			Json j;
-			j["seen levels"] = mSeenLvlsEachResort;
-			j["all hbf computed"] = mComputedHBFs;
+			Json j, jSeenLvls, jHBFs;
+			
+			for(unsigned i=0; i<mSeenLvlsEachResort.size(); i++) {
+				std::vector<std::vector<ucost_t>> vecLvlCounts;
+				
+				for(auto it = mSeenLvlsEachResort[i].begin(); it != mSeenLvlsEachResort[i].end(); ++it) {
+					vecLvlCounts.push_back({it->first, it->second});
+				}
+				std::sort(vecLvlCounts.begin(), vecLvlCounts.end());
+			
+				jSeenLvls[std::to_string(i)] = vecLvlCounts;
+			}
+			
+			for(unsigned i=0; i<mComputedHBFs.size(); i++) {
+				jHBFs[std::to_string(i)] = mComputedHBFs[i];
+			}
+			
+			j["seen levels"] = jSeenLvls;
+			j["all hbf computed"] = jHBFs;
 			return j;
 		}
 	
@@ -270,7 +287,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 		
 		ucost_t compute_u(Cost f, unsigned depth, unsigned drem) {
-			return f * mWf + raiseToPower(dtot) - raiseToPower(drem);
+			return f * mWf + raiseToPower(depth+drem) - raiseToPower(drem);
 		}
 		
 		unsigned raiseToPower(unsigned n) {

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -258,7 +259,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		template<typename Nd>
 		void inform_expansion(Nd* n, unsigned) {
-			ucost_t plvl = n->u;
+			ucost_t plvl = n->f; // n->u;
 
 			slow_assert(mLvl_cur <= plvl || mLvl_cur == Null_Level);
 			
@@ -274,7 +275,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			}
 			else {
 				if(!mUseConstantBF && mLvl_prev != Null_Level) {
-					mHBF = (double)mCount_cur / mCount_prev;
+					mHBF = ((double)mCount_cur) / mCount_prev;
+					
+					if(mHBF < 0.5)
+						mHBF = 0.5;
+					else if(mHBF > 3)
+						mHBF = 3;
+					
 					mPowCache.clear();
 					mComputedHBFs.back().push_back(mHBF);
 				}
@@ -287,14 +294,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		}
 		
 		ucost_t compute_u(Cost f, unsigned depth, unsigned drem) {
-			return f * mWf + raiseToPower(depth+drem) - raiseToPower(drem);
+			ucost_t uval = f * mWf + raiseToPower(depth+drem);// - raiseToPower(depth);
+			return uval;
 		}
 		
-		unsigned raiseToPower(unsigned n) {
-			if(n <= mPowCache.size())
-				for(unsigned i=mPowCache.size(); i<=n; i++)
-					mPowCache.push_back((ucost_t)std::pow(mHBF, i));
-			
+		ucost_t raiseToPower(unsigned n) {
+			if(n >= mPowCache.size())
+				for(unsigned i=mPowCache.size(); i<=n; i++) {
+					double flt = std::pow(mHBF, i);
+					slow_assert(flt < std::numeric_limits<ucost_t>::max(), "// hbf=%f, n=%u //", mHBF, n);
+					mPowCache.push_back((ucost_t)flt);
+				}
+				
 			return mPowCache[n];
 		}
 		
@@ -390,6 +401,47 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 
 	
+	template<bool Use_Cost, typename Cost>
+	struct ComputeOrdinary {
+		
+		template<bool B> struct Tag {};
+		
+		ComputeOrdinary(Json const&) {}
+		
+		void reset() {}
+		bool shouldResort(unsigned) {return false;}
+		Json report() {
+			Json j;
+			if(Use_Cost)
+				j["ComputeOrdinary"] = "cost";
+			else
+				j["ComputeOrdinary"] = "dist";
+				
+			return j;
+		}
+		
+		
+		template<typename Nd>
+		ucost_t compute_u(Nd* n, Cost h, unsigned d) {
+			return compute_u(n, h, d, Tag<Use_Cost>{});
+		}
+		
+		template<typename Nd>
+		ucost_t compute_u(Nd* n, Cost h, unsigned d, Tag<true>) {
+			return n->f;
+		}
+		
+		template<typename Nd>
+		ucost_t compute_u(Nd* n, Cost h, unsigned d, Tag<false>) {
+			return n->depth + d;
+		}
+		
+		
+		
+		template<typename Nd>
+		void inform_expansion(Nd* n, unsigned pExpd) {}
+	};
+	
 
 
 	/*
@@ -479,6 +531,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			void set_expdAtGen(unsigned n) {
 				expdAtGen = n;
 			}
+		};
+		
+		template<typename Ign>
+		struct NodeImpl<UCalcMode::CostOnly, Ign> : public NodeBase<> {
+			using compu_t = ComputeOrdinary<true, Cost>;
+		};
+		
+		template<typename Ign>
+		struct NodeImpl<UCalcMode::DistOnly, Ign> : public NodeImpl<UCalcMode::HBF> {
+			using compu_t = ComputeOrdinary<false, Cost>;
 		};
 		
 		using Node = NodeImpl<U_Mode>;
@@ -725,7 +787,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			unsigned dval;
 			ucost_t uval;
 			
-			mHeuristics.eval(mInitState, hval, dval);
+			mHeuristics.eval(s, hval, dval);
 			n->f = n->g + hval;
 
 			uval = mCompU.compute_u(n, hval, dval);
@@ -733,7 +795,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			if(HeuristicsModule::Has_Mult) {
 				Cost hval2;
 				ucost_t uval2;
-				mHeuristics.eval(mInitState, hval2, dval, false);
+				mHeuristics.eval(s, hval2, dval, false);
 				n->f = n->g + hval2;
 				uval2 = mCompU.compute_u(n, hval2, dval);
 				

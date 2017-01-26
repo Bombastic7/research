@@ -10,7 +10,8 @@
 #include "util/exception.hpp"
 
 #include "search/hastar/v2/common.hpp"
-#include "search/hastar/v2/abt_search.hpp"
+//#include "search/hastar/v2/abt_search.hpp"
+#include "search/admissible_abtsearch.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace hastarv2 {
@@ -18,12 +19,13 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 
 	template<typename D, unsigned Top, typename StatsManager>
 	class HAstar_Base {
-		
+		static const bool Do_Print_Expansions = false;
 
 		public:
 		
-		using AbtSearch = HAstar_Abt<D, 1, Top+1, false, StatsManager>;
+		//using AbtSearch = HAstar_Abt<D, 1, Top+1, false, StatsManager>;
 		
+		using AbtSearch = AdmissibleAbtSearch<D, 1, Top+1, true, StatsManager>;
 		using Domain = typename D::template Domain<0>;
 		using Cost = typename Domain::Cost;
 		using Operator = typename Domain::Operator;
@@ -121,12 +123,10 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
 				
-				n0->f = mAbtSearch.doSearch(mInitState);
+				mAbtSearch.doSearch(mInitState, n0->f);
 				
 				mDomain.packState(mInitState, n0->pkd);
-				
-				//doAbtSearch(n0, mInitState);
-				
+
 				mOpenList.push(n0);
 				mClosedList.add(n0);
 			}
@@ -173,6 +173,16 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		}
 		
 		void expand(Node* n, State& s) {
+			
+			if(Do_Print_Expansions) {
+				std::cerr << "-- " << mStatsAcc.getExpd() << "\n";
+				mDomain.prettyPrint(s, std::cerr);
+				std::cerr << "\n\n";
+				std::cerr << "g: " << n->g << " y: " << n->f << "\n";
+				std::cerr << "open: " << mOpenList.size() << " closed: " << mClosedList.getFill() << "\n\n\n";
+				getchar();
+			}
+			
 			mStatsAcc.a_expd();			
 
 			OperatorSet ops = mDomain.createOperatorSet(s);
@@ -222,7 +232,8 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
 				
-				kid_node->f = kid_g + mAbtSearch.doSearch(edge.state());
+				mAbtSearch.doSearch(edge.state(), kid_node->f);
+				kid_node->f += kid_g;
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);

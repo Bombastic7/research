@@ -229,6 +229,7 @@ ALGS = [
 		AlgorithmInfo("HAstar", "algorithm::hastarv2::HAstar_StatsSimple", "search/hastar/v2/hastar.hpp", True, False),
 		AlgorithmInfo("UGSA_Cost_Delay", "algorithm::ugsav5::UGSAv5_Cost_Delay", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
 		AlgorithmInfo("UGSA_Cost_HBF", "algorithm::ugsav5::UGSAv5_Cost_HBF", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
+		AlgorithmInfo("UGSA_Cost_CostOnly", "algorithm::ugsav5::UGSAv5_Cost_CostOnly", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
 		#AlgorithmInfo("UGSA_Dist", "algorithm::ugsav5::UGSAv5_Dist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
 		#AlgorithmInfo("UGSA_CostOrDist", "algorithm::ugsav5::UGSAv5_CostOrDist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
 		#AlgorithmInfo("UGSA_CostAndDist", "algorithm::ugsav5::UGSAv5_CostAndDist", "search/ugsa/v5/ugsa_v5.hpp", True, True, {"resort":False}),
@@ -250,7 +251,7 @@ DOMS =	[
 
 PROBLEM_SETS =	[
 		ProblemSetInfo("tiles_8", "tiles_8.json", gen_tiles_problems.genTilesProblemSet, (3, 3, 5)),
-		ProblemSetInfo("tiles_15", "tiles_15.json", gen_tiles_problems.genTilesProblemSet, (4, 4, 2)),
+		ProblemSetInfo("tiles_15", "tiles_15.json", gen_tiles_problems.genTilesProblemSet, (4, 4, 5)),
 		ProblemSetInfo("pancake_10", "pancake_10.json", gen_pancake_problems.genPancakeProblemSet, (10, 5)),
 		ProblemSetInfo("gridnav_20", "gridnav_20.json", gen_gridnav_problems.genGridNavProblemSet, ("gridnav_20_map", 0.35, 20, 20, 5, 0.5))
 				]
@@ -286,14 +287,16 @@ def do_trial_A(doms, algs, weights, ps, outfile):
 		if a.name not in outdict[d.name]:
 			outdict[d.name][a.name] = {}
 		
-		if str(w) not in outdict[d.name][a.name]:
-			outdict[d.name][a.name][str(w)] = {}
+		weightStr = "" + w[0] + "_" + w[1]
 		
-		if str(pi) not in outdict[d.name][a.name][str(w)]:
-			outdict[d.name][a.name][str(w)][str(pi)] = {}
+		if weightStr not in outdict[d.name][a.name]:
+			outdict[d.name][a.name][weightStr] = {}
 		
-		outdict[d.name][a.name][str(w)][str(pi)]["params"] = ExecutionInfo.lookup[key].params
-		outdict[d.name][a.name][str(w)][str(pi)]["results"] = ExecutionInfo.lookup[key].results
+		if str(pi) not in outdict[d.name][a.name][weightStr]:
+			outdict[d.name][a.name][weightStr][str(pi)] = {}
+		
+		outdict[d.name][a.name][weightStr][str(pi)]["params"] = ExecutionInfo.lookup[key].params
+		outdict[d.name][a.name][weightStr][str(pi)]["results"] = ExecutionInfo.lookup[key].results
 	
 	
 	with open(outfile, "w") as f:
@@ -342,8 +345,11 @@ def trial_A(usedalgdom = False):
 
 
 def trial_test_ugsa(usedalgdoms = False):
-	doms = [DomainInfo.lookup["tiles_8h_5"]]
+	doms = [DomainInfo.lookup["tiles_8h_5"], DomainInfo.lookup["tiles_8hw_5"]]
 	algs = [a for a in AlgorithmInfo.lookup.itervalues() if a.name.count("UGSA") > 0]
+	algs.append(AlgorithmInfo.lookup["HAstar"])
+	algs.append(AlgorithmInfo.lookup["Astar"])
+	
 	probset = ProblemSetInfo.lookup["tiles_8.json"]
 	weights = [(1,1), (10,1), (100,1), (1000,1)]
 	

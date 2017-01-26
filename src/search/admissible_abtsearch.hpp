@@ -8,19 +8,23 @@
 #include "util/debug.hpp"
 #include "util/json.hpp"
 
-#include "search/ugsa/v5/common.hpp"
-#include "search/ugsa/v5/cache.hpp"
+#include "search/cache_store.hpp"
+
+#include <iostream>
 
 
-namespace mjon661 { namespace algorithm { namespace ugsav5 {
+
+namespace mjon661 { namespace algorithm {
 
 
 	template<typename D, unsigned L, unsigned Bound, bool Min_Cost, typename StatsManager>
-	class UGSAv5_Abt2 {
+	class AdmissibleAbtSearch {
 
+		static const bool Do_Print_Expansions = false;//true;
+		
 		public:
 		
-		using AbtSearch = UGSAv5_Abt2<D, L+1, Bound, Min_Cost, StatsManager>;
+		using AbtSearch = AdmissibleAbtSearch<D, L+1, Bound, Min_Cost, StatsManager>;
 		
 		using Domain = typename D::template Domain<L>;
 		using Cost = typename Domain::Cost;
@@ -120,7 +124,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 
-		UGSAv5_Abt2(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
+		AdmissibleAbtSearch(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, jConfig, pStats),
 			mAbtor				(pDomStack),
@@ -143,13 +147,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mAbtSearch.clearCache();
 		}
 		
-		void submitStats(int branch = -1) {
+		void submitStats() {
 			std::string descStr = "min ";
 			descStr += Min_Cost ? "cost" : "dist";
 			
 			Json j;
 			j["alg desc"] = descStr;
-			mStatsAcc.submit(j, branch);
+			mStatsAcc.submit(j);
 			mAbtSearch.submitStats();
 		}
 
@@ -267,6 +271,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		private:
 		
 		void expand(Node* n, State& s) {
+			
+			if(Do_Print_Expansions && L == 1) {
+				std::cerr << "-- " << mStatsAcc.getExpd() << "\n";
+				mDomain.prettyPrint(s, std::cerr);
+				std::cerr << "\n\n";
+				std::cerr << "x: " << n->x() << " y: " << n->y() << "\n";
+				std::cerr << "open: " << mOpenList.size() << " closed: " << mClosedList.getFill() << "\n\n\n";
+				getchar();
+			}
 			mStatsAcc.a_expd();
 			
 			OperatorSet ops = mDomain.createOperatorSet(s);
@@ -364,7 +377,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	
 	
 	template<typename D, unsigned Bound, bool Min_Cost, typename StatsManager>
-	struct UGSAv5_Abt2<D, Bound, Bound, Min_Cost, StatsManager> {
+	struct AdmissibleAbtSearch<D, Bound, Bound, Min_Cost, StatsManager> {
 		
 		using Domain = typename D::template Domain<Bound-1>;
 		using Cost = typename Domain::Cost;
@@ -383,7 +396,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		using PrimVal_t = typename PVtype<Min_Cost>::type;
 		
 		
-		UGSAv5_Abt2(D& pDomStack, Json const&, StatsManager& pStats) {}
+		AdmissibleAbtSearch(D& pDomStack, Json const&, StatsManager& pStats) {}
 		
 		bool doSearch(State const&, PrimVal_t& out_h) {
 			out_h = 0;
@@ -394,4 +407,4 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		void clearCache() {}
 		void submitStats() {}
 	};	
-}}}
+}}

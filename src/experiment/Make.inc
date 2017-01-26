@@ -26,7 +26,7 @@ $(BUILDDIR)/experiment/%.py: $(SRCDIR)/experiment/%.py
 
 EXPERIMENT_FILES:=\
 	$(BUILDDIR)/experiment/searcher\
-	$(BUILDDIR)/experiment/configuration.py\
+	$(BUILDDIR)/experiment/configuration2.py\
 	$(BUILDDIR)/experiment/gen_tiles_problems.py\
 	$(BUILDDIR)/experiment/gen_pancake_problems.py\
 	$(BUILDDIR)/experiment/gen_gridnav_problems.py\
@@ -43,7 +43,7 @@ BINS+=$(EXPERIMENT_FILES)
 .PHONY: exp_src exp_bins
 
 exp_src:
-	python $(SRCDIR)/experiment/configuration.py gencode $(SRCDIR)/experiment/searcher_auto.cc
+	python $(SRCDIR)/experiment/configuration2.py gencode $(SRCDIR)/experiment/searcher_auto.cc
 
 
 exp_bin: $(EXPERIMENT_FILES)

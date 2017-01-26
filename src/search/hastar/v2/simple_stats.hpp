@@ -42,6 +42,10 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				if(L != 0)
 					searchCountsReset();
 			}
+			
+			unsigned getExpd() {
+				return mExpd;
+			}
 
 			
 			unsigned mExpd, mGend, mDups, mReopnd;

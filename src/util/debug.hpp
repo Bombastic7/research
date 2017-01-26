@@ -41,7 +41,7 @@
 
 #if DEBUGLEVEL>=DEBUGGLACIAL
 #define glacial_assert(cond,...) (cond) ? ((void)0) : ::mjon661::debugimpl::assertfailimpl(__FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__)
-//#pragma message "glacial_assert"
+#pragma message "glacial_assert"
 #else
 #define glacial_assert(cond,...) while(false) { (void)(cond); }
 #endif

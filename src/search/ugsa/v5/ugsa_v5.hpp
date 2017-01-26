@@ -55,6 +55,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	template<typename DomStack>
 	using UGSAv5_Cost_HBF = UGSAv5<DomStack, HeuristicModes::Min_Cost, UCalcMode::HBF, SimpleStatsManager<>, 1000>;
 	
+	template<typename DomStack>
+	using UGSAv5_Cost_CostOnly = UGSAv5<DomStack, HeuristicModes::Min_Cost, UCalcMode::CostOnly, SimpleStatsManager<>, 1000>;
+	
 	//~ template<typename DomStack>
 	//~ using UGSAv5_Dist = UGSAv5<DomStack, HeuristicModes::Min_Dist, SimpleStatsManager<>, 1000>;
 	

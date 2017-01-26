@@ -113,7 +113,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					//S_Record::writeNames(ss);
 					
 					for(unsigned i=0; i<mLallSearches.size(); i++) {
-						mLallSearches[i].writeRow(ss);
+						//mLallSearches[i].writeRow(ss);
 					}
 					
 					//j["search log"] = ss.str();

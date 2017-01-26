@@ -13,7 +13,7 @@
 
 namespace mjon661 { namespace algorithm { namespace ugsav5 {	
 
-	using ucost_t = unsigned;
+	using ucost_t = unsigned long;
 	
 	struct SolValues {
 		unsigned u, g;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <string>
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
@@ -8,19 +9,51 @@
 #include "util/debug.hpp"
 #include "util/json.hpp"
 
-#include "search/ugsa/v5/common.hpp"
-#include "search/ugsa/v5/cache.hpp"
+#include "search/admissible_abtsearch.hpp"
+#include "search/cache_store.hpp"
+
+namespace mjon661 { namespace algorithm {
 
 
-namespace mjon661 { namespace algorithm { namespace ugsav5 {
+	/*
+	 * 	Informed search.
+	 * 	If Minimise_Cost is true, doSearch() finds the minimum cost path. If false, doSearch finds the minimum length path.
+	 * 	doSearch() returns the path cost and path length for the found path.
+	 * 	Homomorphic abstraction assumed.
+	 * 
+	 * 	Each Node tracks cost-so-far (aliased as x()), cost-so-far + heuristic (y()), and the other value as w().
+	 * 
+	 * 	Minimise_Cost == true:
+	 * 		x() = g
+	 * 		y() = g + h
+	 * 		w() = depth
+	 * 		getprim() returns g
+	 * 		getsec() returns depth
+	 * 
+	 * 	Minimise_Cost == false:
+	 * 		x() = depth
+	 * 		y() = depth + d,	where d is a distance-to-go heuristic value.
+	 * 		w() = g
+	 * 		getprim() returns depth
+	 * 		getsec() returns g
+	 * 
+	 * 	CacheEntry keeps cost and distance values (h and d members) per state. 
+	 * 	If Minimise_Cost is true, prim() is h, sec() is d. Otherwise its vice-versa.
+	 * 	h and d may be lower bounds or exact.
+	 * 	
+	 * 	Algorithm uses Optimal path caching (path from init to goal gives exact cost-to-go for states on path),	
+	 * 	and P-g heuristic for nodes expanded that aren't on the open list when goal was found 
+	 * 	([goal node cost] - [n cost] = lower bound for [cost-to-go of n]).
+	 * 
+	 * 
+	 */
 
 
-	template<typename D, unsigned L, unsigned Bound, bool Min_Cost, typename StatsManager>
-	class UGSAv5_Abt2 {
+
+	template<typename D, unsigned L, unsigned Bound, bool Minimise_Cost, typename StatsManager>
+	class AdmissibleAbtSearch2 {
 
 		public:
-		
-		using AbtSearch = UGSAv5_Abt2<D, L+1, Bound, Min_Cost, StatsManager>;
 		
 		using Domain = typename D::template Domain<L>;
 		using Cost = typename Domain::Cost;
@@ -37,40 +70,75 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 		template<bool B, typename = void>
 		struct NodeImpl {
+			using AbtSearch = AdmissibleAbtSearch<D, L+1, Bound, true, StatsManager>;
 			using PrimVal_t = Cost;
+			using SecVal_t = unsigned;
 			
 			Cost g, f;
+			unsigned depth;
+			
+			static Cost& getprim(Cost& pg, unsigned& pdepth) {return pg;}
+			static unsigned& getsec(Cost& pg, unsigned& pdepth) {return pdepth;}
+			Cost& y() {return f;}
+			Cost& x() {return g;}
+			unsigned& w() {return depth;}
+			
 			PackedState pkd;
 			Operator in_op, parent_op;
 			NodeImpl<B>* parent;
-			
-			Cost& x() {return g;}
-			Cost& y() {return f;}
 		};
 		
 		template<typename Ign>
 		struct NodeImpl<false, Ign> {
+			using AbtSearch = AdmissibleAbtSearch<D, L+1, Bound, false, StatsManager>;
 			using PrimVal_t = unsigned;
+			using SecVal_t = Cost;
 			
+			Cost g;
 			unsigned depth, dtot;
+			
+			static unsigned& getprim(Cost& pg, unsigned& pdepth) {return pdepth;}
+			static Cost& getsec(Cost& pg, unsigned& pdepth) {return pg;}
+			unsigned& y() {return dtot;}
+			unsigned& x() {return depth;}
+			Cost& w() {return g;}
+			
 			PackedState pkd;
 			Operator in_op, parent_op;
 			NodeImpl<false, Ign>* parent;
-			
-			unsigned& x() {return depth;}
-			unsigned& y() {return dtot;}
 		};
-
-		using Node = NodeImpl<Min_Cost>;
-		using PrimVal_t = typename Node::PrimVal_t;
 		
-
-		struct CacheEntry {
+		using Node = NodeImpl<Minimise_Cost>;
+		using AbtSearch = typename Node::AbtSearch;
+		using PrimVal_t = typename Node::PrimVal_t;
+		using SecVal_t = typename Node::SecVal_t;
+		
+		static const SecVal_t Null_Sec = std::numeric_limits<SecVal_t>::max();
+		
+		
+		template<bool B, typename = void>
+		struct CacheEntryImpl {
 			PackedState pkd;
-			PrimVal_t h;
+			Cost h;
+			unsigned d;
 			bool exact;
+			
+			Cost& prim() {return h;}
+			unsigned& sec() {return d;}
 		};
-
+		
+		template<typename Ign>
+		struct CacheEntryImpl<false, Ign> {
+			PackedState pkd;
+			Cost h;
+			unsigned d;
+			bool exact;
+			
+			unsigned& prim() {return d;}
+			Cost& sec() {return h;}
+		};
+		
+		using CacheEntry = CacheEntryImpl<Minimise_Cost>;
 		using CacheStore_t = CacheStore<Domain, CacheEntry>;
 		
 		
@@ -100,7 +168,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			bool operator()(Node * const a, Node * const b) const {
 				if(a->y() != b->y())
 					return a->y() < b->y();
-				return a->x() > b->x();
+				
+				if(a->x() != b->x())
+					return a->x() > b->x();
+				
+				return a->w() < b->w();
 			}
 		};
 		
@@ -120,7 +192,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		
 
-		UGSAv5_Abt2(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
+		AdmissibleAbtSearch2(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, jConfig, pStats),
 			mAbtor				(pDomStack),
@@ -143,18 +215,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			mAbtSearch.clearCache();
 		}
 		
-		void submitStats(int branch = -1) {
-			std::string descStr = "min ";
-			descStr += Min_Cost ? "cost" : "dist";
+		void submitStats() {
+			std::string descStr = "h/d min ";
+			descStr += Minimise_Cost ? "cost" : "dist";
 			
 			Json j;
 			j["alg desc"] = descStr;
-			mStatsAcc.submit(j, branch);
+			mStatsAcc.submit(j);
 			mAbtSearch.submitStats();
 		}
-
 		
-		bool doSearch(BaseState const& pBaseState, PrimVal_t& out_h) {
+		
+		
+		bool doSearch(BaseState const& pBaseState, Cost& out_h, unsigned& out_d) {
 			{
 				State s0 = mAbtor(pBaseState);
 				PackedState pkd0;
@@ -167,6 +240,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					mStatsAcc.s_cacheHit();
 					mStatsAcc.s_end();
 					out_h = ent->h;
+					out_d = ent->d;
 					return false;
 				}
 				
@@ -174,7 +248,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					
 				if(miss) {
 					ent->exact = false;
-					mAbtSearch.doSearch(s0, ent->h);
+					ent->sec() = Null_Sec;
+	
+					mAbtSearch.doSearch(s0, ent->prim());
+
 					mStatsAcc.s_cacheMiss();
 					mStatsAcc.l_cacheAdd();
 				}
@@ -186,36 +263,37 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				Node* n0 = mNodePool.construct();
 				
 				n0->pkd =		pkd0;
-				n0->x() = 		Cost(0);
-				n0->y() = 		ent->h;
+				n0->x() = 		0;
+				n0->w() =		0;
 				n0->in_op = 	mDomain.noOp;
 				n0->parent_op = mDomain.noOp;
 				n0->parent = 	nullptr;
 
+				n0->y() = ent->prim();
+				
 				mOpenList.push(n0);
 				mClosedList.add(n0);
 			}
 			
 
 			Node* goalNode = nullptr;
-
+			
 			while(true) {				
 				Node* n = mOpenList.pop();
 					
 				State s;
 				mDomain.unpackState(s, n->pkd);
 
+
 				if(mDomain.checkGoal(s) || n == mBestExactNode) {
-					out_h = n->y();
 					goalNode = n;
-					mStatsAcc.s_solutionFull();
 					
 					if(mDomain.checkGoal(s))
-						slow_assert(n->y() == n->x());
+						slow_assert(goalNode->y() == goalNode->x());
 
 					break;
 				}
-
+				
 				expand(n, s);
 			}
 			
@@ -231,13 +309,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 
 				if(ent->exact)
 					continue;
-				
+
 				PrimVal_t pg = goalNode->y() - n->x();
 				slow_assert(pg >= 0);
 				
-				if(ent->h < pg) {
-					ent->h = pg;
-					mStatsAcc.l_cacheImprove();
+				if(ent->prim() < pg) {
+					ent->prim() = pg;
+					//mStatsAcc.l_cacheImprove();
 				}
 			}
 			
@@ -245,10 +323,23 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
 				
+				SecVal_t secVal = goalNode->w() - n->w();
+				
 				if(!ent->exact) {
 					mStatsAcc.l_cacheMadeExact();
+					slow_assert(ent->sec() == Null_Sec);
+					ent->sec() = secVal;
 					ent->exact = true;
 				}
+			}
+			
+			if(Minimise_Cost) {
+				out_h = goalNode->y();
+				out_d = goalNode->w();
+			}
+			else {
+				out_h = goalNode->w();
+				out_d = goalNode->y();
 			}
 
 			mStatsAcc.s_openListSize(mOpenList.size());
@@ -283,7 +374,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
 
 			Edge		edge 		= mDomain.createEdge(pParentState, pInOp);
-			PrimVal_t	kid_x		= Min_Cost ? pParentNode->x() + edge.cost() : pParentNode->x() + 1;
+			Cost		kid_g		= pParentNode->g + edge.cost();
+			unsigned	kid_depth 	= pParentNode->depth + 1;
+			PrimVal_t&	kid_x		= Node::getprim(kid_g, kid_depth);
+			SecVal_t&	kid_w		= Node::getsec(kid_g, kid_depth);
 
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -296,6 +390,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 					kid_dup->y()		-= kid_dup->x();
 					kid_dup->y()		+= kid_x;
 					kid_dup->x()		= kid_x;
+					kid_dup->w()		= kid_w;
 					kid_dup->in_op		= pInOp;
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
@@ -314,6 +409,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 						
 						if(mBestExactNode->y() > kid_dup->y()) {
 							mBestExactNode = kid_dup;
+							slow_assert(ent->sec() != Null_Sec);
+							kid_dup->w() += ent->sec();
 						}
 					}
 				}
@@ -327,27 +424,33 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 			
 				if(miss) {
 					ent->exact = false;
-					mAbtSearch.doSearch(edge.state(), ent->h);
+					ent->sec() = Null_Sec;
+					mAbtSearch.doSearch(edge.state(), ent->prim());
 					mStatsAcc.l_cacheAdd();
 				}
 
 				kid_node->x() 		= kid_x;
+				kid_node->w()		= kid_w;
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
-				kid_node->y()		= kid_x + ent->h;
+				kid_node->y()		= kid_x + ent->prim();
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
 				
 				if(ent->exact && (!mBestExactNode || mBestExactNode->y() > kid_node->y())) {
 					mBestExactNode = kid_node;
+					slow_assert(ent->sec() != Null_Sec);
+					kid_node->w() += ent->sec();
 				}
 			}
 			
 			mDomain.destroyEdge(edge);
 		}
+		
+
 
 		StatsAcc				mStatsAcc;
 		AbtSearch				mAbtSearch;
@@ -363,30 +466,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 	};
 	
 	
-	template<typename D, unsigned Bound, bool Min_Cost, typename StatsManager>
-	struct UGSAv5_Abt2<D, Bound, Bound, Min_Cost, StatsManager> {
+	template<typename D, unsigned Bound, bool Minimise_Cost, typename StatsManager>
+	struct AdmissibleAbtSearch2<D, Bound, Bound, Minimise_Cost, StatsManager> {
 		
 		using Domain = typename D::template Domain<Bound-1>;
 		using Cost = typename Domain::Cost;
 		using State = typename Domain::State;
 		
-		template<bool B, typename = void>
-		struct PVtype {
-			using type = Cost;
-		};
+		AdmissibleAbtSearch2(D& pDomStack, Json const&, StatsManager& pStats) {}
 		
-		template<typename Ign>
-		struct PVtype<false, Ign> {
-			using type = unsigned;
-		};
-		
-		using PrimVal_t = typename PVtype<Min_Cost>::type;
-		
-		
-		UGSAv5_Abt2(D& pDomStack, Json const&, StatsManager& pStats) {}
-		
-		bool doSearch(State const&, PrimVal_t& out_h) {
+		bool doSearch(State const&, Cost& out_h, unsigned& out_d) {
 			out_h = 0;
+			out_d = 0;
 			return true;
 		}
 		
@@ -394,4 +485,4 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		void clearCache() {}
 		void submitStats() {}
 	};	
-}}}
+}}

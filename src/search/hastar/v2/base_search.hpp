@@ -124,6 +124,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				n0->parent = 	nullptr;
 				
 				mAbtSearch.doSearch(mInitState, n0->f);
+				//n0->f = mAbtSearch.doSearch(mInitState);
 				
 				mDomain.packState(mInitState, n0->pkd);
 
@@ -174,7 +175,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		void expand(Node* n, State& s) {
 			
-			if(Do_Print_Expansions) {
+			if(Do_Print_Expansions && mStatsAcc.getExpd() % 1000 == 0) {
 				std::cerr << "-- " << mStatsAcc.getExpd() << "\n";
 				mDomain.prettyPrint(s, std::cerr);
 				std::cerr << "\n\n";
@@ -234,6 +235,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				
 				mAbtSearch.doSearch(edge.state(), kid_node->f);
 				kid_node->f += kid_g;
+				//kid_node->f = kid_g + mAbtSearch.doSearch(edge.state());
 				
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);

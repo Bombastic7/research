@@ -53,7 +53,7 @@ namespace mjon661 { namespace tiles {
 		}
 
 		idx_t indexOf(tile_t t) const {
-			fast_assert(mTileMapped[t] && t >= 0 && t < N);
+			fast_assert(mTileMapped[t] && t >= 0 && t < N, "%d %d", t, mTileMapped[t]);
 			return mTile_Idx[t];
 		}
 		
@@ -75,7 +75,7 @@ namespace mjon661 { namespace tiles {
 			std::array<idx_t, Sz> trns;
 			
 			for(idx_t selfIdx=0; selfIdx<Sz; selfIdx++) {
-				tile_t t = mTile_Idx[selfIdx];
+				tile_t t = mIdx_Tile[selfIdx];
 				trns[selfIdx] = pOrgMap.indexOf(t); // This will throw if t is not in pOrgMap
 			}
 			return trns;

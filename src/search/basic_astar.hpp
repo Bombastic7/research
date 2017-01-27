@@ -137,7 +137,7 @@ namespace AstarImpl_Impl {
 		}
 
 		
-		Node* doSearch(State const& s0) {			
+		Node* doSearch(State const& s0) {
 			{
 				Node* n0 = mNodePool.construct();
 				

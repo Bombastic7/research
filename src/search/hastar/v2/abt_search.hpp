@@ -9,6 +9,7 @@
 #include "util/json.hpp"
 
 #include "search/hastar/v2/common.hpp"
+#include "search/cache_store.hpp"
 
 
 
@@ -37,7 +38,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 
 		
-		using Cost = typename CostDepthImpl<Use_Depth, typename Domain::Cost>::type;
+		using Cost = unsigned;// typename CostDepthImpl<Use_Depth, typename Domain::Cost>::type;
 		
 
 		struct Node {

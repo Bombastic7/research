@@ -6,6 +6,8 @@ import multiprocessing
 import subprocess
 import json
 from Queue import Empty
+import multiprocessing.managers
+import sqlite3
 
 import gen_searcher
 import gen_tiles_problems
@@ -14,7 +16,7 @@ import gen_gridnav_problems
 
 
 
-def workerRoutine(execqueue, msgqueue, workerid):
+def workerRoutine(execqueue, resultsqueue, msgqueue, workerid):
 	msgpfx = str(workerid) + ": "
 	
 	def writemsg(msg):
@@ -22,51 +24,20 @@ def workerRoutine(execqueue, msgqueue, workerid):
 	
 	while True:
 		try:
-			job = execqueue.get(True, 3)
+			(jobkey, jobname, params) = execqueue.get(True, 3)
 		except Empty:
 			writemsg("finished")
 			break
 
-		job.run(writemsg)
-
-
-
-def execParallel(nworkers, execqueue, msgqueue):
-	workers = [multiprocessing.Process(target = workerRoutine, args = (execqueue, msgqueue, i) for i in range(nworkers)]
-
-	for i in workers:
-		i.start()
-	
-	while True:
-		if len(workers) == 0:
-			break
-
-		for i in workers:
-			i.join(1)
-		
-		for i in workers:
-			if not i.is_alive():
-				workers.remove(i)
-		
-		while True:
-			try:
-				msg = msgqueue.get_nowait()
-			except Empty:
-				break
-
-
-
-class SearchExecObject(object):
-	
-	def run(self, writemsg):
 		try:
-			writemsg("starting " + self.params["_name"])
-			proc = subprocess.Popen(["./searcher", "-s", self.name, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-			searcherOut = proc.communicate(input=bytearray(json.dumps(self.params)))[0]
-			self.results = json.loads(searcherOut)
+			writemsg("starting " + jobname)
+			proc = subprocess.Popen(["./searcher", "-s", jobname], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+			searcherOut = proc.communicate(input=bytearray(params))[0]
+			resultsqueue.put((jobkey, jobname, searcherOut))
 
 		except Exception as e:
-			self.results = {"_result":"exception", "_error_what": e.__class__.__name__ + " " + str(e) }
+			errres = {"_result":"exception", "_error_what": e.__class__.__name__ + " " + str(e) }
+			resultsqueue.put((jobkey, jobname, json.dumps(errres)))
 
 
 
@@ -161,8 +132,8 @@ ALGS = [
 DOMS =	[
 		DomainInfo("tiles_8h_5", tiles_stack(3,3,False,True,5), "domain/tiles/fwd.hpp", True, "tiles_8"),
 		DomainInfo("tiles_8hw_5", tiles_stack(3,3,True,True,5), "domain/tiles/fwd.hpp", True, "tiles_8"),
-		DomainInfo("tiles_15h_7", tiles_stack(4,4,False,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
-		DomainInfo("tiles_15hw_7", tiles_stack(4,4,True,True,7), "domain/tiles/fwd.hpp", True, "tiles_15"),
+		DomainInfo("tiles_15h_8", tiles_stack(4,4,False,True,8), "domain/tiles/fwd.hpp", True, "tiles_15"),
+		DomainInfo("tiles_15hw_8", tiles_stack(4,4,True,True,8), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2, True, False), "domain/pancake/fwd.hpp", True, "pancake_10"),
 		DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, True, 3, 3, 4), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
 		]
@@ -181,49 +152,50 @@ NORM_WEIGHTS = ((1,1), (10, 1), (100, 1), (1000, 1), (1000000, 1))
 
 
 
-
 def trial_test_ugsa(appendAlgDoms = None):
 	manager = multiprocessing.Manager()
-	manager.register("SearchJob", SearchExecObject)
-	execjobs = manager.dict()
+	execqueue = manager.Queue()
+	resultsqueue = manager.Queue()
 	msgqueue = manager.Queue()
 	
-	doms = [DomainInfo.lookup["tiles_8h_5"], DomainInfo.lookup["tiles_8hw_5"]]
-	algs = [a for a in AlgorithmInfo.lookup.itervalues() if a.name.count("UGSA") > 0]
+	doms = [DomainInfo.lookup["tiles_15h_8"]]#, DomainInfo.lookup["tiles_15hw_7"]]
+	algs = []#[a for a in AlgorithmInfo.lookup.itervalues() if a.name.count("UGSA") > 0]
 	algs.append(AlgorithmInfo.lookup["HAstar"])
 	algs.append(AlgorithmInfo.lookup["Astar"])
 	
-	if retAlgDoms is not None:
+	if appendAlgDoms is not None:
 		appendAlgDoms.extend([(a, d) for a in algs for d in doms])
 		return
 
 	
-	probset = ProblemSetInfo.lookup["tiles_8.json"]
+	probset = ProblemSetInfo.lookup["tiles_15.json"]
 	probset.load()
-	
 	
 	weights = [(1,1), (10,1), (100,1), (1000,1)]
 	problems = probset.problems
 	
+	searches = {}
 	
 	for d in doms:
 		for a in algs:
 			for w in weights:
 				for p in problems:
 					jobKey = (doms.index(d), algs.index(a), weights.index(w), problems.index(p))
-					jobName = d.name + "_" + a.name + "_(" + w[0] + "," + w[1] + ")_" + str(problems.index(p))
+					jobName = d.name + "_" + a.name + "_" + str(w).replace(" ", "") + "_" + str(problems.index(p))
 					
 					params = {}
 					params["_name"] = a.name + "_" + d.name
 					params["_domain"] = d.name
 					params["_algorithm"] = a.name
-
+					params["_wf"] = w[0]
+					params["_wt"] = w[1]
+					params["_problem"] = problems.index(p)
 					params["_domain_conf"] = p
-										
+									
 					if a.conf is not None:
-						self.params["_algorithm_conf"] = a.conf.copy()
+						params["_algorithm_conf"] = a.conf.copy()
 					else:
-						self.params["_algorithm_conf"] = {}
+						params["_algorithm_conf"] = {}
 					
 					params["_algorithm_conf"]["wf"] = w[0]
 					params["_algorithm_conf"]["wt"] = w[1]
@@ -231,22 +203,80 @@ def trial_test_ugsa(appendAlgDoms = None):
 					params["_time_limit"] = 80#TIME_LIMIT
 					params["_memory_limit"] = 2600#WORKER_MEM
 
-					job = manager.SearchJob()
-					job.params = params
-					execjobs[jobName] = job
-	
-	
-	if sys.argv.count("dump") == 0:		
-		jobqueue = manager.Queue()
-		for i in [i for i in execjobs.itervalues()]:
-			jobqueue.put(i)
-		
-		execParallel(1, jobqueue, msgqueue)
-		
-	with open("ugsa_test2.json", "w") as f:
-		json.dump(execjobs._getvalue(), f)
-	
+					searches[jobName] = {"params":params}
+					execqueue.put((jobKey, jobName, json.dumps(params)))
 
+	
+	if sys.argv.count("dump") == 0:
+		workers = [multiprocessing.Process(target=workerRoutine, args=(execqueue, resultsqueue, msgqueue, i)) for i in range(1)]
+		
+		for i in workers:
+			i.start()
+	
+		while len(workers) > 0:
+			while True:
+				try:
+					print msgqueue.get_nowait()
+				except Empty:
+					break
+			
+			for i in workers:
+				i.join(1)
+				if not i.is_alive():
+					workers.remove(i)
+		
+		
+		while True:
+			try:
+				(jobKey, jobName, res) = resultsqueue.get(True, 1)
+				assert(jobName in searches)
+				try:
+					searches[jobName]["results"] = json.loads(res)
+				except Exception:
+					print jobName, res
+			except Empty:
+				break
+
+	with open("ugsa_test2.json", "w") as f:
+		json.dump(searches, f, indent=4, sort_keys=True)
+	
+	if sys.argv.count("dump") == 0:
+		conn = sqlite3.connect("ugsa_test2.db")
+		c = conn.cursor()
+		
+		c.execute("""DROP TABLE IF EXISTS results""")
+				
+		c.execute("""CREATE TABLE results (domain text, algorithm text, weights text, wf real, wt real, problem int, 
+					result text, 
+					sollength int,
+					solcost real,
+					mem real,
+					walltime real,
+					cputime real,
+					base_expd int,
+					all_expd int)""")
+	
+		for (k, v) in searches.iteritems():
+			params = v["params"]
+			res = v["results"]
+			c.execute("""INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+				params["_domain"],
+				params["_algorithm"],
+				str(params["_wf"]) + "_" + str(params["_wt"]),
+				params["_wf"],
+				params["_wt"],
+				params["_problem"],
+				res["_result"],
+				res["_sol_length"],
+				res["_sol_cost"],
+				res["_mem_used"],
+				res["_walltime"],
+				res["_cputime"],
+				res["_base_expd"],
+				res["_all_expd"]))
+		
+		conn.commit()
+		conn.close()
 
 
 

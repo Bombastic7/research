@@ -120,7 +120,7 @@ namespace mjon661 { namespace tiles {
 			if(jConfig.count("kept")) {
 				std::vector<tile_t> v = jConfig.at("kept");
 				
-				if(!mathutil::contains(v, 0) || !mathutil::withinInclusive(v, 0u, Height*Width-1) || !mathutil::uniqueElements(v))
+				if(!mathutil::contains(v, 0) || !mathutil::withinInclusive(v, 0u, Height*Width-1) || !mathutil::uniqueElements(v) || v.size() < Abt1Sz)
 					throw ConfigException("Bad kept tiles");
 				
 				for(unsigned i=0; i<Abt1Sz; i++)

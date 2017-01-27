@@ -158,8 +158,8 @@ def trial_test_ugsa(appendAlgDoms = None):
 	resultsqueue = manager.Queue()
 	msgqueue = manager.Queue()
 	
-	doms = [DomainInfo.lookup["tiles_15h_8"]]#, DomainInfo.lookup["tiles_15hw_7"]]
-	algs = []#[a for a in AlgorithmInfo.lookup.itervalues() if a.name.count("UGSA") > 0]
+	doms = [DomainInfo.lookup["tiles_15h_8"], DomainInfo.lookup["tiles_15hw_8"]]
+	algs = [a for a in AlgorithmInfo.lookup.itervalues() if a.name.count("UGSA") > 0]
 	algs.append(AlgorithmInfo.lookup["HAstar"])
 	algs.append(AlgorithmInfo.lookup["Astar"])
 	

@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import sqlite3
-
+import json
 
 def extractValue_ap(indict, dom, weight, val):
 	algs = [i for i in indict[dom].iterkeys()]
@@ -55,7 +55,51 @@ def extractAllValues(indict, vals):
 						results[v][(d, a, w, p)] = indict[d][a][w][p]["results"][v]
 	
 	return results
-					
+
+
+
+
+
+def extractToDB(jfile, dbfile):
+	with open(jfile) as f:
+		searches = json.load(f)
+		
+	conn = sqlite3.connect(dbfile)
+	c = conn.cursor()
+	
+	c.execute("""DROP TABLE IF EXISTS results""")
+			
+	c.execute("""CREATE TABLE results (domain text, algorithm text, weights text, wf real, wt real, problem int, 
+				result text, 
+				sollength int,
+				solcost real,
+				mem real,
+				walltime real,
+				cputime real,
+				base_expd int,
+				all_expd int)""")
+
+	for (k, v) in searches.iteritems():
+		params = v["params"]
+		res = v["results"]
+		c.execute("""INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+			params["_domain"],
+			params["_algorithm"],
+			str(params["_wf"]) + "_" + str(params["_wt"]),
+			params["_wf"],
+			params["_wt"],
+			params["_problem"],
+			res["_result"],
+			res["_sol_length"],
+			res["_sol_cost"],
+			res["_mem_used"],
+			res["_walltime"],
+			res["_cputime"],
+			res["_base_expd"],
+			res["_all_expd"]))
+		
+	conn.commit()
+	conn.close()
 					
 
 def plotFromDB(dbfile):
@@ -80,7 +124,7 @@ def plotFromDB(dbfile):
 			plotres[d + "_" + w] = {}
 			
 			for a in algs:
-				c.execute("""SELECT results.sollength FROM results WHERE 
+				c.execute("""SELECT results.base_expd FROM results WHERE 
 							results.domain == ? AND 
 							results.algorithm == ? AND
 							results.weights == ? ORDER BY results.problem;""", (d, a, w))

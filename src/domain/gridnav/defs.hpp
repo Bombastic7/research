@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <cmath>
 
 
 namespace mjon661 { namespace gridnav {
@@ -14,7 +15,7 @@ namespace mjon661 { namespace gridnav {
 	using dist_t = double;
 	
 	
-	const float SQRT2 = 1.41421356237;
+	const float SQRT2 = std::sqrt(2);
 	
 	
 	using cell_t = char;

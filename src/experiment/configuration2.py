@@ -158,7 +158,7 @@ def trial_test_ugsa(appendAlgDoms = None):
 	resultsqueue = manager.Queue()
 	msgqueue = manager.Queue()
 	
-	doms = [DomainInfo.lookup["tiles_15h_8"], DomainInfo.lookup["tiles_15hw_8"]]
+	doms = [DomainInfo.lookup["tiles_8h_5"], DomainInfo.lookup["tiles_8hw_5"]]
 	algs = [a for a in AlgorithmInfo.lookup.itervalues() if a.name.count("UGSA") > 0]
 	algs.append(AlgorithmInfo.lookup["HAstar"])
 	algs.append(AlgorithmInfo.lookup["Astar"])
@@ -168,10 +168,10 @@ def trial_test_ugsa(appendAlgDoms = None):
 		return
 
 	
-	probset = ProblemSetInfo.lookup["tiles_15.json"]
+	probset = ProblemSetInfo.lookup["tiles_8.json"]
 	probset.load()
 	
-	weights = [(1,1), (10,1), (100,1), (1000,1)]
+	weights = [(1,1)]#, (10,1), (100,1), (1000,1)]
 	problems = probset.problems
 	
 	searches = {}
@@ -200,8 +200,8 @@ def trial_test_ugsa(appendAlgDoms = None):
 					params["_algorithm_conf"]["wf"] = w[0]
 					params["_algorithm_conf"]["wt"] = w[1]
 
-					params["_time_limit"] = 80#TIME_LIMIT
-					params["_memory_limit"] = 2600#WORKER_MEM
+					params["_time_limit"] = 300#TIME_LIMIT
+					params["_memory_limit"] = 8000#WORKER_MEM
 
 					searches[jobName] = {"params":params}
 					execqueue.put((jobKey, jobName, json.dumps(params)))
@@ -239,44 +239,50 @@ def trial_test_ugsa(appendAlgDoms = None):
 
 	with open("ugsa_test2.json", "w") as f:
 		json.dump(searches, f, indent=4, sort_keys=True)
+
+
+
+def extractToDB(jfile, dbfile):
+	with open(jfile) as f:
+		searches = json.load(f)
 	
-	if sys.argv.count("dump") == 0:
-		conn = sqlite3.connect("ugsa_test2.db")
-		c = conn.cursor()
-		
-		c.execute("""DROP TABLE IF EXISTS results""")
-				
-		c.execute("""CREATE TABLE results (domain text, algorithm text, weights text, wf real, wt real, problem int, 
-					result text, 
-					sollength int,
-					solcost real,
-					mem real,
-					walltime real,
-					cputime real,
-					base_expd int,
-					all_expd int)""")
+	conn = sqlite3.connect(dbfile)
+	c = conn.cursor()
 	
-		for (k, v) in searches.iteritems():
-			params = v["params"]
-			res = v["results"]
-			c.execute("""INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
-				params["_domain"],
-				params["_algorithm"],
-				str(params["_wf"]) + "_" + str(params["_wt"]),
-				params["_wf"],
-				params["_wt"],
-				params["_problem"],
-				res["_result"],
-				res["_sol_length"],
-				res["_sol_cost"],
-				res["_mem_used"],
-				res["_walltime"],
-				res["_cputime"],
-				res["_base_expd"],
-				res["_all_expd"]))
-		
-		conn.commit()
-		conn.close()
+	c.execute("""DROP TABLE IF EXISTS results""")
+			
+	c.execute("""CREATE TABLE results (domain text, algorithm text, weights text, wf real, wt real, problem int, 
+				result text, 
+				sollength int,
+				solcost real,
+				mem real,
+				walltime real,
+				cputime real,
+				base_expd int,
+				all_expd int)""")
+
+	for (k, v) in searches.iteritems():
+		params = v["params"]
+		res = v["results"]
+		c.execute("""INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+			params["_domain"],
+			params["_algorithm"],
+			str(params["_wf"]) + "_" + str(params["_wt"]),
+			params["_wf"],
+			params["_wt"],
+			params["_problem"],
+			res["_result"],
+			res["_sol_length"] if "_sol_length" in res else None,
+			res["_sol_cost"] if "_sol_cost" in res else None,
+			res["_mem_used"] if "_mem_used" in res else None,
+			res["_walltime"] if "_walltime" in res else None,
+			res["_cputime"] if "_cputime" in res else None,
+			res["_base_expd"] if "_base_expd" in res else None,
+			res["_all_expd"]  if "_all_expd" in res else None
+			))
+	
+	conn.commit()
+	conn.close()
 
 
 

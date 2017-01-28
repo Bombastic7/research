@@ -259,7 +259,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav5 {
 		
 		template<typename Nd>
 		void inform_expansion(Nd* n, unsigned) {
-			ucost_t plvl = n->f; // n->u;
+			ucost_t plvl = n->u;
 
 			slow_assert(mLvl_cur <= plvl || mLvl_cur == Null_Level);
 			

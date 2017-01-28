@@ -5,6 +5,8 @@
 #include <vector>
 #include <cmath>
 
+#include "util/debug.hpp"
+#include "util/math.hpp"
 
 
 namespace mjon661 { namespace gridnav { namespace blocked {
@@ -15,7 +17,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	};
 	
 	enum struct CardDir_t {
-		N, S, E, W, NW, NE, SW, SE
+		N, S, W, E, NW, NE, SW, SE
 	};
 	
 	const unsigned Null_Idx = (unsigned)-1;
@@ -24,8 +26,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	template<typename = void>
 	struct FourWayFuncs {
 		using Cost_t = int;
-		using AdjacentCells = std::array<unsigned, 4>; 
-	
+		
+		struct AdjacentCells : public std::array<unsigned, 4> {
+			AdjacentCells() {
+				this->fill(Null_Idx);
+			}
+		}; 
+		
 		static const unsigned Max_Adj = 4;
 
 		static void getAllEdges(unsigned pHeight, unsigned pWidth, unsigned i, AdjacentCells& pEdges) {
@@ -50,7 +57,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	template<typename = void>
 	struct EightWayFuncs {
 		using Cost_t = float;
-		using AdjacentCells = std::array<unsigned, 8>; 
+		
+		struct AdjacentCells : public std::array<unsigned, 8> {
+			AdjacentCells() {
+				this->fill(Null_Idx);
+			}
+		}; 
 		
 		static const Cost_t Diag_Mv_Cost = std::sqrt(2);
 		static const unsigned Max_Adj = 8;
@@ -95,6 +107,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mHeight(pHeight),
 			mWidth(pWidth),
 			mSize(pHeight * pWidth),
+			mRowMul(1),
 			mAdjList(mSize)
 		{
 			gen_assert(mSize > 0);
@@ -130,14 +143,15 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return mAdjList[idx];
 		}
 		
-		Cost_t getOpCost(unsigned idx, unsigned op) {
+		static Cost_t getOpCost(unsigned idx, unsigned op) {
 			slow_assert(idx < mSize);
 			slow_assert(op < Max_Adj);
-			return Use_LC ? idx/mWidth * BaseFuncs::getMoveCost(op) : BaseFuncs::getMoveCost(op);
+			return Use_LC ? (idx/mWidth) * BaseFuncs::getMoveCost(op) : BaseFuncs::getMoveCost(op);
 		}
 		
 		
 		unsigned const mHeight, mWidth, mSize;
+		unsigned const mRowMul;
 		
 		private:
 		std::vector<AdjacentCells> mAdjList;
@@ -145,105 +159,148 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 
 
-	template<bool Use_LC, unsigned H_, unsigned W_>
-	struct AbstractCellMap4 {
+
+	template<typename BaseFuncs, bool Use_LC, unsigned H_, unsigned W_>
+	struct AbstractCellMap {
 		
 		using Cost_t = BaseFuncs::Cost_t;
-		using AdjacentCells = BaseFuncs::AdjacentCells;
+		using AdjacentCells = typename BaseFuncs::AdjacentCells;
+		
+		struct BestHorizontalRows {
+			unsigned left, right;
+		};
+		
+		private:
 		
 		template<typename BaseMap_t>
-		void prep4(BaseMap_t const& pBaseMap) {
-
-			unsigned selfHeight = pBaseMap.mHeight / H_;
-			unsigned selfWidth = pBaseMap.mWidth / W_;
-			
-			if(selfHeight % H_ != 0) selfHeight++;
-			if(selfWidth % W_ != 0) selfWidth++;
-			
-			for(unsigned y=0; y<selfHeight; y++) {
-				for(unsigned x=0; x<selfWidth; x++) {
-					
-					unsigned startidx = mBaseWidth*y+x;
-					unsigned endidx = mBaseWidth*y + (x+W_ >= mBaseWidth ? mBaseWidth : x+W_);
-					
-					for(unsigned i=startidx; i<endidx; i++) {
-						if(mBaseMap[i] == Null_Idx)
-							continue;
-						
-						if(mBaseMap.getAdjCells(i)[0] != Null_Idx)
-							mSelfMap[mWidth * y + x][0] = mWidth * (y-1) + x;
-					}
-					
-					
-					startidx = mBaseWidth*(y+H_-1)+x;
-					endidx = mBaseWidth*(y+H_-1) + (x+W_ >= mBaseWidth ? mBaseWidth : x+W_);
-					
-					for(unsigned i=startidx; i<endidx; i++) {
-						if(mBaseMap[i] == Null_Idx)
-							continue;
-						
-						if(mBaseMap.getAdjCells(i)[1] != Null_Idx)
-							mSelfMap[mWidth * y + x][1] = mWidth * (y+1) + x;
-					}
-					
-					
-					startidx = mBaseWidth*y+x;
-					endidx = mBaseWidth * (y+H_-1 >= mBaseHeight ? mBaseHeight-1 : y+H_-1) + x;
-					
-					for(unsigned i=startidx; i<=endidx; i+=mBaseWidth) {
-						if(mBaseMap[i] == Null_Idx)
-							continue;
-						
-						if(mBaseMap.getAdjCells(i)[2] != Null_Idx)
-							mSelfMap[mWidth * y + x][2] = mWidth * y + x - 1;
-					}
-					
-					startidx = mBaseWidth*y + (x+W_-1 >= mBaseWidth ? mBaseWidth-1 : x+W_-1);
-					endidx = startidx + mBaseWidth * (y+H_-1 >= mBaseHeight ? mBaseHeight-1 : y+H_-1);
-					
-					for(unsigned i=startidx; i<=endidx; i+=mBaseWidth) {
-						if(mBaseMap[i] == Null_Idx)
-							continue;
-						
-						if(mBaseMap.getAdjCells(i)[3] != Null_Idx)
-							mSelfMap[mWidth * y + x][3] = mWidth * y + x + 1;
-					}
-				}
-			}
+		AbstractCellMap(BaseMap_t const& pBaseMap) :
+			mBaseHeight(pBaseMap.mHeight),
+			mBaseWidth(pBaseMap.mWidth),
+			mBaseSize(pBaseMap.mSize),
+			mHeight(mBaseHeight / H_ + (mBaseHeight % H_ == 0 ? 0 : 1)),
+			mWidth(mBaseWidth / W_ + (mBaseWidth % W_ == 0 ? 0 : 1)),
+			mSize(mHeight * mWidth),
+			mRowMul(H_ * pBaseMap.mRowMul),
+			mBaseRowMul(pBaseMap.mRowMul),
+			mAdjList(mSize),
+			mBestHorzRow()
+		{
+			if(Use_LC)
+				mBestHorzRow.resize(mSize);
+			prepAdjList(pBaseMap);
 		}
-
-		void prep8(CellMap<EightWayFuncs, Use_LC> const& pBaseMap) {
+		
+		
+		public:
+		
+		AbstractCellMap(CellMap<BaseFuncs, Use_LC> const& pBaseMap) :
+			AbstractCellMap<CellMap<BaseFuncs, Use_LC>>(pBaseMap)
+		{}
+		
+		AbstractCellMap(AbstractCellMap<BaseFuncs, Use_LC, H_, W_> const& pBaseMap) :
+			AbstractCellMap<AbstractCellMap<BaseFuncs, Use_LC, H_, W_>>(pBaseMap)
+		{}
+		
+		
+		AdjacentCells const& getAdjCells(unsigned idx) {
+			return mAdjList[idx];
+		}
+		
+		Cost_t getOpCost(unsigned idx, unsigned op) {
+			slow_assert(idx < mSize);
+			slow_assert(op < BaseFuncs::Max_Adj);
 			
-			prep4(pBaseMap);
+			Cost_t c = BaseFuncs::getMoveCost(op);
 			
+			if(Use_LC) {
+				if(op == CardDir_t::W)
+					c *= mBestHorzRow[idx].left;
+				else if(op == CardDir_t::E)
+					c *= mBestHorzRow[idx].right;
+				
+				else if(op == CardDir_t::N || op == CardDir_t::NW || op == CardDir_t::NE)
+					c *= idx/mWidth * mRowMul;
+				
+				else
+					c *= (idx/mWidth+1) * mRowMul - 1;
+			}
+			return c;
+		}
+		
+		void prepAdjList(std::vector<AdjacentCells> const& pBaseMap) {
 			for(unsigned y=0; y<mHeight; y++) {
 				for(unsigned x=0; x<mWidth; x++) {
 					
-					unsigned tl = mBaseWidth*y+x;
-					unsigned tr = mBaseWidth*y+(x+W_-1 >= mBaseWidth ? mBaseWidth-1 : x+W_-1);
-					unsigned bl = mBaseWidth*(y+H_-1 >= mBaseHeight ? mBaseHeight-1 : y+H_-1) + x;
-					unsigned br = mBaseWidth*(y+H_-1 >= mBaseHeight ? mBaseHeight-1 : y+H_-1) + (x+W_-1 >= mBaseWidth ? mBaseWidth-1 : x+W_-1);
+					unsigned selfi = y*mWidth + x;
+					unsigned bx0 = x * W_;
+					unsigned bx1 = mathutil::min((x+1)*W_-1, mBaseWidth-1);
+					unsigned by0 = y * H_;
+					unsigned by1 = mathutil::min((y+1)*H_-1, mBaseHeight-1);
 					
-					if(pBaseMap.getAdjCells(tl)[4] != Null_Idx)
-						mSelfMap[mWidth * y + x][4] = mWidth * (y-1) + x - 1;
+					for(unsigned i=bx0; i<=bx1; i++) {
+						unsigned p = by0*mBaseWidth + i;
+					
+						if(pBaseMap.getAdjCells(p)[0] != Null_Idx) {
+							mAdjList[selfi][0] = selfi - mWidth;
+							break;
+						}
+					}
+					
+					for(unsigned i=bx0; i<=bx1; i++) {
+						unsigned p = by1*mBaseWidth + i;
+					
+						if(pBaseMap.getAdjCells(p)[1] != Null_Idx) {
+							mAdjList[selfi][1] = selfi + mWidth;
+							break;
+						}
+					}
 
-					if(pBaseMap.getAdjCells(tr)[5] != Null_Idx)
-						mSelfMap[mWidth * y + x][5] = mWidth * (y-1) + x + 1;
+					for(unsigned i=by0; i<=by1; i++) {
+						unsigned p = i*mBaseWidth + bx0;
 					
-					if(pBaseMap.getAdjCells(br)[6] != Null_Idx)
-						mSelfMap[mWidth * y + x][6] = mWidth * (y+1) + x - 1;
+						if(pBaseMap.getAdjCells(p)[2] != Null_Idx) {
+							mAdjList[selfi][2] = selfi - 1;
+							mBestHorzRow[selfi].left = mBaseRowMul * i;
+							break;
+						}
+					}
+					
+					for(unsigned i=by0; i<=by1; i++) {
+						unsigned p = i*mBaseWidth + bx1;
+					
+						if(pBaseMap.getAdjCells(p)[3] != Null_Idx) {
+							mAdjList[selfi][3] = selfi + 1;
+							mBestHorzRow[selfi].right = mBaseRowMul * i;
+							break;
+						}
+					}
+					
+					if(!Use_LC)
+						continue;
+					
+					if(pBaseMap.getAdjCells(by0*mBaseWidth+bx0)[4] != Null_Idx)
+						mAdjList[selfi][4] = selfi - mWidth - 1;
+					
+					if(pBaseMap.getAdjCells(by0*mBaseWidth+bx1)[5] != Null_Idx)
+						mAdjList[selfi][5] = selfi - mWidth + 1;
+
+					if(pBaseMap.getAdjCells(by1*mBaseWidth+bx0)[6] != Null_Idx)
+						mAdjList[selfi][6] = selfi + mWidth - 1;
 						
-					if(pBaseMap.getAdjCells(bl)[7] != Null_Idx)
-						mSelfMap[mWidth * y + x][7] = mWidth * (y+1) + x + 1;	
+					if(pBaseMap.getAdjCells(by1*mBaseWidth+bx1)[7] != Null_Idx)
+						mAdjList[selfi][7] = selfi + mWidth + 1;
 				}
 			}
 		}
-	
 		
-		unsigned const mHeight, mWidth, mSize;
+
+
+		
 		unsigned const mBaseHeight, mBaseWidth, mBaseSize;
-		CellMap<FourWayFuncs, Use_LC> const& mBaseMap;
+		unsigned const mHeight, mWidth, mSize;
+		unsigned const mRowMul, mBaseRowMul;
 		std::vector<AdjacentCells> mAdjList;
+		std::vector<BestHorizontalRows> mBestHorzRow;
 	};
 
 }}}

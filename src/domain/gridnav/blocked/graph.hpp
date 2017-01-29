@@ -31,17 +31,18 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			AdjacentCells() {
 				this->fill(Null_Idx);
 			}
+			AdjacentCells(std::array<unsigned, 4> const& o) : std::array<unsigned, 4>(o) {}
 		}; 
 		
 		static const unsigned Max_Adj = 4;
 
 		static void getAllEdges(unsigned pHeight, unsigned pWidth, unsigned i, AdjacentCells& pEdges) {
-			pEdges = {Null_Idx};
+			pEdges = std::array<unsigned, 4>{Null_Idx};
 			
-			if(i >= pWidth) 			pEdge[0] = i-pWidth;
-			if(i < (pHeight-1)*pWidth) 	pEdge[1] = i+pWidth;
-			if(i % pWidth != 0) 		pEdge[2] = i-1;
-			if((i+1) % pWidth != 0) 	pEdge[3] = i+1;
+			if(i >= pWidth) 			pEdges[0] = i-pWidth;
+			if(i < (pHeight-1)*pWidth) 	pEdges[1] = i+pWidth;
+			if(i % pWidth != 0) 		pEdges[2] = i-1;
+			if((i+1) % pWidth != 0) 	pEdges[3] = i+1;
 		}
 		
 		static const char* getOpName(unsigned i) {
@@ -62,23 +63,24 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			AdjacentCells() {
 				this->fill(Null_Idx);
 			}
+			AdjacentCells(std::array<unsigned, 8> const& o) : std::array<unsigned, 8>(o) {}
 		}; 
 		
-		static const Cost_t Diag_Mv_Cost = std::sqrt(2);
+		static constexpr Cost_t Diag_Mv_Cost = 1.41421356237309504880168872420969807857;
 		static const unsigned Max_Adj = 8;
 		
 		static void getAllEdges(unsigned pHeight, unsigned pWidth, unsigned i, AdjacentCells& pEdges) {
-			pEdges = {Null_Idx};
+			pEdges = std::array<unsigned, 8>{Null_Idx};
 
-			if(i >= pWidth) 			pEdge[0] = i-pWidth;
-			if(i < (pHeight-1)*pWidth) 	pEdge[1] = i+pWidth;
-			if(i % pWidth != 0) 		pEdge[2] = i-1;
-			if((i+1) % pWidth != 0) 	pEdge[3] = i+1;
+			if(i >= pWidth) 			pEdges[0] = i-pWidth;
+			if(i < (pHeight-1)*pWidth) 	pEdges[1] = i+pWidth;
+			if(i % pWidth != 0) 		pEdges[2] = i-1;
+			if((i+1) % pWidth != 0) 	pEdges[3] = i+1;
 			
-			if(pEdge[0] != Cell_t::Null && pEdge[2] != Cell_t::Null) pEdge[4] = i-pWidth - 1;
-			if(pEdge[0] != Cell_t::Null && pEdge[3] != Cell_t::Null) pEdge[5] = i-pWidth + 1;
-			if(pEdge[1] != Cell_t::Null && pEdge[2] != Cell_t::Null) pEdge[6] = i+pWidth - 1;
-			if(pEdge[1] != Cell_t::Null && pEdge[3] != Cell_t::Null) pEdge[7] = i+pWidth + 1;
+			if(pEdges[0] != Cell_t::Null && pEdges[2] != Cell_t::Null) pEdges[4] = i-pWidth - 1;
+			if(pEdges[0] != Cell_t::Null && pEdges[3] != Cell_t::Null) pEdges[5] = i-pWidth + 1;
+			if(pEdges[1] != Cell_t::Null && pEdges[2] != Cell_t::Null) pEdges[6] = i+pWidth - 1;
+			if(pEdges[1] != Cell_t::Null && pEdges[3] != Cell_t::Null) pEdges[7] = i+pWidth + 1;
 		}
 		
 		static const char* getOpName(unsigned i) {
@@ -97,11 +99,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	template<typename BaseFuncs, bool Use_LC>
 	struct CellMap {
 		
-		using Cost_t = BaseFuncs::Cost_t;
-		using AdjacentCells = BaseFuncs::AdjacentCells;
-		
-		static const Cost_t Null_Cost = -1;
-		static const Max_Adj = BaseFuncs::Max_Adj;
+		using Cost_t = typename BaseFuncs::Cost_t;
+		using AdjacentCells = typename BaseFuncs::AdjacentCells;
+
+		static const unsigned Max_Adj = BaseFuncs::Max_Adj;
 		
 		CellMap(unsigned pHeight, unsigned pWidth, std::istream& in) :
 			mHeight(pHeight),
@@ -116,11 +117,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			cellMap.reserve(mSize);
 			
 			for(unsigned i=0; i<mSize; i++) {
-				std::string s = in.read();
-				Cell_t c = std::strtol(s.begin(), nullptr, 10);
+				int v;
+				Cell_t c;
+				in >> v;
+				c = (Cell_t)v;
 				
 				gen_assert(c == Cell_t::Open || c == Cell_t::Blocked);
-				cellMap.push_back((c);
+				cellMap.push_back(c);
 			}
 			
 			for(unsigned i=0; i<mSize; i++) {
@@ -143,10 +146,29 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return mAdjList[idx];
 		}
 		
-		static Cost_t getOpCost(unsigned idx, unsigned op) {
+		std::vector<AdjacentCells> const& getAdjCellsList() {
+			return mAdjList;
+		}
+		
+		Cost_t getOpCost(unsigned idx, unsigned op) {
 			slow_assert(idx < mSize);
 			slow_assert(op < Max_Adj);
 			return Use_LC ? (idx/mWidth) * BaseFuncs::getMoveCost(op) : BaseFuncs::getMoveCost(op);
+		}
+		
+		void dump(std::ostream& out, std::vector<unsigned> const& pOps) {
+			for(unsigned i=0; i<mHeight; i++) {
+				for(unsigned j=0; j<mWidth; j++) {
+					out << "[";
+					out << mAdjList[i*mWidth+j][pOps[0]];
+					
+					for(unsigned k=1; k<pOps.size(); k++)
+						out << ", " << (bool)(mAdjList[i*mWidth+j][pOps[k]] != Null_Idx);
+					
+					out << "] ";
+				}
+				out << "\n";
+			}
 		}
 		
 		
@@ -163,7 +185,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	template<typename BaseFuncs, bool Use_LC, unsigned H_, unsigned W_>
 	struct AbstractCellMap {
 		
-		using Cost_t = BaseFuncs::Cost_t;
+		using Cost_t = typename BaseFuncs::Cost_t;
 		using AdjacentCells = typename BaseFuncs::AdjacentCells;
 		
 		struct BestHorizontalRows {
@@ -187,18 +209,18 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		{
 			if(Use_LC)
 				mBestHorzRow.resize(mSize);
-			prepAdjList(pBaseMap);
+			prepAdjList(pBaseMap.getAdjCellsList());
 		}
 		
 		
 		public:
 		
 		AbstractCellMap(CellMap<BaseFuncs, Use_LC> const& pBaseMap) :
-			AbstractCellMap<CellMap<BaseFuncs, Use_LC>>(pBaseMap)
+			AbstractCellMap<CellMap<BaseFuncs, Use_LC>, Use_LC, H_, W_>(pBaseMap)
 		{}
 		
 		AbstractCellMap(AbstractCellMap<BaseFuncs, Use_LC, H_, W_> const& pBaseMap) :
-			AbstractCellMap<AbstractCellMap<BaseFuncs, Use_LC, H_, W_>>(pBaseMap)
+			AbstractCellMap<AbstractCellMap<BaseFuncs, Use_LC, H_, W_>, Use_LC, H_, W_>(pBaseMap)
 		{}
 		
 		
@@ -206,11 +228,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return mAdjList[idx];
 		}
 		
-		Cost_t getOpCost(unsigned idx, unsigned op) {
+		Cost_t getOpCost(unsigned idx, unsigned opu) {
 			slow_assert(idx < mSize);
-			slow_assert(op < BaseFuncs::Max_Adj);
+			slow_assert(opu < BaseFuncs::Max_Adj);
 			
-			Cost_t c = BaseFuncs::getMoveCost(op);
+			Cost_t c = BaseFuncs::getMoveCost(opu);
+			
+			CardDir_t op = (CardDir_t)opu;
 			
 			if(Use_LC) {
 				if(op == CardDir_t::W)
@@ -260,7 +284,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					
 						if(pBaseMap.getAdjCells(p)[2] != Null_Idx) {
 							mAdjList[selfi][2] = selfi - 1;
-							mBestHorzRow[selfi].left = mBaseRowMul * i;
+							if(Use_LC) mBestHorzRow[selfi].left = mBaseRowMul * i;
 							break;
 						}
 					}
@@ -270,7 +294,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					
 						if(pBaseMap.getAdjCells(p)[3] != Null_Idx) {
 							mAdjList[selfi][3] = selfi + 1;
-							mBestHorzRow[selfi].right = mBaseRowMul * i;
+							if(Use_LC) mBestHorzRow[selfi].right = mBaseRowMul * i;
 							break;
 						}
 					}
@@ -292,9 +316,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				}
 			}
 		}
-		
-
-
 		
 		unsigned const mBaseHeight, mBaseWidth, mBaseSize;
 		unsigned const mHeight, mWidth, mSize;

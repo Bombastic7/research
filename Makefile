@@ -27,11 +27,12 @@ include src/util/Make.inc
 include src/search/Make.inc
 include src/domain/Make.inc
 include src/experiment/Make.inc
+include src/test/Make.inc
 
 
 everything: $(BINS) $(TESTBINS)
 apps: $(BINS)
-tests: $(TESTBINS)
+#tests: $(TESTBINS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cc
 	@echo $@

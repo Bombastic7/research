@@ -8,6 +8,7 @@
 #include "util/debug.hpp"
 #include "util/math.hpp"
 
+#include <cstdio>
 
 namespace mjon661 { namespace gridnav { namespace blocked {
 
@@ -31,13 +32,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			AdjacentCells() {
 				this->fill(Null_Idx);
 			}
-			AdjacentCells(std::array<unsigned, 4> const& o) : std::array<unsigned, 4>(o) {}
 		}; 
 		
 		static const unsigned Max_Adj = 4;
 
 		static void getAllEdges(unsigned pHeight, unsigned pWidth, unsigned i, AdjacentCells& pEdges) {
-			pEdges = std::array<unsigned, 4>{Null_Idx};
+			pEdges.fill(Null_Idx);
 			
 			if(i >= pWidth) 			pEdges[0] = i-pWidth;
 			if(i < (pHeight-1)*pWidth) 	pEdges[1] = i+pWidth;
@@ -63,24 +63,23 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			AdjacentCells() {
 				this->fill(Null_Idx);
 			}
-			AdjacentCells(std::array<unsigned, 8> const& o) : std::array<unsigned, 8>(o) {}
 		}; 
 		
 		static constexpr Cost_t Diag_Mv_Cost = 1.41421356237309504880168872420969807857;
 		static const unsigned Max_Adj = 8;
 		
 		static void getAllEdges(unsigned pHeight, unsigned pWidth, unsigned i, AdjacentCells& pEdges) {
-			pEdges = std::array<unsigned, 8>{Null_Idx};
+			pEdges.fill(Null_Idx);
 
 			if(i >= pWidth) 			pEdges[0] = i-pWidth;
 			if(i < (pHeight-1)*pWidth) 	pEdges[1] = i+pWidth;
 			if(i % pWidth != 0) 		pEdges[2] = i-1;
 			if((i+1) % pWidth != 0) 	pEdges[3] = i+1;
-			
-			if(pEdges[0] != Cell_t::Null && pEdges[2] != Cell_t::Null) pEdges[4] = i-pWidth - 1;
-			if(pEdges[0] != Cell_t::Null && pEdges[3] != Cell_t::Null) pEdges[5] = i-pWidth + 1;
-			if(pEdges[1] != Cell_t::Null && pEdges[2] != Cell_t::Null) pEdges[6] = i+pWidth - 1;
-			if(pEdges[1] != Cell_t::Null && pEdges[3] != Cell_t::Null) pEdges[7] = i+pWidth + 1;
+
+			if(pEdges[0] != Null_Idx && pEdges[2] != Null_Idx) pEdges[4] = i-pWidth - 1;
+			if(pEdges[0] != Null_Idx && pEdges[3] != Null_Idx) pEdges[5] = i-pWidth + 1;
+			if(pEdges[1] != Null_Idx && pEdges[2] != Null_Idx) pEdges[6] = i+pWidth - 1;
+			if(pEdges[1] != Null_Idx && pEdges[3] != Null_Idx) pEdges[7] = i+pWidth + 1;
 		}
 		
 		static const char* getOpName(unsigned i) {
@@ -141,12 +140,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 		}
 		
-		AdjacentCells const& getAdjCells(unsigned idx) {
+		AdjacentCells const& getAdjCells(unsigned idx) const {
 			slow_assert(idx < mSize);
 			return mAdjList[idx];
 		}
 		
-		std::vector<AdjacentCells> const& getAdjCellsList() {
+		std::vector<AdjacentCells> const& getAdjCellsList() const {
 			return mAdjList;
 		}
 		
@@ -156,15 +155,36 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return Use_LC ? (idx/mWidth) * BaseFuncs::getMoveCost(op) : BaseFuncs::getMoveCost(op);
 		}
 		
-		void dump(std::ostream& out, std::vector<unsigned> const& pOps) {
+		void dump(std::ostream& out, bool pIsAdj, bool pCost, std::vector<unsigned> const& pOps) {
 			for(unsigned i=0; i<mHeight; i++) {
 				for(unsigned j=0; j<mWidth; j++) {
 					out << "[";
-					out << mAdjList[i*mWidth+j][pOps[0]];
 					
-					for(unsigned k=1; k<pOps.size(); k++)
-						out << ", " << (bool)(mAdjList[i*mWidth+j][pOps[k]] != Null_Idx);
-					
+					if(pCost) {
+						out << getOpCost(i*mWidth+j, pOps[0]);
+						
+						for(unsigned k=1; k<pOps.size(); k++)
+							out << ", " << getOpCost(i*mWidth+j, pOps[k]);
+					}
+					else if(pIsAdj) {
+						out << (bool)(mAdjList[i*mWidth+j].at(pOps[0]) != Null_Idx);
+						
+						for(unsigned k=1; k<pOps.size(); k++)
+							out << ", " << (bool)(mAdjList[i*mWidth+j].at(pOps[k]) != Null_Idx);
+					}
+					else {
+						if(mAdjList[i*mWidth+j].at(pOps[0]) != Null_Idx)
+							out << mAdjList[i*mWidth+j].at(pOps[0]);
+						else
+							out << "*";
+						
+						for(unsigned k=1; k<pOps.size(); k++) {
+							if(mAdjList[i*mWidth+j].at(pOps[k]) != Null_Idx)
+								out << ", " << mAdjList[i*mWidth+j].at(pOps[k]);
+							else
+								out << ", *";
+						}
+					}
 					out << "] ";
 				}
 				out << "\n";
@@ -191,11 +211,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		struct BestHorizontalRows {
 			unsigned left, right;
 		};
-		
-		private:
+
+
 		
 		template<typename BaseMap_t>
-		AbstractCellMap(BaseMap_t const& pBaseMap) :
+		AbstractCellMap(BaseMap_t const& pBaseMap, int) :
 			mBaseHeight(pBaseMap.mHeight),
 			mBaseWidth(pBaseMap.mWidth),
 			mBaseSize(pBaseMap.mSize),
@@ -213,8 +233,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		
-		public:
-		
+
+		/*
 		AbstractCellMap(CellMap<BaseFuncs, Use_LC> const& pBaseMap) :
 			AbstractCellMap<CellMap<BaseFuncs, Use_LC>, Use_LC, H_, W_>(pBaseMap)
 		{}
@@ -222,7 +242,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		AbstractCellMap(AbstractCellMap<BaseFuncs, Use_LC, H_, W_> const& pBaseMap) :
 			AbstractCellMap<AbstractCellMap<BaseFuncs, Use_LC, H_, W_>, Use_LC, H_, W_>(pBaseMap)
 		{}
-		
+		*/
 		
 		AdjacentCells const& getAdjCells(unsigned idx) {
 			return mAdjList[idx];
@@ -264,7 +284,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					for(unsigned i=bx0; i<=bx1; i++) {
 						unsigned p = by0*mBaseWidth + i;
 					
-						if(pBaseMap.getAdjCells(p)[0] != Null_Idx) {
+						if(pBaseMap[p][0] != Null_Idx) {
 							mAdjList[selfi][0] = selfi - mWidth;
 							break;
 						}
@@ -273,7 +293,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					for(unsigned i=bx0; i<=bx1; i++) {
 						unsigned p = by1*mBaseWidth + i;
 					
-						if(pBaseMap.getAdjCells(p)[1] != Null_Idx) {
+						if(pBaseMap[p][1] != Null_Idx) {
 							mAdjList[selfi][1] = selfi + mWidth;
 							break;
 						}
@@ -282,7 +302,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					for(unsigned i=by0; i<=by1; i++) {
 						unsigned p = i*mBaseWidth + bx0;
 					
-						if(pBaseMap.getAdjCells(p)[2] != Null_Idx) {
+						if(pBaseMap[p][2] != Null_Idx) {
 							mAdjList[selfi][2] = selfi - 1;
 							if(Use_LC) mBestHorzRow[selfi].left = mBaseRowMul * i;
 							break;
@@ -292,28 +312,64 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					for(unsigned i=by0; i<=by1; i++) {
 						unsigned p = i*mBaseWidth + bx1;
 					
-						if(pBaseMap.getAdjCells(p)[3] != Null_Idx) {
+						if(pBaseMap[p][3] != Null_Idx) {
 							mAdjList[selfi][3] = selfi + 1;
 							if(Use_LC) mBestHorzRow[selfi].right = mBaseRowMul * i;
 							break;
 						}
 					}
 					
-					if(!Use_LC)
+					if(BaseFuncs::Max_Adj != 8)
 						continue;
 					
-					if(pBaseMap.getAdjCells(by0*mBaseWidth+bx0)[4] != Null_Idx)
+					if(pBaseMap[by0*mBaseWidth+bx0][4] != Null_Idx)
 						mAdjList[selfi][4] = selfi - mWidth - 1;
 					
-					if(pBaseMap.getAdjCells(by0*mBaseWidth+bx1)[5] != Null_Idx)
+					if(pBaseMap[by0*mBaseWidth+bx1][5] != Null_Idx)
 						mAdjList[selfi][5] = selfi - mWidth + 1;
 
-					if(pBaseMap.getAdjCells(by1*mBaseWidth+bx0)[6] != Null_Idx)
+					if(pBaseMap[by1*mBaseWidth+bx0][6] != Null_Idx)
 						mAdjList[selfi][6] = selfi + mWidth - 1;
 						
-					if(pBaseMap.getAdjCells(by1*mBaseWidth+bx1)[7] != Null_Idx)
+					if(pBaseMap[by1*mBaseWidth+bx1][7] != Null_Idx)
 						mAdjList[selfi][7] = selfi + mWidth + 1;
 				}
+			}
+		}
+		
+		void dump(std::ostream& out, bool pIsAdj, bool pCost, std::vector<unsigned> const& pOps) {
+			for(unsigned i=0; i<mHeight; i++) {
+				for(unsigned j=0; j<mWidth; j++) {
+					out << "[";
+					
+					if(pCost) {
+						out << getOpCost(i*mWidth+j, pOps[0]);
+						
+						for(unsigned k=1; k<pOps.size(); k++)
+							out << ", " << getOpCost(i*mWidth+j, pOps[k]);
+					}
+					else if(pIsAdj) {
+						out << (bool)(mAdjList[i*mWidth+j].at(pOps[0]) != Null_Idx);
+						
+						for(unsigned k=1; k<pOps.size(); k++)
+							out << ", " << (bool)(mAdjList[i*mWidth+j].at(pOps[k]) != Null_Idx);
+					}
+					else {
+						if(mAdjList[i*mWidth+j].at(pOps[0]) != Null_Idx)
+							out << mAdjList[i*mWidth+j].at(pOps[0]);
+						else
+							out << "*";
+						
+						for(unsigned k=1; k<pOps.size(); k++) {
+							if(mAdjList[i*mWidth+j].at(pOps[k]) != Null_Idx)
+								out << ", " << mAdjList[i*mWidth+j].at(pOps[k]);
+							else
+								out << ", *";
+						}
+					}
+					out << "] ";
+				}
+				out << "\n";
 			}
 		}
 		

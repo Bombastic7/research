@@ -15,12 +15,15 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		if(!ifs)
 			throw std::runtime_error("");
 		
-		CellMap<FourWayFuncs<>, false> cellmap(20, 20, ifs);
+		CellMap<EightWayFuncs<>, true> cellmap(20, 20, ifs);
 		
-		cellmap.dump(std::cout, {0, 1});
+		//cellmap.dump(std::cout, false, true, {4,5,6,7});
 		
+		AbstractCellMap<EightWayFuncs<>, true, 2, 2> abtmap(cellmap, 0);
+		abtmap.dump(std::cout, true, true, {0,1,2,3});
 		
-		
+		AbstractCellMap<EightWayFuncs<>, true, 2, 2> abtmap2(abtmap, 0);
+		abtmap2.dump(std::cout, true, true, {0,1,2,3});
 	}
 	
 }}}

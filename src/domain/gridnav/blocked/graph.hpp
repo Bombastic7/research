@@ -153,6 +153,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return mAdjList;
 		}
 		
+		std::vector<Cell_t> const& getCells() const {
+			return mCellMap;
+		}
+		
 		Cost_t getOpCost(unsigned idx, unsigned op) {
 			slow_assert(idx < mSize);
 			slow_assert(op < Max_Adj);
@@ -227,13 +231,16 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	struct StarAbtCellMap {
 		
 		
-	
+		struct InterGroupEdge {
+			unsigned dst;
+			Cost_t cost;
+		};
 	
 		struct OutDegNode {
 			unsigned idx, outdegree;
 			
 			operator()(OutDegNode const& a, OutDegNode const& b) {
-				return a.outdegree > b.outdegree;
+				return a.outdegree == b.outdegree ? a.idx < b.idx : a.outdegree > b.outdegree;
 			}
 		};
 		
@@ -246,25 +253,65 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return n;
 			
 		}
-		
-		StarAbtCellMap(CellMap<> const& pBaseMap) :
-		
-		{
 
+		std::vector<std::vector<unsigned>> mCellAbstractGroup;
+		std::vector<std::vector<std::vector<InterGroupEdge>>> mGroupEdges; //(level, group) -> vector of edges
+		
+		
+		
+		StarAbtCellMap(CellMap<BaseFuncs, Use_LC> const& pBaseMap) {
 			
-			std::vector<unsigned> groupMembership(pBaseMap.size(), Null_Idx);
+			std::vector<unsigned> cellgroups(pBaseMap.mSize, Null_Idx);
+			
+			unsigned curgrp = 0;
+			for(unsigned i=0; i<mBaseHeight*mBaseWidth; i++) {
+				if(pBaseMap.getCells()[i] != Cell_t::Blocked)
+					cellgroups[i] = curgrp++;
+			}
+			
+			for(unsigned i=0; i<pBaseMap.mSize; i++) {
+				if(cellgroups[i] == Null_Idx)
+					continue;
+				
+				AdjacentCells adjcells = pBaseMap.getAdjCells(i);
+				
+				std::vector<InterGroupEdge> v;
+				
+				for(unsigned j=0; j<adjcells.size(); j++) {
+					if(adjcells[j] == Null_Idx)
+						continue;
+					v.push_back(InterGroupEdge{ .dst=cellgroups[adjcells[j]], .cost=pBaseMap.getOpCost(i, j) });
+				}
+				
+				mGroupEdges.at(0)[cellgroups[i]] = v;
+				
+				for(unsigned i=0; mGroupEdges.back().size() > 1; i++)
+					prepNextLevel(i);
+			}
+		}
+		
+		
+		void prepNextLevel(unsigned pLvl) {
+			
+			const unsigned spaceSz = mGroupEdges.at(pLvl).size();
+			
+			std::vector<unsigned> groupMembership(baseSz, Null_Idx);
 			std::priority_queue<OutDegNode, std::vector<OutDegNode>, OutDegNode> outDegreeQueue;
 			
 			std::vector<unsigned> singletonIndices;
 			
-			for(unsigned i=0; i<pBaseMap.size(); i++) {
+			
+			
+			for(unsigned i=0; i<baseSz; i++) {
+				/*
 				if(pBaseMap.getCellMap[i] == Cell_t::Blocked)
 					continue;
-				
-				outDegreeQueue.push(OutDegNode{ .idx=i, .outdegree=countEdges(pBaseMap.getAdjCells(i)) });
+				*/
+				outDegreeQueue.push(OutDegNode{ .idx=i, .outdegree=mGroupEdges[pLvl][i].size() });
 			}
 
 			
+			//Assign group to each cell
 			while(!outDegreeQueue.empty()) {
 				unsigned root = outDegreeQueue.top().idx;
 				outDegreeQueue.pop();
@@ -272,23 +319,18 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				if(groupMembership[root] != Null_Idx)
 					continue;
 				
-				if(setGroup_rec(root, 0, maxDepth, root, groupMembership, pBaseMap.getAdjCellsList()) == 1)
+				if(setGroup_rec(root, 0, maxDepth, root, groupMembership, pLvl) == 1)
 					singletonIndices.push_back(root);
 			}
 			
-			for(unsigned i=0; i<singletonIndices.size(); i++) {
-				if(i == Null_Idx)
-					continue;
-				
-				for(unsigned j : pBaseMap.getAdjCells(j)) {
-					if(j == Null_Idx)
-						continue;
-					
-					groupMembership[i] = groupMembership[j];
-					break;
-				}
+			
+			//Remove singleton groups
+			for(unsigned i=0; i<singletonIndices.size(); i++) {				
+				if(mGroupEdges[pLvl][i].size() > 0)
+					groupMembership[i] = groupMembership[mGroupEdges[i][0].dst];
 			}
 			
+			//Normalise group labels
 			unsigned curgrp = 0;
 			std::unordered_map<unsigned, unsigned> groupRelabel;
 			
@@ -303,38 +345,46 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 			
 			
+			unsigned ngroups = groupRelabel.size();
 			
-			std::unordered_map<unsigned, std::vector<Cost_t>> groupEdges(groupRelabel.size());
+
 			
-			for(unsigned i=0; i<pBaseMap.mSize; i++) {
-				if(pBaseMap[i] == Cell_t::Blocked)
-					continue;
-				
-				AdjacentCells adjcells;
-				BaseFuncs::getAllEdges(pBaseMap.mHeight, pBaseMap.mWidth, i, adjcells);
-				
-				for(unsigned j=0; j<BaseFuncs::Max_Adj; j++) {
-					if(adjcells[j] == Null_Idx)
-						continue;
+			//For all pairs of adjacent groups, find minimum edge cost between them.
+			std::unordered_map<unsigned, std::vector<InterGroupEdge>> groupEdges;
+			
+			for(unsigned i=0; i<ngroups; i++)
+				groupEdges[i] = std::vector<InterGroupEdge>();
+			
+			
+			for(unsigned i=0; i<baseSz; i++) {
+				for(unsigned j=0; j<mGroupEdges[pLvl][i].size(); j++) {
 					
-					unsigned src = groupMembership[i];
-					unsigned dst = groupMembership[adjcells[j]];
-					Cost_t edgecost = BaseFuncs::getOpCost(src, j);
+					unsigned srcgrp = groupMembership[i];
+					unsigned dstgrp = groupMembership[mGroupEdges[pLvl][i][j].dst];
+					Cost_t edgecost = mGroupEdges[pLvl][i][j].cost;
 					
-					if(groupEdges.at(src).size() <= dst)
-						groupEdges.at(src).resize(dst+1, (Cost_t)-1);
+					bool createNewEntry = true;
 					
-					if(groupEdges.at(src).at(dst) > edgecost)
-						groupEdges.at(src).at(dst) = edgecost;
+					for(InterGroupEdge& e : groupEdges.at(srcgrp)) {
+						
+						if(e.dst == dstgrp) {
+							createNewEntry = false;
+							if(e.cost > edgecost)
+								e.cost = edgecost;
+							break;
+						}
+					}
+					
+					if(createNewEntry)
+						groupEdges.at(src).push_back(InterGroupEdge{ .dst = dst, .cost = edgecost });
 				}
-				
 			}
-				groupCells[groupMembership[i]].push_back(i);
 			
-			
+			mCellAbstractGroup.at(pLvl) = groupMembership;
+			mGroupEdges.at(pLvl+1) = groupEdges;
 		}
 		
-		unsigned setGroup_rec(unsigned i, unsigned depth, unsigned maxDepth, unsigned curgrp, std::vector<unsigned>& groupMembership, std::vector<AdjacentCells> const& adjlist) {
+		unsigned setGroup_rec(unsigned i, unsigned depth, unsigned maxDepth, unsigned curgrp, std::vector<unsigned>& groupMembership) {
 			
 			if(depth > maxDepth || groupMembership[i] != Null_Idx)
 				return;
@@ -342,24 +392,18 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			groupMembership[i] = curgrp;
 			
 			unsigned ret = 0;
-			for(unsigned j : adjlist[i]) {
+			for(unsigned j : mBaseMap.getAdjCells(i)) {
 				if(j == Null_Idx)
 					continue;
 				ret += setGroup_rec(j, depth+1, maxDepth, curgrp, groupMembership, adjlist);
 			}
 			return ret + 1;
 		}
-		
-		
-		std::vector<unsigned> getDFSRegion(CellMap<BaseFuncs, Use_LC> const& pBaseMap, std::vector<unsigned> const& pCellGroup) {
-			
+
+		void prepHigherLevels(unsigned pLvl) {
 			
 			
 		}
-		
-		void dfs_rec(CellMap<BaseFuncs, Use_LC> const& pBaseMap, std::vector<unsigned> const& pCellGroup, unsigned i, 
-		
-		
 	};
 
 /*

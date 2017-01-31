@@ -2,8 +2,10 @@
 
 #include <array>
 #include <iostream>
+#include <random>
 #include <vector>
 #include <cmath>
+#include <queue>
 
 #include "util/debug.hpp"
 #include "util/math.hpp"
@@ -107,8 +109,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mHeight(pHeight),
 			mWidth(pWidth),
 			mSize(pHeight * pWidth),
-			mRowMul(1),
-			mAdjList(mSize)
+			mAdjList(mSize),
+			mCellMap()
 		{
 			gen_assert(mSize > 0);
 			
@@ -138,6 +140,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 						mAdjList[i][j] = Null_Idx;
 				}
 			}
+			
+			mCellMap = cellMap;
 		}
 		
 		AdjacentCells const& getAdjCells(unsigned idx) const {
@@ -191,17 +195,174 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 		}
 		
+		void drawMap(std::ostream& out) {
+			for(unsigned i=0; i<mHeight; i++) {
+				for(unsigned j=0; j<mWidth; j++) {
+					unsigned idx = i*mWidth+j;
+					
+					bool isOpen = i == 0 ? mAdjList.at(idx+mWidth)[0] != Null_Idx : mAdjList.at(idx-mWidth)[1] != Null_Idx;
+					
+					if(isOpen)
+						out << ". ";
+					else
+						out << "O ";					
+				}
+				out << "\n";
+			}			
+		}
+		
 		
 		unsigned const mHeight, mWidth, mSize;
-		unsigned const mRowMul;
 		
 		private:
 		std::vector<AdjacentCells> mAdjList;
+		std::vector<Cell_t> mCellMap;
+	};
+	
+	
+
+
+
+	template<unsigned N_Levels>
+	struct StarAbtCellMap {
+		
+		
+	
+	
+		struct OutDegNode {
+			unsigned idx, outdegree;
+			
+			operator()(OutDegNode const& a, OutDegNode const& b) {
+				return a.outdegree > b.outdegree;
+			}
+		};
+		
+		unsigned countEdges(AdjacentCells const& adjcells) {
+			unsigned n = 0;
+			for(unsigned i : adjcells)
+				if(i != Null_Idx)
+					n++;
+			
+			return n;
+			
+		}
+		
+		StarAbtCellMap(CellMap<> const& pBaseMap) :
+		
+		{
+
+			
+			std::vector<unsigned> groupMembership(pBaseMap.size(), Null_Idx);
+			std::priority_queue<OutDegNode, std::vector<OutDegNode>, OutDegNode> outDegreeQueue;
+			
+			std::vector<unsigned> singletonIndices;
+			
+			for(unsigned i=0; i<pBaseMap.size(); i++) {
+				if(pBaseMap.getCellMap[i] == Cell_t::Blocked)
+					continue;
+				
+				outDegreeQueue.push(OutDegNode{ .idx=i, .outdegree=countEdges(pBaseMap.getAdjCells(i)) });
+			}
+
+			
+			while(!outDegreeQueue.empty()) {
+				unsigned root = outDegreeQueue.top().idx;
+				outDegreeQueue.pop();
+				
+				if(groupMembership[root] != Null_Idx)
+					continue;
+				
+				if(setGroup_rec(root, 0, maxDepth, root, groupMembership, pBaseMap.getAdjCellsList()) == 1)
+					singletonIndices.push_back(root);
+			}
+			
+			for(unsigned i=0; i<singletonIndices.size(); i++) {
+				if(i == Null_Idx)
+					continue;
+				
+				for(unsigned j : pBaseMap.getAdjCells(j)) {
+					if(j == Null_Idx)
+						continue;
+					
+					groupMembership[i] = groupMembership[j];
+					break;
+				}
+			}
+			
+			unsigned curgrp = 0;
+			std::unordered_map<unsigned, unsigned> groupRelabel;
+			
+			for(unsigned i=0; i<pBaseMap.mSize; i++) {
+				if(pBaseMap[i] == Cell_t::Blocked)
+					continue;
+				
+				if(groupRelabel.count(groupMembership[i]) == 0)
+					groupRelabel[groupMembership[i]] = curgrp++;
+				
+				groupMembership[i] = groupRelabel[groupMembership[i]];
+			}
+			
+			
+			
+			std::unordered_map<unsigned, std::vector<Cost_t>> groupEdges(groupRelabel.size());
+			
+			for(unsigned i=0; i<pBaseMap.mSize; i++) {
+				if(pBaseMap[i] == Cell_t::Blocked)
+					continue;
+				
+				AdjacentCells adjcells;
+				BaseFuncs::getAllEdges(pBaseMap.mHeight, pBaseMap.mWidth, i, adjcells);
+				
+				for(unsigned j=0; j<BaseFuncs::Max_Adj; j++) {
+					if(adjcells[j] == Null_Idx)
+						continue;
+					
+					unsigned src = groupMembership[i];
+					unsigned dst = groupMembership[adjcells[j]];
+					Cost_t edgecost = BaseFuncs::getOpCost(src, j);
+					
+					if(groupEdges.at(src).size() <= dst)
+						groupEdges.at(src).resize(dst+1, (Cost_t)-1);
+					
+					if(groupEdges.at(src).at(dst) > edgecost)
+						groupEdges.at(src).at(dst) = edgecost;
+				}
+				
+			}
+				groupCells[groupMembership[i]].push_back(i);
+			
+			
+		}
+		
+		unsigned setGroup_rec(unsigned i, unsigned depth, unsigned maxDepth, unsigned curgrp, std::vector<unsigned>& groupMembership, std::vector<AdjacentCells> const& adjlist) {
+			
+			if(depth > maxDepth || groupMembership[i] != Null_Idx)
+				return;
+			
+			groupMembership[i] = curgrp;
+			
+			unsigned ret = 0;
+			for(unsigned j : adjlist[i]) {
+				if(j == Null_Idx)
+					continue;
+				ret += setGroup_rec(j, depth+1, maxDepth, curgrp, groupMembership, adjlist);
+			}
+			return ret + 1;
+		}
+		
+		
+		std::vector<unsigned> getDFSRegion(CellMap<BaseFuncs, Use_LC> const& pBaseMap, std::vector<unsigned> const& pCellGroup) {
+			
+			
+			
+		}
+		
+		void dfs_rec(CellMap<BaseFuncs, Use_LC> const& pBaseMap, std::vector<unsigned> const& pCellGroup, unsigned i, 
+		
+		
 	};
 
-
-
-
+/*
 	template<typename BaseFuncs, bool Use_LC, unsigned H_, unsigned W_>
 	struct AbstractCellMap {
 		
@@ -213,41 +374,33 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		};
 
 
-		
-		template<typename BaseMap_t>
-		AbstractCellMap(BaseMap_t const& pBaseMap, int) :
-			mBaseHeight(pBaseMap.mHeight),
-			mBaseWidth(pBaseMap.mWidth),
-			mBaseSize(pBaseMap.mSize),
-			mHeight(mBaseHeight / H_ + (mBaseHeight % H_ == 0 ? 0 : 1)),
-			mWidth(mBaseWidth / W_ + (mBaseWidth % W_ == 0 ? 0 : 1)),
-			mSize(mHeight * mWidth),
-			mRowMul(H_ * pBaseMap.mRowMul),
-			mBaseRowMul(pBaseMap.mRowMul),
-			mAdjList(mSize),
-			mBestHorzRow()
+		AbstractCellMap(CellMap<BaseFuncs, Use_LC> const& pBaseMap, unsigned pAbtFact) :
+			mBaseHeight		(pBaseMap.mHeight),
+			mBaseWidth		(pBaseMap.mWidth),
+			mBaseSize		(pBaseMap.mSize),
+			mBlkH			(pAbtFact * H_),
+			mBlkW			(pAbtFact * W_),
+			mHeight			(mBaseHeight / mBlkH + (mBaseHeight % mBlkH == 0 ? 0 : 1)),
+			mWidth			(mBaseWidth / mBlkW + (mBaseWidth % mBlkW == 0 ? 0 : 1)),
+			mSize			(mHeight * mWidth),
+			mAbtFact		(pAbtFact),
+			mAdjList		(mSize),
+			mBestHorzRow	()
 		{
 			if(Use_LC)
 				mBestHorzRow.resize(mSize);
 			prepAdjList(pBaseMap.getAdjCellsList());
 		}
-		
-		
 
-		/*
-		AbstractCellMap(CellMap<BaseFuncs, Use_LC> const& pBaseMap) :
-			AbstractCellMap<CellMap<BaseFuncs, Use_LC>, Use_LC, H_, W_>(pBaseMap)
-		{}
 		
-		AbstractCellMap(AbstractCellMap<BaseFuncs, Use_LC, H_, W_> const& pBaseMap) :
-			AbstractCellMap<AbstractCellMap<BaseFuncs, Use_LC, H_, W_>, Use_LC, H_, W_>(pBaseMap)
-		{}
-		*/
-		
-		AdjacentCells const& getAdjCells(unsigned idx) {
+		AdjacentCells const& getAdjCells(unsigned idx) const {
 			return mAdjList[idx];
 		}
 		
+		std::vector<AdjacentCells> const& getAdjCellsList() const {
+			return mAdjList;
+		}
+
 		Cost_t getOpCost(unsigned idx, unsigned opu) {
 			slow_assert(idx < mSize);
 			slow_assert(opu < BaseFuncs::Max_Adj);
@@ -263,10 +416,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					c *= mBestHorzRow[idx].right;
 				
 				else if(op == CardDir_t::N || op == CardDir_t::NW || op == CardDir_t::NE)
-					c *= idx/mWidth * mRowMul;
+					c *= idx/mWidth * mBlkH;
 				
 				else
-					c *= (idx/mWidth+1) * mRowMul - 1;
+					c *= (idx/mWidth+1) * mBlkH - 1;
 			}
 			return c;
 		}
@@ -276,15 +429,19 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				for(unsigned x=0; x<mWidth; x++) {
 					
 					unsigned selfi = y*mWidth + x;
-					unsigned bx0 = x * W_;
-					unsigned bx1 = mathutil::min((x+1)*W_-1, mBaseWidth-1);
-					unsigned by0 = y * H_;
-					unsigned by1 = mathutil::min((y+1)*H_-1, mBaseHeight-1);
+					unsigned bx0 = x * mBlkW;
+					unsigned bx1 = mathutil::min((x+1)*mBlkW-1, mBaseWidth-1);
+					unsigned by0 = y * mBlkH;
+					unsigned by1 = mathutil::min((y+1)*mBlkH-1, mBaseHeight-1);
 					
 					for(unsigned i=bx0; i<=bx1; i++) {
 						unsigned p = by0*mBaseWidth + i;
 					
 						if(pBaseMap[p][0] != Null_Idx) {
+							mAdjList[selfi][0] = selfi - mWidth;
+							break;
+						}
+						if(BaseFuncs::Max_Adj == 8 && i!=bx0 && i!=bx1 && (pBaseMap[p][4] != Null_Idx || pBaseMap[p][5] != Null_Idx)) {
 							mAdjList[selfi][0] = selfi - mWidth;
 							break;
 						}
@@ -297,6 +454,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 							mAdjList[selfi][1] = selfi + mWidth;
 							break;
 						}
+						if(BaseFuncs::Max_Adj == 8 && i!=bx0 && i!=bx1 && (pBaseMap[p][6] != Null_Idx || pBaseMap[p][7] != Null_Idx)) {
+							mAdjList[selfi][1] = selfi + mWidth;
+							break;
+						}
 					}
 
 					for(unsigned i=by0; i<=by1; i++) {
@@ -304,7 +465,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					
 						if(pBaseMap[p][2] != Null_Idx) {
 							mAdjList[selfi][2] = selfi - 1;
-							if(Use_LC) mBestHorzRow[selfi].left = mBaseRowMul * i;
+							if(Use_LC) mBestHorzRow[selfi].left = i;
+							break;
+						}
+						if(BaseFuncs::Max_Adj == 8 &&
+							((i!=by0 && pBaseMap[p][4] != Null_Idx) || (i!=by1 && pBaseMap[p][6] != Null_Idx))) {
+							mAdjList[selfi][2] = selfi - 1;
+							if(Use_LC) mBestHorzRow[selfi].left = i;
 							break;
 						}
 					}
@@ -314,7 +481,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					
 						if(pBaseMap[p][3] != Null_Idx) {
 							mAdjList[selfi][3] = selfi + 1;
-							if(Use_LC) mBestHorzRow[selfi].right = mBaseRowMul * i;
+							if(Use_LC) mBestHorzRow[selfi].right = i;
+							break;
+						}
+						if(BaseFuncs::Max_Adj == 8 &&
+							((i!=by0 && pBaseMap[p][5] != Null_Idx) || (i!=by1 && pBaseMap[p][7] != Null_Idx))) {
+							mAdjList[selfi][3] = selfi + 1;
+							if(Use_LC) mBestHorzRow[selfi].right = i;
 							break;
 						}
 					}
@@ -373,11 +546,198 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 		}
 		
+		void drawMap(std::ostream& out) {
+			for(unsigned i=0; i<mHeight; i++) {
+				for(unsigned j=0; j<mWidth; j++) {
+					unsigned idx = i*mWidth+j;
+					
+					bool isOpen = i == 0 ? mAdjList.at(idx+mWidth)[0] != Null_Idx : mAdjList.at(idx-mWidth)[1] != Null_Idx;
+					
+					if(isOpen)
+						out << ". ";
+					else
+						out << "O ";					
+				}
+				out << "\n";
+			}			
+		}
+		
+		
 		unsigned const mBaseHeight, mBaseWidth, mBaseSize;
+		unsigned const mBlkH, mBlkW;
 		unsigned const mHeight, mWidth, mSize;
-		unsigned const mRowMul, mBaseRowMul;
+		unsigned const mAbtFact;
 		std::vector<AdjacentCells> mAdjList;
 		std::vector<BestHorizontalRows> mBestHorzRow;
 	};
+*/
 
+
+	
+	struct CompD_Node {
+		unsigned idx;
+		unsigned outdegree;
+	};
+	
+	struct CompD_ops {
+		bool operator()(CompD_Node const& a, CompD_Node const& b) {
+			return a.outdegree < b.outdegree;
+		}
+	};
+	
+	template<typename BaseFuncs>
+	unsigned compD_getOutDeg(std::vector<Cell_t> const& pBaseMap, std::vector<unsigned> const& cellGroup, unsigned pBaseHeight, unsigned pBaseWidth, unsigned idx) {
+		unsigned outdeg = 0;
+		
+		typename BaseFuncs::AdjacentCells adjcells;
+		BaseFuncs::getAllEdges(pBaseHeight, pBaseWidth, idx, adjcells);
+		
+		for(unsigned i=0; i<BaseFuncs::Max_Adj; i++)
+			if(adjcells[i] != Null_Idx && cellGroup[adjcells[i]] == Null_Idx && pBaseMap[adjcells[i]] != Cell_t::Blocked)
+				outdeg++;
+		
+		return outdeg;
+	}
+	
+	
+
+	std::vector<unsigned> compressMapD(std::vector<Cell_t> const& pBaseMap, unsigned pBaseHeight, unsigned pBaseWidth) {
+	
+		using BaseFuncs = FourWayFuncs<>;
+		using AdjacentCells = typename BaseFuncs::AdjacentCells;
+		
+		std::vector<unsigned> cellGroup(pBaseMap.size(), Null_Idx);
+		
+		unsigned curgrp = 0;
+		
+		std::mt19937 gen;
+		std::uniform_distribution dst(0, pBaseWidth*pBaseHeight);
+		
+		
+		while(true) {
+			unsigned root;
+			
+			while(true) {
+				root = dst(gen);
+				
+			}
+			/*
+			for(unsigned i=0; i<pBaseHeight*pBaseWidth; i++) {
+				if(cellGroup.at(i) == Null_Idx && pBaseMap.at(i) != Cell_t::Blocked) {
+					root = i;
+					break;
+				}
+			}
+			
+			if(root == Null_Idx)
+				break;
+			
+			*/
+			
+			unsigned failedPicks = 0;
+			
+			
+			cellGroup.at(root) = curgrp++;
+			//std::vector<unsigned> frontier = root;
+			std::priority_queue<CompD_Node, std::vector<CompD_Node>, CompD_ops> frontier;
+			
+			frontier.push(CompD_Node{.idx=root, .outdegree=compD_getOutDeg<FourWayFuncs<>>(pBaseMap, cellGroup, pBaseHeight, pBaseWidth, root)});
+
+
+			unsigned numcells = 0;
+			double maxPressure = 0;
+			
+			while(!frontier.empty()) {
+				
+				CompD_Node n = frontier.top();
+				frontier.pop();
+				
+				numcells++;
+				
+				
+				
+				if(maxoutdeg > 1 && n.outdegree <= 1)
+					continue;
+				
+				if(maxoutdeg < n.outdegree)
+					maxoutdeg = n.outdegree;
+
+				//cellGroup[n.idx] = curgrp;
+				
+				AdjacentCells adjcells;
+				BaseFuncs::getAllEdges(pBaseHeight, pBaseWidth, n.idx, adjcells);
+
+				
+				for(unsigned i=0; i<BaseFuncs::Max_Adj; i++) {
+				
+					if(adjcells[i] == Null_Idx || cellGroup[adjcells[i]] != Null_Idx || pBaseMap[adjcells[i]] == Cell_t::Blocked)
+						continue;
+					
+					cellGroup[adjcells[i]] = cellGroup[n.idx];
+				
+					AdjacentCells adjkid;
+					BaseFuncs::getAllEdges(pBaseHeight, pBaseWidth, adjcells[i], adjkid);
+				
+
+					unsigned kidoutdeg = compD_getOutDeg<FourWayFuncs<>>(pBaseMap, cellGroup, pBaseHeight, pBaseWidth, adjcells[i]);
+
+					if((kidoutdeg == 1 && maxoutdeg == 1) || kidoutdeg > 1)
+						frontier.push(CompD_Node{.idx=adjcells[i], .outdegree=kidoutdeg});
+				}
+			
+				
+			}	
+		}
+
+		return cellGroup;
+	}
+
+
+/*
+	std::vector<unsigned> compressMapE(std::vector<Cell_t> const& pBaseMap, unsigned pBaseHeight, unsigned pBaseWidth) {
+	
+		using BaseFuncs = FourWayFuncs<>;
+		using AdjacentCells = typename BaseFuncs::AdjacentCells;
+		
+		std::vector<unsigned> cellGroup(pBaseMap.size(), Null_Idx);
+		
+		unsigned curgrp = 0;
+		
+		std::priority_queue<CompD_Node, std::vector<CompD_Node>, CompD_ops> mapOutDegree;
+		
+		for(unsigned i=0; i<pBaseHeight*pBaseWidth; i++) {
+			
+			mapOutDegree.push(CompD_Node{.idx=i, .outdegree=compD_getOutDeg(pBaseMap, cellGroup, pBaseHeight, pBaseWidth, i)});
+		}
+		
+		
+		
+		
+		while(true) {
+			
+			CompD_Node n = map
+			
+		}
+		
+		
+		
+		
+	}
+*/
+	template<typename = void>
+	void drawMap(std::vector<Cell_t> const& pMap, unsigned pHeight, unsigned pWidth, std::ostream& out) {
+		for(unsigned i=0; i<pHeight; i++) {
+			for(unsigned j=0; j<pWidth; j++) {
+				unsigned idx = i*pWidth+j;
+
+				if(pMap[idx] == Cell_t::Open)
+					out << ". ";
+				else if(pMap[idx] == Cell_t::Blocked)
+					out << "O ";					
+				else
+					out << "? ";
+			}
+			out << "\n";
+		}			
+	}
 }}}

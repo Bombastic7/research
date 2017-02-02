@@ -227,7 +227,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	
 
 
-
+	//STAR abstraction hierarchy. A CellMap serves as the base space. Abstraction radius (for all levels) specified as pRadius in ctor.
+	//Hub/root node selection is by max outdegree, then by min cell/group index.
+	//If any singleton groups are produced with the specified radius, they are (deterministically) merged into a neighbouring group.
+	//Abstraction levels are created until none of the last level's groups are adjacent, or only one group exists.
+	//Level 0 is the base space, but with open cells identified by an index [0, number of open cells - 1].
 	template<typename BaseFuncs, bool Use_LC>
 	struct StarAbtCellMap {
 		
@@ -259,7 +263,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mCellAbstractGroup(),
 			mGroupEdges()
 		{
-			
+			//Assign a unique group to each open cell in the base space.
 			std::vector<unsigned> cellgroups(mBaseSize, Null_Idx);
 			
 			unsigned curgrp = 0;
@@ -272,12 +276,14 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			mGroupEdges.push_back(std::vector<std::vector<InterGroupEdge>>());
 			
+			//Extract base space edge info, and translate it into the group representation.
 			mGroupEdges[0].resize(curgrp);
 			
 			for(unsigned i=0; i<mBaseSize; i++) {
 				if(cellgroups[i] == Null_Idx)
 					continue;
 				
+				//For each open cell, get its neighbours.
 				AdjacentCells adjcells = pBaseMap.getAdjCells(i);
 				
 				std::vector<InterGroupEdge> v;
@@ -285,14 +291,17 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				for(unsigned j=0; j<adjcells.size(); j++) {
 					if(adjcells[j] == Null_Idx)
 						continue;
+					//Record the edge between the cell at index j and it's neighbour, in terms of their assigned groups.
 					v.push_back(InterGroupEdge{ .dst=cellgroups[adjcells[j]], .cost=pBaseMap.getOpCost(i, j) });
 				}
 				
 				mGroupEdges.at(0)[cellgroups[i]] = v;
 			}
-			
-			
-			
+
+			//mGroupEdges[0] is populated. At level 0 (base space), for any group on that level, we know which groups are connected.
+			//Now assign level 1 groups to level 0 groups, record that mapping in mCellAbstractGroup[0][L1 group] -> L2 group.
+			//And prepare mGroupEdges[1].
+			//Continue until no further abstraction is possible.
 			unsigned curlvl = 0;
 			while(true) {
 				if(mGroupEdges.back().size() == 1)
@@ -309,16 +318,74 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 		}
 		
+		unsigned abstractBaseCell(unsigned idx) {
+			slow_assert(mBaseGroupLabels.size() > idx);
+			return mBaseGroupLabels[idx];
+		}
 		
+		unsigned getAbstractGroup(unsigned pGroup, unsigned pLvl) {
+			slow_assert(pLvl < mCellAbstractGroup.size());
+			slow_assert(pGroup < mCellAbstractGroup[pLvl].size());
+			
+			return mCellAbstractGroup[pLvl][pGroup];
+		}
+
+		std::vector<unsigned> getLevelSizes() {
+			std::vector<unsigned> v;
+			
+			for(unsigned i=0; i<mGroupEdges.size(); i++) {
+				v.push_back(mGroupEdges[i].size());
+			}
+			return v;
+		}
+		
+		std::vector<std::vector<InterGroupEdge>> const& getGroupEdges(unsigned pLvl) {
+			slow_assert(pLvl < mGroupEdges.size());
+			return mGroupEdges[pLvl];
+		}
+		
+		void dump(std::ostream& out, unsigned pLvl) {
+			fast_assert(pLvl < mGroupEdges.size());
+			
+			std::vector<unsigned> groupmap = mBaseGroupLabels;
+			gen_assert(groupmap.size() == mBaseSize);
+			
+			for(unsigned i=0; i<pLvl; i++) {
+				for(unsigned j=0; j<mBaseSize; j++) {
+					if(groupmap[j] == Null_Idx)
+						continue;
+
+					groupmap[j] = mCellAbstractGroup.at(i).at(groupmap[j]);
+				}
+			}
+			
+			for(unsigned i=0; i<mBaseHeight; i++) {
+				for(unsigned j=0; j<mBaseWidth; j++) {
+					if(groupmap[i*mBaseWidth+j] == Null_Idx)
+						std::cout << " ";
+					else
+						std::cout << (char)(groupmap[i*mBaseWidth+j] % 26 + 'a');
+					}
+				std::cout << "\n";
+			}
+			std::cout << "\n";
+		}
+		
+		private:
+		
+		
+		//Using the information in mGroupEdges[pLvl], create mCellAbstractGroup[pLvl] and mGroupEdges[pLvl+1].
 		void prepNextLevel(unsigned pLvl) {
 			
-			const unsigned spaceSz = mGroupEdges.at(pLvl).size();
+			const unsigned spaceSz = mGroupEdges.at(pLvl).size(); //Number of groups in level pLvl.
 			
-			std::vector<unsigned> groupMembership(spaceSz, Null_Idx);
+			std::vector<unsigned> groupMembership(spaceSz, Null_Idx); //Record what group each level pLvl group is abstracted 
+																		//to in level pLvl+1.
+																		
 			std::priority_queue<OutDegNode, std::vector<OutDegNode>, OutDegNode> outDegreeQueue;
 			
 			
-			//Assign group to each cell
+			//Assign pLvl+1 group to each pLvl group.
 			std::vector<unsigned> singletonIndices;
 			
 			for(unsigned i=0; i<spaceSz; i++) {
@@ -337,13 +404,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 			
 			
-			//Remove singleton groups, merge with a neighbour
+			//Remove singleton groups, merge with a neighbour.
 			for(unsigned i=0; i<singletonIndices.size(); i++) {
 				if(mGroupEdges[pLvl][singletonIndices[i]].size() > 0)
 					groupMembership[singletonIndices[i]] = groupMembership[mGroupEdges[pLvl][singletonIndices[i]][0].dst];
 			}
 			
-			//Normalise group labels
+			//Normalise group labels, 0 to [ngroups at pLvl+1] - 1.
 			unsigned curgrp = 0;
 			std::map<unsigned, unsigned> groupRelabel;
 			
@@ -355,12 +422,14 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 			
 			
-			unsigned ngroups = groupRelabel.size();
+			unsigned ngroups = groupRelabel.size(); //Number of groups at pLvl+1.
 			
 
 			
-			//For each group, find cheapest edge to each adjacent group.
-			std::vector<std::vector<InterGroupEdge>> groupEdges;
+			//Iterate through every edge in level pLvl. If the source and destination are abstracted to different groups in 
+			//level pLvl+1, record it if its the cheapest between those groups seen so far.
+			
+			std::vector<std::vector<InterGroupEdge>> groupEdges; //Edges for groups in level pLvl+1.
 			
 			groupEdges.resize(ngroups);
 
@@ -410,45 +479,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				ret += setGroup_rec(e.dst, depth+1, maxDepth, curgrp, groupMembership, pLvl);
 			}
 			return ret + 1;
-		}
-		
-		unsigned getAbstractGroup(unsigned pGroup, unsigned pLvl) {
-			slow_assert(pLvl < mCellAbstractGroup.size());
-			slow_assert(pGroup < mCellAbstractGroup[pLvl].size());
-			
-			return mCellAbstractGroup[pLvl][pGroup];
-		}
-		
-		unsigned getLevels() {
-			return mGroupEdges.size();
-		}
-		
-		
-		void dump(std::ostream& out, unsigned pLvl) {
-			fast_assert(pLvl < mGroupEdges.size());
-			
-			std::vector<unsigned> groupmap = mBaseGroupLabels;
-			gen_assert(groupmap.size() == mBaseSize);
-			
-			for(unsigned i=0; i<pLvl; i++) {
-				for(unsigned j=0; j<mBaseSize; j++) {
-					if(groupmap[j] == Null_Idx)
-						continue;
-
-					groupmap[j] = mCellAbstractGroup.at(i).at(groupmap[j]);
-				}
-			}
-			
-			for(unsigned i=0; i<mBaseHeight; i++) {
-				for(unsigned j=0; j<mBaseWidth; j++) {
-					if(groupmap[i*mBaseWidth+j] == Null_Idx)
-						std::cout << ". ";
-					else
-						std::cout << groupmap[i*mBaseWidth+j] << " ";//(char)(groupmap[i*mBaseWidth+j] % 26 + 'A') << " ";
-					}
-				std::cout << "\n";
-			}
-			std::cout << "\n";
 		}
 
 

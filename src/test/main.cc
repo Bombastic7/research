@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdio>
+#include <vector>
 #include "domain/gridnav/blocked/graph.hpp"
 
 #include "util/debug.hpp"
@@ -20,12 +21,19 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		CellMap<FourWayFuncs<>, false> cellMap(20, 20, ifs);
 
-		drawMap(cellMap.getCells(), 20, 20, std::cout);
+		//drawMap(cellMap.getCells(), 20, 20, std::cout);
 		std::cout << "\n";
 		
 		StarAbtCellMap<FourWayFuncs<>, false> abtmap(cellMap, 2);
 		
-		for(unsigned i=0; i<abtmap.getLevels(); i++) {
+		std::vector<unsigned> abtsizes = abtmap.getLevelSizes();
+		
+		for(unsigned i=0; i<abtsizes.size(); i++)
+			std::cout << i << ": " << abtsizes[i] << "\n";
+		
+		getchar();
+		
+		for(unsigned i=0; i<abtsizes.size(); i++) {
 			std::cout << i << "\n";
 			abtmap.dump(std::cout, i);
 			getchar();

@@ -25,7 +25,30 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	};
 	
 	const unsigned Null_Idx = (unsigned)-1;
+
+
+	inline unsigned manhat(unsigned pState, unsigned pGoal, unsigned pWidth) {
+		int x = pState % pWidth, y = pState / pWidth;
+		int gx = pGoal % pWidth, gy = pGoal / pWidth;
+		return std::abs(gx - x) + std::abs(gy - y);
+	}
 	
+
+	/* returns  sum of contiguous rows from pY to {mGoaly-1 / mGoaly+1} if {pY < mGoalY / pY > mGoalY} */
+	inline unsigned verticalPathFactor(int pY, int goaly) {
+		int d = std::abs(goaly - pY);
+
+		if(d == 0)
+			return 0;
+
+		int s = (d * (d-1)) / 2;
+		
+		s += pY < goaly ? 
+				 pY * d :
+			(goaly+1) * d;
+
+		return s;
+	}
 	
 	template<typename = void>
 	struct FourWayFuncs {
@@ -55,6 +78,36 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 		static Cost_t getMoveCost(unsigned i) {
 			return 1;
+		}
+		
+		static unsigned reverseOp(unsigned op) {
+			if(op == 0 || op == 2)
+				return op+1;
+			
+			return op-1;
+		}
+		
+
+		
+		static void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+			int x = pPos % pWidth, y = pPos / pWidth;
+			int gx = pGoal % pWidth, gy = pGoal / pWidth;
+			
+			int dx = std::abs(x-gx), miny = mathutil::min(y, gy);
+			
+			// Horizontal segment at the cheaper of y/gy. Vertical segment straight from y to goaly.
+			int p1 = dx * miny + verticalPathFactor(y, gy);
+			
+			// From (x,y) to (x,0), then to (gx, 0), then to (gx, gy). Note that horizontal segment is free (row 0).
+			int p2 = verticalPathFactor(y, 0) + verticalPathFactor(0, gy);
+			
+			if(p1 < p2) {
+				out_h = p1;
+				out_d = dx + std::abs(y - gy);
+			} else {
+				out_h = p2;
+				out_d = dx + y + gy;
+			}
 		}
 	};
 	
@@ -93,12 +146,24 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		static Cost_t getMoveCost(unsigned i) {
 			return i >= 4 ? Diag_Mv_Cost : 1;
 		}
+		
+		static unsigned reverseOp(unsigned op) {
+			if(op == 0 || op == 2)
+				return op+1;
+			if(op == 1 || op == 3)
+				return op-1;
+			
+			if(op == 4) return 7;
+			if(op == 5) return 6;
+			if(op == 6) return 5;
+			if(op == 7) return 4;
+		}
 	};
 	
 	
 
 
-	template<typename BaseFuncs, bool Use_LC>
+	template<unsigned Height, unsigned Width, typename BaseFuncs, bool Use_LC>
 	struct CellMap {
 		
 		using Cost_t = typename BaseFuncs::Cost_t;
@@ -106,10 +171,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 		static const unsigned Max_Adj = BaseFuncs::Max_Adj;
 		
-		CellMap(unsigned pHeight, unsigned pWidth, std::istream& in) :
-			mHeight(pHeight),
-			mWidth(pWidth),
-			mSize(pHeight * pWidth),
+		CellMap(std::istream& in) :
+			mHeight(Height),
+			mWidth(Width),
+			mSize(Height * Width),
 			mAdjList(mSize),
 			mCellMap()
 		{
@@ -232,7 +297,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	//If any singleton groups are produced with the specified radius, they are (deterministically) merged into a neighbouring group.
 	//Abstraction levels are created until none of the last level's groups are adjacent, or only one group exists.
 	//Level 0 is the base space, but with open cells identified by an index [0, number of open cells - 1].
-	template<typename BaseFuncs, bool Use_LC>
+	template<unsigned Height, unsigned Width, typename BaseFuncs, bool Use_LC>
 	struct StarAbtCellMap {
 		
 		using AdjacentCells = typename BaseFuncs::AdjacentCells;
@@ -253,12 +318,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		};
 
 
-		StarAbtCellMap(CellMap<BaseFuncs, Use_LC> const& pBaseMap, unsigned pRadius) :
+		StarAbtCellMap(CellMap<Height, Width, BaseFuncs, Use_LC> const& pBaseMap, unsigned pRadius) :
 			mBaseHeight(pBaseMap.mHeight),
 			mBaseWidth(pBaseMap.mWidth),
 			mBaseSize(pBaseMap.mSize),
 			mRadius(pRadius),
-			mBaseMap(pBaseMap),
 			mBaseGroupLabels(),
 			mCellAbstractGroup(),
 			mGroupEdges()
@@ -486,7 +550,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		unsigned mBaseWidth;
 		unsigned mBaseSize;
 		unsigned mRadius;
-		CellMap<BaseFuncs, Use_LC> const& mBaseMap;
 		std::vector<unsigned> mBaseGroupLabels;
 		std::vector<std::vector<unsigned>> mCellAbstractGroup;
 		std::vector<std::vector<std::vector<InterGroupEdge>>> mGroupEdges; //(level, group) -> vector of edges

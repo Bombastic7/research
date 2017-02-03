@@ -13,18 +13,19 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	static void run() {
 		
-		std::ifstream ifs("gridnav_20_map");
+		std::ifstream ifs("map1000");
+		const unsigned height = 1000, width = 1000;
 		
 		if(!ifs)
 			throw std::runtime_error("");
 			
 		
-		CellMap<FourWayFuncs<>, false> cellMap(20, 20, ifs);
+		CellMap<EightWayFuncs<>, true> cellMap(height, width, ifs);
 
 		//drawMap(cellMap.getCells(), 20, 20, std::cout);
 		std::cout << "\n";
 		
-		StarAbtCellMap<FourWayFuncs<>, false> abtmap(cellMap, 2);
+		StarAbtCellMap<EightWayFuncs<>, true> abtmap(cellMap, 2);
 		
 		std::vector<unsigned> abtsizes = abtmap.getLevelSizes();
 		
@@ -36,8 +37,26 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		for(unsigned i=0; i<abtsizes.size(); i++) {
 			std::cout << i << "\n";
 			abtmap.dump(std::cout, i);
-			getchar();
+			//getchar();
 			
+		}
+		
+		
+		for(unsigned i=0; i<abtsizes.size(); i++) {
+			std::cout << i << "\n";
+			
+			auto edges = abtmap.getGroupEdges(i);
+			
+			for(unsigned j=0; j<edges.size(); j++) {
+				std::cout << j << " " << (char)(j%26 + 'a') << ": ";
+				
+				for(unsigned k=0; k<edges[j].size(); k++)
+					std::cout << "(" << edges[j][k].dst << "," << edges[j][k].cost << ") ";
+				
+				std::cout << "\n";
+			}
+			
+			std::cout << "\n";
 		}
 		//std::cout << abtmap.getLevels() << "\n";
 		
@@ -74,5 +93,5 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 int main(int argc, const char* argv[]) {
 	mjon661::gridnav::blocked::run();
-	
+	getchar();
 }

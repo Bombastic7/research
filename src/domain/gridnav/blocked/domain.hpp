@@ -22,213 +22,6 @@
 namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	
-	
-	/*
-	 * GridNav domain implementations for 4-way and 8-way versions.
-	 * 
-	 * flatlayout refers to the underlying CellArray (that GridNav_Dom is given a reference to) is
-	 * a flat, row major array of cell_ts. Each position (cell) has at most 4 / 8 moves.
-	 * 
-	 * FourWayBase and EightWayBase provide specific details to specialise GridNav_Dom into a suitable domain class.
-	 * 
-	 * index(x, y) = y * Width + x
-	 * 
-	 * North / South = -y / +y
-	 * 
-	 * West / East = -x / +x
-	 */
-	
-	
-	enum struct MoveDir {
-		N, NE, E, SE, S, SW, W, NW, NoOp
-	};
-	
-	template<typename = void>
-	MoveDir oppositeDir(MoveDir pDir) {	
-		int i = (int)pDir;
-		slow_assert(i >= 0 && i < 8);
-		i += 4;
-		i %= 8;
-		return (MoveDir)i;
-	}
-	
-	template<typename = void>
-	bool isDiagDir(MoveDir pDir) {
-		
-		return (int)pDir % 2 == 1;
-	}
-		
-	template<unsigned H, unsigned W>
-	bool tryMoveDir(idx_t pPos, MoveDir pDir) {
-
-		if(pDir == MoveDir::N && pPos >= W) ;
-		
-		else if(pDir == MoveDir::S && pPos < (H-1)*W) ;
-			
-		else if(pDir == MoveDir::W && pPos % W != 0) ;
-		
-		else if(pDir == MoveDir::E && (pPos+1) % W != 0) ;
-		
-		else if(pDir == MoveDir::NE && tryMoveDir<H,W>(pPos, MoveDir::N) && tryMoveDir<H,W>(pPos, MoveDir::E)) ;
-			
-		else if(pDir == MoveDir::SE && tryMoveDir<H,W>(pPos, MoveDir::S) && tryMoveDir<H,W>(pPos, MoveDir::E)) ;
-		
-		else if(pDir == MoveDir::NW && tryMoveDir<H,W>(pPos, MoveDir::N) && tryMoveDir<H,W>(pPos, MoveDir::W)) ;
-			
-		else if(pDir == MoveDir::SW && tryMoveDir<H,W>(pPos, MoveDir::S) && tryMoveDir<H,W>(pPos, MoveDir::W)) ;
-		
-		else
-			return false;
-		
-		return true;
-	}
-	
-	template<unsigned H, unsigned W>
-	idx_t applyMove(idx_t pPos, MoveDir pDir) {
-		
-		if(pDir == MoveDir::N)
-			return pPos-W;
-		
-		else if(pDir == MoveDir::S)
-			return pPos+W;
-			
-		else if(pDir == MoveDir::W)
-			return pPos-1;
-		
-		else if(pDir == MoveDir::E)
-			return pPos+1;
-		
-		else if(pDir == MoveDir::NE)
-			return applyMove<H,W>( applyMove<H,W>(pPos, MoveDir::N) , MoveDir::E);
-
-		else if(pDir == MoveDir::SE)
-			return applyMove<H,W>( applyMove<H,W>(pPos, MoveDir::S) , MoveDir::E);
-		
-		else if(pDir == MoveDir::NW)
-			return applyMove<H,W>( applyMove<H,W>(pPos, MoveDir::N) , MoveDir::W);
-			
-		else if(pDir == MoveDir::SW)
-			return applyMove<H,W>( applyMove<H,W>(pPos, MoveDir::S) , MoveDir::W);
-		
-		fast_assert(false);
-		
-		return pPos;
-	}
-	
-	
-
-
-	template<typename = void>
-	const char* prettyPrintDir(MoveDir pDir) {
-		if(pDir == MoveDir::N)
-			return "(North) ";
-		
-		else if(pDir == MoveDir::S)
-			return "(South) ";
-			
-		else if(pDir == MoveDir::W)
-			return "(West) ";
-		
-		else if(pDir == MoveDir::E)
-			return "(East) ";
-		
-		else if(pDir == MoveDir::NE)
-			return "(North East) ";
-
-		else if(pDir == MoveDir::SE)
-			return "(South East) ";
-		
-		else if(pDir == MoveDir::NW)
-			return "(North West) ";
-			
-		else if(pDir == MoveDir::SW)
-			return "(South West) ";
-		
-		fast_assert(false);
-		return nullptr;
-	}
-	
-	/*
-	template<unsigned H, unsigned W>
-	void drawFlatCellArray( CellArray<H,W> const& 			pCells,
-							std::vector<const char*> const& pSymbols, 
-							std::vector<idx_t> const& 		pSpecialPositions,
-							const char* 					pSpecialSymbol,
-							std::ostream& 					out
-						  )
-	{
-		for(idx_t i=0; i<H*W; i++) {
-			
-			if(contains(pSpecialPositions, i))
-				out << pSpecialSymbol << " ";
-			
-			else
-				out << pSymbols.at(pCells[i]) << " ";
-			
-			if((i+1) % W == 0)
-				out << "\n";
-		}
-	}
-	*/
-
-
-	template<unsigned H, unsigned W>
-	struct FourWayMoves {
-		
-		FourWayMoves(idx_t pPos) :
-			mMoves{},
-			mN(0)
-		{
-			
-			prepMove(pPos, MoveDir::N);
-			prepMove(pPos, MoveDir::S);
-			prepMove(pPos, MoveDir::E);
-			prepMove(pPos, MoveDir::W);
-		}			
-		
-
-		std::array<MoveDir, 4> mMoves;
-		int mN;
-		
-		private:
-		void prepMove(idx_t pPos, MoveDir pDir) {
-			if(tryMoveDir<H,W>(pPos, pDir))
-				mMoves[mN++] = pDir;
-		}
-	};
-	
-	
-	template<unsigned H, unsigned W>
-	struct EightWayMoves {
-
-		EightWayMoves(idx_t pPos) :
-			mMoves{},
-			mN(0)
-		{
-				
-			prepMove(pPos, MoveDir::N);
-			prepMove(pPos, MoveDir::S);
-			prepMove(pPos, MoveDir::E);
-			prepMove(pPos, MoveDir::W);
-			prepMove(pPos, MoveDir::NE);
-			prepMove(pPos, MoveDir::NW);
-			prepMove(pPos, MoveDir::SE);
-			prepMove(pPos, MoveDir::SW);
-		}
-			
-
-		std::array<MoveDir, 8> mMoves;
-		int mN;
-		
-		private:
-		void prepMove(idx_t pPos, MoveDir pDir) {
-			if(tryMoveDir<H,W>(pPos, pDir))
-				mMoves[mN++] = pDir;
-		}
-	};
-	
-	
-	
 	/* returns  sum of contiguous rows from pY to {mGoaly-1 / mGoaly+1} if {pY < mGoalY / pY > mGoalY} */
 	template<typename = void>
 	int verticalPathFactor(int pY, int goaly) {
@@ -245,27 +38,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 		return s;
 	}
-	
-	
-	template<bool H, typename Cost>
-	struct StateImpl {
-		idx_t pos;
-		Cost h, d;
-		void set_h(Cost ph) {h=ph;}
-		void set_d(Cost pd) {d=pd;}
-		Cost get_h() const {return h;}
-		Cost get_d() const {return d;}
-	};
-	
-	template<typename Cost>
-	struct StateImpl<false, Cost> {
-		idx_t pos;
-		void set_h(Cost) {}
-		void set_d(Cost) {}
-		Cost get_h() const {return 0;}
-		Cost get_d() const {return 0;}
-	};
-
 	
 	
 	
@@ -421,107 +193,175 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	
 	
-	
-	
-	template<unsigned Height, unsigned Width, bool Use_EightWay, bool Use_LifeCost, bool Use_H>
-	struct GridNavBase : public FourWayBase<Height, Width, Use_LifeCost, Use_H> {
-		using FourWayBase<Height, Width, Use_LifeCost, Use_H>::FourWayBase;
-
-	};
-	
-	
-	template<unsigned Height, unsigned Width, bool Use_LifeCost, bool Use_H>
-	struct GridNavBase<Height, Width, true, Use_LifeCost, Use_H> : public EightWayBase<Height, Width, Use_LifeCost, Use_H> {
-		using EightWayBase<Height, Width, Use_LifeCost, Use_H>::EightWayBase;
-	};
-	
-	
-	
-	
-	
-	
-	/*
-	 * GridNav_Dom is a top level class implementing domain functionality.
-	 * It handles OperatorSet and Edge creation specifically; everything is done with help from DomBase.
-	 * 
-	 */
-	
-	
-	/*
-	 * DomBase<H, W> provides:
-	 * 
-	 * 	type cost_t
-	 * 	
-	 * 	struct state_t {
-	 * 		cost_t get_h();	//Returns 0 if not using heuristics.
-	 * 		cost_t get_d();	//same as above.
-	 * 
-	 * 		idx_t pos;
-	 * 	}
-	 *  
-	 * 	struct OpSetBase {
-	 * 		OpSetBase(idx_t pos);  //populates mMoves for position, assuming all neighbouring tiles can be moved to.
-	 * 		MoveDir mMoves[]
-	 * 		unsigned mN      //Number of moves
-	 * 	}
-	 * 
-	 * 	cost_t getMoveCost(idx_t pos, MoveDir dir);
-	 * 
-	 * 	void getHeuristicValues(idx_t pos, state_t& pState);	//Called during State creation to initialise h/d.
-	 * 
-	 * 	DomBase(idx_t pGoalState);
-	 */
-	template<unsigned Height, unsigned Width, bool Use_EightWay, bool Use_LifeCost, bool Use_H, bool Use_Relax>
-	struct GridNav_Dom : public GridNavBase<Height, Width, Use_EightWay, Use_LifeCost, Use_H> {
+	template<typename CellMap_t, bool Use_H>
+	struct GridNav_BaseDom {
+		using State = unsigned;
+		using PackedState = unsigned;
+		using Cost = typename CellMap_t::Cost_t;
+		using Operator = unsigned;
+		using AdjacentCells = typename CellMap_t::AdjacentCells;
 		
-		using DomBase = GridNavBase<Height, Width, Use_EightWay, Use_LifeCost, Use_H>;
-		using PackedState = idx_t;
-		using Cost = typename DomBase::cost_t;
-		using Operator = MoveDir;
-
-
-		static const size_t Hash_Range = Height * Width;
 		
-
 		Operator noOp;
 
-		using State = typename DomBase::state_t;
-
-
-		
-		struct OperatorSet : public DomBase::OpSetBase {
-			
+		struct OperatorSet {
 			unsigned size() {
-				return this->mN;
+				return mN;
 			}
 			
 			Operator operator[](unsigned i) {
-				return this->mMoves[i];
+				return i;
 			}
 			
-			OperatorSet(GridNav_Map const& pMap, idx_t pState) :
-				DomBase::OpSetBase(pState)
+			OperatorSet(AdjacentCells const& pAdj) :
+				mN(0)
 			{
-				if(Use_Relax)
-					return;
-				
-				int canMove = 0;
-				
-				for(int pos=0, i=0; i<this->mN; i++) {
-					
-					idx_t dest = applyMove<Height, Width>(pState, this->mMoves[i]);
-					
-					if(pMap[dest] != 0)
-						continue;
-				
-					this->mMoves[pos] = this->mMoves[i];
-					canMove++;
-					pos++;
-				}
-				
-				this->mN = canMove;
+				for(unsigned o : pAdj)
+					if(o != Null_Idx)
+						mN++;
 			}
 			
+			private:
+			const unsigned mN;
+		};
+		
+		
+		struct Edge {
+			
+			Edge(State pState, Cost pCost, Operator pParentOp) :
+				mState(pState),
+				mCost(pCost),
+				mParentOp(pParentOp)
+			{}
+			
+			State& state() {
+				return mState;
+			}
+			
+			Cost cost() {
+				return mCost;
+			}
+			
+			Operator parentOp() {
+				return mParentOp;
+			}
+			
+			State mState;
+			Cost mCost;
+			Operator mParentOp;			
+		};
+		
+		
+		
+		
+		GridNav_BaseDom(CellMap_t const& pCellMap, State pInitState, State pGoalState) :
+			noOp(Null_Idx),
+			mCellMap(pCellMap),
+			mInitState(pInitState),
+			mGoalState(pGoalState)
+		{}
+
+		State createState() const {
+			return mInitState;
+		}
+			
+		void packState(State const& pState, PackedState& pPacked) const {
+			pPacked = pState;
+		}
+		
+		void unpackState(State& pState, PackedState const& pPacked) const {
+			pState = pPacked;
+		}
+		
+		Edge createEdge(State& pState, Operator op) const {
+			AdjacentCells const& adjcells = mCellMap.getAdjCells(pState);
+			return Edge(adjcells[op], mCellMap.getOpCost(pState, op), mCellMap.reverseOp(op));
+		}
+		
+		void destroyEdge(Edge&) const {
+		}
+		
+		OperatorSet createOperatorSet(State const& pState) const {
+			return OperatorSet(mAllEdges[pState]);
+		}
+		
+		size_t hash(PackedState const& pPacked) const {
+			return pPacked;
+		}
+		
+		Cost heuristicValue(State const& pState) const {
+			return 
+		}
+		
+		Cost distanceValue(State const& pState) const {
+			return pState.get_d();
+		}
+		
+		bool checkGoal(State const& pState) const {
+			return pState == mGoalState;
+		}
+
+		bool compare(State const& a, State const& b) const {
+			return a == b;
+		}
+
+		bool compare(PackedState const& a, PackedState const& b) const {
+			return a == b;
+		}
+		
+		void prettyPrint(State const& s, std::ostream& out) const {
+			out << "( " << s % mCellmap.mWidth << ", " << s.pos / mCellMap.mWidth << " )\n";
+		}
+		
+		void prettyPrint(Operator const& op, std::ostream &out) const {
+			out << op << "\n";
+		}
+		
+		size_t getHashRange() {
+			return mCellMap.mSize;
+		}
+		
+
+		private:	
+		CellMap_t const& mCellMap;
+		const State mInitState, mGoalState;
+	};
+
+
+
+
+
+
+
+	template<typename NavMap_t>
+	struct GridNav_AbtDom {
+
+		using State = unsigned;
+		using PackedState = unsigned;
+		using Cost = typename NavMap_t::Cost_t;
+		using Operator = unsigned;
+
+		using InterGroupEdge = typename NavMap_t::InterGroupEdge;
+		
+		//static const size_t Hash_Range = Height * Width;
+
+		Operator noOp;
+
+		struct OperatorSet {
+			unsigned size() {
+				return mEdges.size();
+			}
+			
+			Operator operator[](unsigned i) {
+				return i;
+			}
+			
+			OperatorSet(std::vector<InterGroupEdge> const& pEdges) :
+				mN(pEdges.size())
+			{}
+			
+			private:
+			const unsigned mN;
 		};
 		
 		
@@ -551,84 +391,58 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		};
 		
 
-			
-		
-			
-		GridNav_Dom(GridNav_Map const& pMap, idx_t pInitPos, idx_t pGoalPos, unsigned pRelaxedCost, std::array<unsigned, Height> const& pEffectiveRow) :
-			DomBase(pGoalPos),
-			noOp(MoveDir::NoOp),
-			mMap(pMap),
-			mInitPos(pInitPos),
-			mGoalPos(pGoalPos),
-			mRelaxedCost(pRelaxedCost),
-			mEffectiveRow(pEffectiveRow)
-		{
-			fast_assert(mInitPos >= 0 && mInitPos < Height * Width, "init %u", mInitPos);
-			fast_assert(mGoalPos >= 0 && mGoalPos < Height * Width, "goal %u", mGoalPos);
-			fast_assert(pMap.getHeight() == Height);
-			fast_assert(pMap.getWidth() == Width);
-		}
-		
-		State createState() const {
-			
-			State s;
-			s.pos = mInitPos;
-			this->getHeuristicValues(mInitPos, s);
-			
-			return s;
-		}
+
+		GridNav_AbtDom(std::vector<std::vector<InterGroupEdge>> const& pAllEdges, State mGoalState) :
+			noOp(Null_Idx),
+			mAllEdges(pAllEdges),
+			mInitState(pInitState),
+			mGoalState(pGoalState)
+		{}
+
 			
 		void packState(State const& pState, PackedState& pPacked) const {
-			pPacked = pState.pos;
-			slow_assert(pPacked >= 0 && pPacked < Height*Width, "packed %u", pState.pos);
+			pPacked = pState;
 		}
 		
 		void unpackState(State& pState, PackedState const& pPacked) const {
-			pState.pos = pPacked;
-			slow_assert(pState.pos >= 0 && pState.pos < Height*Width);
-			this->getHeuristicValues(pPacked, pState);
+			pState = pPacked;
 		}
 		
 		Edge createEdge(State& pState, Operator op) const {			
-			State edgeState;
-			edgeState.pos = applyMove<Height, Width>(pState.pos, op);
 			
-			this->getHeuristicValues(edgeState.pos, edgeState);
+			InterGroupEdge const& e = pAllEdges[pState][op];
 			
-			Cost edgeCost = this->getMoveCost(pState.pos, op, mEffectiveRow[pState.pos/Width]);
+			std::vector<InterGroupEdge> const& dstedges = pAllEdges[e.dst];
+			Operator parentOp = Null_Idx;
 			
-			if(Use_Relax)
-				if(mMap[pState.pos] == 1)
-					edgeCost *= mRelaxedCost;
-			
-			return Edge(edgeState, edgeCost, oppositeDir(op));
+			for(unsigned i=0; i<dstedges.size(); i++) {
+				if(dstedges[i].dst != pState)
+					continue;
+				
+				parentOp = i;
+				break;
+			}
+				
+			return Edge(e.dst, e.cost, parentOp);
 		}
 		
 		void destroyEdge(Edge&) const {
 		}
 		
 		OperatorSet createOperatorSet(State const& pState) const {
-			return OperatorSet(mMap, pState.pos);
+			return OperatorSet(mAllEdges[pState]);
 		}
 		
 		size_t hash(PackedState const& pPacked) const {
 			return pPacked;
 		}
 		
-		Cost heuristicValue(State const& pState) const {
-			return pState.get_h();
-		}
-		
-		Cost distanceValue(State const& pState) const {
-			return pState.get_d();
-		}
-		
 		bool checkGoal(State const& pState) const {
-			return pState.pos == mGoalPos;
+			return pState == mGoalState;
 		}
 
 		bool compare(State const& a, State const& b) const {
-			return a.pos == b.pos;
+			return a == b;
 		}
 
 		bool compare(PackedState const& a, PackedState const& b) const {
@@ -636,19 +450,21 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		void prettyPrint(State const& s, std::ostream& out) const {
-			out << "( " << s.pos % Width << ", " << s.pos / Width << " )\n";
+			out << "( " << s % Width << ", " << s.pos / Width << " )\n";
 		}
 		
 		void prettyPrint(Operator const& op, std::ostream &out) const {
-			out << prettyPrintDir(op) << "\n";
+			out << op << "\n";
+		}
+		
+		size_t getHashRange() {
+			return mAllEdges.size();
 		}
 		
 
 		private:
-		GridNav_Map const& mMap;
-		const idx_t mInitPos, mGoalPos;
-		unsigned mRelaxedCost;
-		std::array<unsigned, Height> const& mEffectiveRow;
+		std::vector<std::vector<InterGroupEdge>> const& mAllEdges;
+		const State mInitState, mGoalState;
 	};
 
 }}}

@@ -7,9 +7,9 @@
 #include <fstream>
 #include <cstdlib>
 
-#include "domain/gridnav/blocked/defs.hpp"
-#include "domain/gridnav/blocked/domain.hpp"
-#include "domain/gridnav/blocked/maps.hpp"
+//#include "domain/gridnav/blocked/defs.hpp"
+//#include "domain/gridnav/blocked/domain.hpp"
+//#include "domain/gridnav/blocked/maps.hpp"
 
 #include "util/json.hpp"
 #include "util/exception.hpp"
@@ -19,85 +19,18 @@
 
 namespace mjon661 { namespace gridnav { namespace blocked {
 
-/*
-	template<unsigned Height, unsigned Width, bool Use_EightWay, bool Use_LifeCost, bool Use_H>
-	struct GridNav_DomainStack_single {
-		
-		using selfStack_t = GridNav_DomainStack_single<Height, Width, Use_EightWay, Use_LifeCost, Use_H>;
-		
 
-		using domain_base = GridNav_Dom<Height, 
-										Width,
-										Use_EightWay,
-										Use_LifeCost,
-										Use_H,
-										false>;
-		
-		static const unsigned Top_Abstract_Level = 0;
-		
-		
-		template<unsigned L>
-		struct Domain : domain_base {
-			
-			static_assert(L == 0, "");
-			
-			Domain(selfStack_t& pStack) :
-				domain_base(pStack.mMap, pStack.mInitPos, pStack.mGoalPos, -1, mEffectiveRow)
-			{
-				for(unsigned i=0; i<Height; i++)
-					mEffectiveRow[i] = i;
-			}
-			
-			std::array<unsigned, Height> mEffectiveRow;
-		};
+	template<unsigned Height, unsigned Width, bool Use_EightWay, bool Use_LifeCost, bool Use_H, unsigned Max_Abt_Lvls>
+	struct GridNav_DomainStack_StarAbt {
 		
 		
 		
-		GridNav_DomainStack_single(Json const& jConfig) :
-			mInitPos(readCoord(jConfig, "init")),
-			mGoalPos(readCoord(jConfig, "goal")),
-			mMap(Height, Width)
-		{
-			std::ifstream ifs(jConfig.at("map").get<std::string>());
-			
-			if(!ifs)
-				throw ConfigException("Could not open map file");
-			
-			mMap.read(ifs);
-		}
 		
-		
-		idx_t readCoord(Json const& jConfig, std::string const& key) {
-			idx_t ret;
-			
-			if(jConfig.at(key).is_number())
-				ret = jConfig.at(key).get<idx_t>();
-			
-			else if(jConfig.at(key).is_array()) {
-				idx_t x = jConfig.at(key).at(0);
-				idx_t y = jConfig.at(key).at(1);
-				
-				if(x < 0 || x >= Width || y < 0 || y >= Height)
-					throw ConfigException("Coords out of range");
-				
-				ret = y * Width + x;
-			} else
-				throw ConfigException("Coords have bad type");
-			
-			if(ret < 0 || ret >= Height*Width)
-				throw ConfigException("Coords out of range");
-			
-			return ret;
-		}
-		
-		const idx_t mInitPos, mGoalPos;
-		GridNav_Map mMap;
 	};
 
-*/
 
 
-
+/*
 	template<	unsigned Height,
 				unsigned Width, 
 				bool Use_EightWay, 
@@ -266,6 +199,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		
 	};
-
+*/
 
 }}}

@@ -87,9 +87,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return op-1;
 		}
 		
-
+		static void unitCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, unsigned& out_h, unsigned& out_d) {
+			return manhat(pPos, pGoal, pWidth);
+		}
 		
-		static void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+		static void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, unsigned& out_h, unsigned& out_d) {
 			int x = pPos % pWidth, y = pPos / pWidth;
 			int gx = pGoal % pWidth, gy = pGoal / pWidth;
 			
@@ -158,12 +160,43 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			if(op == 6) return 5;
 			if(op == 7) return 4;
 		}
+		
+		static void unitCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, unsigned& out_h, unsigned& out_d) {
+			int dx = std::abs(pPos % pWidth - pGoal % pWidth), dy = std::abs(pPos / pWidth - pGoal / pWidth);
+				
+			out_h = std::abs(dx-dy) + mathutil::min(dx, dy) * Diag_Mv_Cost;
+			out_d = mathutil::max(dx, dy);
+		}
+		
+		static void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, unsigned& out_h, unsigned& out_d) {
+			int x = pPos % pWidth, y = pPos / pWidth;
+			int gx = pGoal % pWidth, gy = pGoal / pWidth;
+			
+			int dx = std::abs(x - gx);
+			int dy = std::abs(y - gy);
+			
+			if(dx <= dy) {
+				out_h = verticalPathFactor(pPos, gy);
+				out_d = dy;
+				return;
+			}
+			
+			//int maxdown = min(y, mGoaly);
+			int extra = dx - dy;
+			
+			int down = mathutil::min(mathutil::min(y, gy), (dx-dy)/2);
+			int botRow = mathutil::min(y, y) - down;
+			int across = extra - 2*down;
+			
+			out_h = verticalPathFactor(y, botRow) + across * botRow + verticalPathFactor(botRow, gy);
+			out_d = dx;
+		}
 	};
 	
 	
 
 
-	template<unsigned Height, unsigned Width, typename BaseFuncs, bool Use_LC>
+	template<typename BaseFuncs, bool Use_LC>
 	struct CellMap {
 		
 		using Cost_t = typename BaseFuncs::Cost_t;
@@ -281,6 +314,25 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}			
 		}
 		
+		void getHeuristicValues(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+			if(Use_LC)
+				BaseFuncs::lifeCostHeuristics(pPos, pGoal, mWidth, out_h, out_d);
+			else
+				BaseFuncs::unitCostHeuristics(pPos, pGoal, mWidth, out_h, out_d);
+		}
+
+		unsigned reverseOp(unsigned op) {
+			return BaseFuncs::reverseOp(op);
+		}
+		
+		void prettyPrintIndex(unsigned i, std::ostream& out) {
+			out << "( " << i % mWidth << ", " << i / mWidth << " )\n";
+		}
+		
+		void prettyPrintDir(unsigned i, std::ostream& out) {
+			out << BaseFuncs::getOpName(i) << "\n";
+		}
+
 		
 		unsigned const mHeight, mWidth, mSize;
 		
@@ -297,7 +349,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	//If any singleton groups are produced with the specified radius, they are (deterministically) merged into a neighbouring group.
 	//Abstraction levels are created until none of the last level's groups are adjacent, or only one group exists.
 	//Level 0 is the base space, but with open cells identified by an index [0, number of open cells - 1].
-	template<unsigned Height, unsigned Width, typename BaseFuncs, bool Use_LC>
+	template<typename BaseFuncs, bool Use_LC>
 	struct StarAbtCellMap {
 		
 		using AdjacentCells = typename BaseFuncs::AdjacentCells;
@@ -318,7 +370,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		};
 
 
-		StarAbtCellMap(CellMap<Height, Width, BaseFuncs, Use_LC> const& pBaseMap, unsigned pRadius) :
+		StarAbtCellMap(CellMap<BaseFuncs, Use_LC> const& pBaseMap, unsigned pRadius) :
 			mBaseHeight(pBaseMap.mHeight),
 			mBaseWidth(pBaseMap.mWidth),
 			mBaseSize(pBaseMap.mSize),

@@ -4,193 +4,15 @@
 #include <vector>
 #include <iostream>
 #include <string>
-#include <fstream>
-#include <cstdlib>
-
-#include "domain/gridnav/blocked/defs.hpp"
-#include "domain/gridnav/blocked/maps.hpp"
 
 #include "util/json.hpp"
-#include "util/exception.hpp"
 #include "util/debug.hpp"
 #include "util/math.hpp"
 
-#include <string>
-#include <sstream>
+#include "domain/gridnav/blocked/graph.hpp"
 
 
 namespace mjon661 { namespace gridnav { namespace blocked {
-	
-	
-	/* returns  sum of contiguous rows from pY to {mGoaly-1 / mGoaly+1} if {pY < mGoalY / pY > mGoalY} */
-	template<typename = void>
-	int verticalPathFactor(int pY, int goaly) {
-		int d = std::abs(goaly - pY);
-
-		if(d == 0)
-			return 0;
-
-		int s = (d * (d-1)) / 2;
-		
-		s += pY < goaly ? 
-				 pY * d :
-			(goaly+1) * d;
-
-		return s;
-	}
-	
-	
-	
-	template<unsigned H, unsigned W, bool Use_LC, bool Use_H>
-	struct FourWayBase {
-		
-		using cost_t = int;
-		using OpSetBase = FourWayMoves<H,W>;
-		using state_t = StateImpl<Use_H, cost_t>;
-		
-		static const unsigned Height = H, Width = W;
-		
-		
-		FourWayBase(idx_t pGoal) :
-			mGoalx(pGoal % W),
-			mGoaly(pGoal / W)
-		{}
-		
-		cost_t getMoveCost(idx_t pPos, MoveDir pDir, unsigned pBaseRow) const {
-			return Use_LC ? pBaseRow : 1;
-		}
-		
-		void getHeuristicValues(idx_t pPos, state_t& pState) const {
-			if(!Use_H)
-				return;
-			
-			else if(!Use_LC) {
-				cost_t c = manhat(pPos);
-				pState.set_h(c);
-				pState.set_d(c);
-			}
-			
-			else {
-				cost_t h, d;
-				lifeCostHeuristics(pPos, h, d);
-				pState.set_h(h);
-				pState.set_d(d);
-			}
-		}
-		
-		
-		private:
-		
-		int manhat(idx_t pState) const {
-			int x = pState % W, y = pState / W;
-			return std::abs(mGoalx - x) + std::abs(mGoaly - y);
-		}
-		
-		void lifeCostHeuristics(idx_t pPos, int& out_h, int& out_d) const {
-			int x = pPos % W, y = pPos / W;
-			
-			int dx = std::abs(x-mGoalx), miny = mathutil::min(y, mGoaly);
-			
-			// Horizontal segment at the cheaper of y/gy. Vertical segment straight from y to goaly.
-			int p1 = dx * miny + verticalPathFactor(y, mGoaly);
-			
-			// From (x,y) to (x,0), then to (gx, 0), then to (gx, gy). Note that horizontal segment is free (row 0).
-			int p2 = verticalPathFactor(y, 0) + verticalPathFactor(0, mGoaly);
-			
-			if(p1 < p2) {
-				out_h = p1;
-				out_d = dx + std::abs(y - mGoaly);
-			} else {
-				out_h = p2;
-				out_d = dx + y + mGoaly;
-			}
-		}
-
-		const int mGoalx, mGoaly;
-		
-	};
-	
-	
-	
-	
-	/**
-	 * Use_LC ? Unit cost : life cost
-	 * Use_H ?  Manhattan distance based heuristics : none
-	 */
-	
-	template<unsigned H, unsigned W, bool Use_LC, bool Use_H>
-	struct EightWayBase {
-		
-		using cost_t = float;
-		using OpSetBase = EightWayMoves<H,W>;
-		using state_t = StateImpl<Use_H, cost_t>;
-		
-		static const unsigned Height = H, Width = W;
-		
-		
-		EightWayBase(idx_t pGoal) :
-			mGoalx(pGoal % W),
-			mGoaly(pGoal / W)
-		{}
-		
-		cost_t getMoveCost(idx_t pPos, MoveDir pDir, unsigned pBaseRow) const {
-			float c = isDiagDir(pDir) ? SQRT2 : 1;
-			
-			if(Use_LC)
-				c *= pBaseRow;
-			
-			return c;
-		}
-		
-		void getHeuristicValues(idx_t pPos, state_t& pState) const {
-			if(!Use_H)
-				return;
-			
-			if(!Use_LC) {
-				int dx = std::abs(pPos % W - mGoalx), dy = std::abs(pPos / W - mGoaly);
-				
-				pState.set_h(std::abs(dx-dy) + mathutil::min(dx, dy) * SQRT2);
-				pState.set_d(mathutil::max(dx, dy));
-			}
-			
-			else {
-				cost_t h, d;
-				lifeCostHeuristics(pPos, h, d);
-				pState.set_h(h);
-				pState.set_d(d);
-			}
-		}
-		
-
-		private:
-		
-
-		void lifeCostHeuristics(idx_t pPos, cost_t& out_h, cost_t& out_d) const {
-			int x = pPos % W, y = pPos / W;
-			
-			int dx = std::abs(x - mGoalx);
-			int dy = std::abs(x - mGoaly);
-			
-			if(dx <= dy) {
-				out_h = verticalPathFactor(pPos, mGoaly);
-				out_d = dy;
-				return;
-			}
-			
-			//int maxdown = min(y, mGoaly);
-			int extra = dx - dy;
-			
-			int down = mathutil::min(mathutil::min(y, mGoaly), (dx-dy)/2);
-			int botRow = mathutil::min(y, mGoaly) - down;
-			int across = extra - 2*down;
-			
-			out_h = verticalPathFactor(y, botRow) + across * botRow + verticalPathFactor(botRow, mGoaly);
-			out_d = dx;
-		}
-		
-		const int mGoalx, mGoaly;
-	};
-	
 	
 	
 	template<typename CellMap_t, bool Use_H>
@@ -200,8 +22,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		using Cost = typename CellMap_t::Cost_t;
 		using Operator = unsigned;
 		using AdjacentCells = typename CellMap_t::AdjacentCells;
-		
-		
+
 		Operator noOp;
 
 		struct OperatorSet {
@@ -227,7 +48,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		
 		struct Edge {
-			
 			Edge(State pState, Cost pCost, Operator pParentOp) :
 				mState(pState),
 				mCost(pCost),
@@ -255,6 +75,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		
 		GridNav_BaseDom(CellMap_t const& pCellMap, State pInitState, State pGoalState) :
+			mCachedState(Null_Idx),
+			mCached_h(0),
+			mCached_d(0),
 			noOp(Null_Idx),
 			mCellMap(pCellMap),
 			mInitState(pInitState),
@@ -290,11 +113,23 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		Cost heuristicValue(State const& pState) const {
-			return 
+			if(!Use_H)
+				return 0;
+			
+			if(mCachedState != pState)
+				mCellMap.getHeuristicValues(pState, mGoalState, mCached_h, mCached_d);
+			
+			return mCached_h;	
 		}
 		
 		Cost distanceValue(State const& pState) const {
-			return pState.get_d();
+			if(!Use_H)
+				return 0;
+			
+			if(mCachedState != pState)
+				mCellMap.getHeuristicValues(pState, mGoalState, mCached_h, mCached_d);
+			
+			return mCached_d;
 		}
 		
 		bool checkGoal(State const& pState) const {
@@ -310,11 +145,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		void prettyPrint(State const& s, std::ostream& out) const {
-			out << "( " << s % mCellmap.mWidth << ", " << s.pos / mCellMap.mWidth << " )\n";
+			mCellMap.prettyPrintIndex(s, out);
 		}
 		
 		void prettyPrint(Operator const& op, std::ostream &out) const {
-			out << op << "\n";
+			mCellMap.prettyPrintDir(op, out);
 		}
 		
 		size_t getHashRange() {
@@ -322,7 +157,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 
-		private:	
+		private:
+		
+		State mCachedState;
+		Cost mCached_h, mCached_d;
+		
 		CellMap_t const& mCellMap;
 		const State mInitState, mGoalState;
 	};
@@ -450,7 +289,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		void prettyPrint(State const& s, std::ostream& out) const {
-			out << "( " << s % Width << ", " << s.pos / Width << " )\n";
+			out << "( " << s << (char)(s % 26 + 'a') << " )\n";
 		}
 		
 		void prettyPrint(Operator const& op, std::ostream &out) const {

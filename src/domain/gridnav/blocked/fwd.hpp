@@ -1,12 +1,13 @@
 #pragma once
 
+#include "domain/gridnav/graph.hpp"
 #include "domain/gridnav/blocked/domain_stack.hpp"
 
 
 namespace mjon661 { namespace gridnav { namespace blocked {
 
 	
-	
+	/*
 	template<	unsigned Height,
 				unsigned Width, 
 				bool Use_EightWay, 
@@ -19,5 +20,17 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			>
 
 	struct GridNav_DomainStack_MergeAbt;
+	*/
 	
+	template<unsigned Height, unsigned Width, bool Use_8way, bool Use_LifeCost, bool Use_H>
+	struct GridNav_DomainStack_StarAbt;
+
+	template<unsigned Height, unsigned Width, bool Use_LifeCost, bool Use_H>
+	struct GridNav_DomainStack_StarAbt<Height, Width, false, Use_LifeCost, Use_H> : 
+		public GridNav_DomainStack_StarAbt_<Height, Width, FourWayFuncs<>, Use_LifeCost, Use_H> {};
+
+	template<unsigned Height, unsigned Width, bool Use_LifeCost, bool Use_H>
+	struct GridNav_DomainStack_StarAbt<Height, Width, true, Use_LifeCost, Use_H> : 
+		public GridNav_DomainStack_StarAbt_<Height, Width, EightWayFuncs<>, Use_LifeCost, Use_H> {};
+
 }}}

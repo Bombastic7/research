@@ -82,7 +82,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mCellMap(pCellMap),
 			mInitState(pInitState),
 			mGoalState(pGoalState)
-		{}
+		{
+			gen_assert(pCellMap.mSize <= Hash_Range);
+		}
 
 		State createState() const {
 			return mInitState;
@@ -240,7 +242,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mAllEdges(pAllEdges),
 			mInitState(pInitState),
 			mGoalState(pGoalState)
-		{}
+		{
+			gen_assert(pAllEdges.size() <= Hash_Range);
+		}
 
 			
 		void packState(State const& pState, PackedState& pPacked) const {

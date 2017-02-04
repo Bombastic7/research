@@ -425,23 +425,30 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			//Continue until no further abstraction is possible.
 			unsigned curlvl = 0;
 			while(true) {
-				if(mGroupEdges.back().size() == 1)
+				if(mGroupEdges[curlvl].size() == 0)
 					break;
-					
+			
 				prepNextLevel(curlvl);
 				curlvl++;
-			
-				if(mGroupEdges.back().size() == mGroupEdges.at(mGroupEdges.size()-2).size()) {
-					mGroupEdges.pop_back();
-					mCellAbstractGroup.pop_back();
-					break;
-				}
 			}
 		}
 		
-		unsigned abstractBaseCell(unsigned idx) {
-			slow_assert(mBaseGroupLabels.size() > idx);
-			return mBaseGroupLabels[idx];
+		unsigned abstractBaseCell(unsigned idx, unsigned pLvl) {
+			fast_assert(pLvl < mGroupEdges.size());
+			fast_assert(idx < mBaseGroupLabels.size());
+			
+			unsigned c = mBaseGroupLabels[idx];
+			
+			for(unsigned i=0; i<pLvl; i++) {
+				c = mCellAbstractGroup[pLvl][c];
+			}
+			return c;
+		}
+		
+		unsigned checkBaseConnected(unsigned a, unsigned b) {
+			a = abstractBaseCell(a, mGroupEdges.size()-1);
+			b = abstractBaseCell(b, mGroupEdges.size()-1);
+			return a == b;
 		}
 		
 		unsigned getAbstractGroup(unsigned pGroup, unsigned pLvl) {

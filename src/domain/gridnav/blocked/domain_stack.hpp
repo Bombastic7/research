@@ -4,17 +4,13 @@
 #include <vector>
 #include <iostream>
 #include <string>
-#include <fstream>
 #include <cstdlib>
-
-//#include "domain/gridnav/blocked/defs.hpp"
-//#include "domain/gridnav/blocked/domain.hpp"
-//#include "domain/gridnav/blocked/maps.hpp"
 
 #include "util/json.hpp"
 #include "util/exception.hpp"
 #include "util/math.hpp"
 
+#include "domain/gridnav/graph.hpp"
 
 
 
@@ -22,9 +18,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 
 	template<unsigned Height, unsigned Width, typename BaseFuncs, bool Use_LifeCost, bool Use_H>
-	struct GridNav_DomainStack_StarAbt {
+	struct GridNav_DomainStack_StarAbt_ {
 		
-		using DomStack_t = GridNav_DomainStack_StarAbt<Height, Width, BaseFuncs, Use_LifeCost, Use_H>;
+		using DomStack_t = GridNav_DomainStack_StarAbt_<Height, Width, BaseFuncs, Use_LifeCost, Use_H>;
 		using BaseMap_t = CellMap<BaseFuncs, Use_LifeCost>;
 		using AbtMaps_t = StarAbtCellMap<BaseFuncs, Use_LifeCost>;
 		
@@ -55,9 +51,24 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			{}
 		};
 		
+		template<unsigned L>
+		struct Abstractor {
+			
+			Abstractor(DomStack_t& pStack) :
+				mStack(pStack)
+			{}
+			
+			unsigned operator()(unsigned pBaseState) {
+				return mStack.getAbstractGroup(pBaseState, L+1);
+			}
+			
+			private:
+			DomStack_t& mStack;
+		};
 		
 		
-		GridNav_DomainStack_StarAbt(Json const& jConfig) :
+		
+		GridNav_DomainStack_StarAbt_(Json const& jConfig) :
 			mBaseMap(Height, Width, jConfig.at("map")),
 			mAbtMaps(mBaseMap),
 			mInitState(jConfig.at("init")),

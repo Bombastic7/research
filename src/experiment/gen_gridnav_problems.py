@@ -5,7 +5,7 @@ import random
 import csv
 import math
 import json
- 
+import subprocess
  
  
  
@@ -27,15 +27,16 @@ def genGridNavMap(h, w, block, fname):
 
 def genGridNavProblemSet(fmapname, block, h, w, nprobs, mindist):
 	
-	genGridNavMap(h, w, block, fmapname)
+	#~ genGridNavMap(h, w, block, fmapname)
 	
-	cellsRows = []
-	with open(fmapname, "rb") as f:
-		reader = csv.reader(f, delimiter=" ")
+	#~ cellsRows = []
+	#~ with open(fmapname, "rb") as f:
+		#~ reader = csv.reader(f, delimiter=" ")
 		
-		for row in reader:
-			cellsRows.append(row)
+		#~ for row in reader:
+			#~ cellsRows.append(row)
 
+	Process
 	
 	griddiag = math.hypot(h-1, w-1)
 	

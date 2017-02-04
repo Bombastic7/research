@@ -61,7 +61,10 @@ def gridnav_blocked_stack_merge(height, width, mv8, cstLC, useH, hfact, wfact, f
 	.format(height, width, _bstr(mv8), _bstr(cstLC), _bstr(useH), maxAbtLvl, hfact, wfact, fillfact)
 	return declStr
 
-
+def gridnav_blocked_starabt(height, width, mv8, lc, useH):
+	declStr = "gridnav::blocked::GridNav_DomainStack_StarAbt<{0}, {1}, {2}, {3}, {4}>"\
+		.format(height, width, _bstr(mv8), _bstr(lc), _bstr(useH))
+	return declStr
 
 
 class AlgorithmInfo:
@@ -135,7 +138,7 @@ DOMS =	[
 		DomainInfo("tiles_15h_8", tiles_stack(4,4,False,True,8), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		DomainInfo("tiles_15hw_8", tiles_stack(4,4,True,True,8), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2, True, False), "domain/pancake/fwd.hpp", True, "pancake_10"),
-		DomainInfo("gridnav_20", gridnav_blocked_stack_merge(20, 20, False, True, True, 3, 3, 4), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
+		DomainInfo("gridnav_20", gridnav_blocked_starabt(20, 20, False, True, True), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
 		]
 
 PROBLEM_SETS =	[

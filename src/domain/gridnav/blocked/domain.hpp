@@ -15,7 +15,7 @@
 namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	
-	template<typename CellMap_t, bool Use_H>
+	template<typename CellMap_t, bool Use_H, size_t Suggested_Hash_Range>
 	struct GridNav_BaseDom {
 		using State = unsigned;
 		using PackedState = unsigned;
@@ -23,6 +23,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		using Operator = unsigned;
 		using AdjacentCells = typename CellMap_t::AdjacentCells;
 
+		static const size_t Hash_Range = Suggested_Hash_Range;
+		
 		Operator noOp;
 
 		struct OperatorSet {
@@ -71,9 +73,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			Operator mParentOp;			
 		};
 		
-		
-		
-		
+
 		GridNav_BaseDom(CellMap_t const& pCellMap, State pInitState, State pGoalState) :
 			mCachedState(Null_Idx),
 			mCached_h(0),
@@ -116,8 +116,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			if(!Use_H)
 				return 0;
 			
-			if(mCachedState != pState)
+			if(mCachedState != pState) {
+				mCachedState = pState;
 				mCellMap.getHeuristicValues(pState, mGoalState, mCached_h, mCached_d);
+			}
 			
 			return mCached_h;	
 		}
@@ -126,8 +128,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			if(!Use_H)
 				return 0;
 			
-			if(mCachedState != pState)
+			if(mCachedState != pState) {
+				mCachedState = pState;
 				mCellMap.getHeuristicValues(pState, mGoalState, mCached_h, mCached_d);
+			}
 			
 			return mCached_d;
 		}
@@ -172,7 +176,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 
 
-	template<typename NavMap_t>
+	template<typename NavMap_t, size_t Suggested_Hash_Range>
 	struct GridNav_AbtDom {
 
 		using State = unsigned;
@@ -181,9 +185,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		using Operator = unsigned;
 
 		using InterGroupEdge = typename NavMap_t::InterGroupEdge;
-		
-		//static const size_t Hash_Range = Height * Width;
 
+		static const size_t Hash_Range = Suggested_Hash_Range;
+		
 		Operator noOp;
 
 		struct OperatorSet {

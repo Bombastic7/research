@@ -6,7 +6,8 @@
 #include <vector>
 #include <cmath>
 #include <queue>
-#include <map>
+#include <string>
+#include <fstream>
 
 #include "util/debug.hpp"
 #include "util/math.hpp"
@@ -204,14 +205,18 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 		static const unsigned Max_Adj = BaseFuncs::Max_Adj;
 		
-		CellMap(std::istream& in) :
-			mHeight(Height),
-			mWidth(Width),
-			mSize(Height * Width),
+		CellMap(unsigned pHeight, unsigned pWidth, std::string const& infile) :
+			mHeight(pHeight),
+			mWidth(pWidth),
+			mSize(pHeight * pWidth),
 			mAdjList(mSize),
 			mCellMap()
 		{
 			gen_assert(mSize > 0);
+			
+			std::ifstream in(infile);
+			
+			gen_assert(in);
 			
 			std::vector<Cell_t> cellMap;
 			cellMap.reserve(mSize);

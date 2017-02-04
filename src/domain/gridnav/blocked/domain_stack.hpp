@@ -13,6 +13,7 @@
 
 #include "util/json.hpp"
 #include "util/exception.hpp"
+#include "util/math.hpp"
 
 
 
@@ -20,12 +21,55 @@
 namespace mjon661 { namespace gridnav { namespace blocked {
 
 
-	template<unsigned Height, unsigned Width, bool Use_EightWay, bool Use_LifeCost, bool Use_H, unsigned Max_Abt_Lvls>
+	template<unsigned Height, unsigned Width, typename BaseFuncs, bool Use_LifeCost, bool Use_H>
 	struct GridNav_DomainStack_StarAbt {
 		
+		using DomStack_t = GridNav_DomainStack_StarAbt<Height, Width, BaseFuncs, Use_LifeCost, Use_H>;
+		using BaseMap_t = CellMap<BaseFuncs, Use_LifeCost>;
+		using AbtMaps_t = StarAbtCellMap<BaseFuncs, Use_LifeCost>;
 		
 		
 		
+		static constexpr size_t estimateHashRange(unsigned L) {
+			return L == 0 ? Height*Width : 1000 + Height*Width / mathutil::pow(4, L);
+		}
+		
+		
+		template<unsigned L, typename = void>
+		struct Domain : public GridNav_AbtDom<AbtMaps_t, estimateHashRange(L)> {
+			Domain(DomStack_t& pStack) :
+				GridNav_AbtDom<AbtMaps_t, estimateHashRange(L)>(
+					pStack.mAbtMaps.getGroupEdges(L), 
+					pStack.mAbtMaps.abstractBaseCell(mGoalState, L))
+			{}
+		};
+		
+		
+		template<typename Ign>
+		struct Domain<0, Ign> : public GridNav_BaseDom<BaseMap_t, Use_H, estimateHashRange(0)> {
+			Domain(DomStack_t& pStack) :
+				GridNav_AbtDom<BaseMap_t, Use_H, estimateHashRange(0)>(
+					pStack.mBaseMap.getAdjCellsList(),
+					pStack.mInitState,
+					pStack.mGoalState)
+			{}
+		};
+		
+		
+		
+		GridNav_DomainStack_StarAbt(Json const& jConfig) :
+			mBaseMap(Height, Width, jConfig.at("map")),
+			mAbtMaps(mBaseMap),
+			mInitState(jConfig.at("init")),
+			mGoalState(jConfig.at("goal"))
+		{
+		}
+		
+		
+		private:
+		CellMap<BaseFuncs, Use_LifeCost> mBaseMap;
+		StarAbtCellMap<BaseFuncs, Use_LifeCost> mAbtMaps;
+		unsigned const mInitState, mGoalState;
 	};
 
 

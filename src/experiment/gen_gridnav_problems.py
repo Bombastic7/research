@@ -36,7 +36,7 @@ def genGridNavProblemSet(fmapname, block, h, w, nprobs, mindist):
 		#~ for row in reader:
 			#~ cellsRows.append(row)
 
-	Process
+	proc = subprocess.Popen(["./gridnav/test_connected", fmapname], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 	
 	griddiag = math.hypot(h-1, w-1)
 	
@@ -46,10 +46,9 @@ def genGridNavProblemSet(fmapname, block, h, w, nprobs, mindist):
 		if abs(math.hypot(*startpos) - math.hypot(*goalpos)) < griddiag * mindist:
 			return False
 		
-		if cellsRows[startpos[1]][startpos[0]] == 1 or cellsRows[goalpos[1]][goalpos[0]] == 1:
-			return False
-		
-		return True
+		proc.stdin.write(str(startpos) + " " + str(endpos) + "\n")
+		return proc.stdout.readline() == "true"
+
 
 	
 	for i in range(0, nprobs):
@@ -61,6 +60,9 @@ def genGridNavProblemSet(fmapname, block, h, w, nprobs, mindist):
 			goalpos = (random.randint(0, w-1), random.randint(0, w-1))
 		
 		probs.append({"init" : startpos, "goal" : goalpos, "map" : fmapname})
+	
+	proc.stdin.write("\n")
+	proc.wait()
 	
 	return probs
 

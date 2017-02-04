@@ -27,7 +27,11 @@ int main(int argc, const char* argv[]) {
 		std::istringstream iss(inp);
 		
 		iss >> startpos >> endpos;
-		std::cout << abtmap.checkBaseConnected(startpos, endpos) << "\n";
+		
+		if(abtmap.checkBaseConnected(startpos, endpos))
+			std::cout << "true\n";
+		else
+			std::cout << "false\n";
 	
 	}
 }

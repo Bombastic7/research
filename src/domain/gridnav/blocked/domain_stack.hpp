@@ -77,11 +77,19 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		GridNav_DomainStack_StarAbt_(Json const& jConfig) :
 			mBaseMap(Height, Width, jConfig.at("map")),
-			mAbtMaps(mBaseMap, jConfig.at("radius")),
-			mInitState(jConfig.at("init")),
-			mGoalState(jConfig.at("goal"))
+			mAbtMaps(mBaseMap, jConfig.at("radius"))
 		{
 			mNabtLvlsUsed = mAbtMaps.getLevelSizes().size() - 1;
+			
+			if(jConfig.at("init").is_array())
+				mInitState = jConfig.at("init")[0].get<unsigned>() + jConfig.at("init")[1].get<unsigned>() * Width;
+			else
+				mInitState = jConfig.at("init");
+			
+			if(jConfig.at("goal").is_array())
+				mInitState = jConfig.at("goal")[0].get<unsigned>() + jConfig.at("goal")[1].get<unsigned>() * Width;
+			else
+				mInitState = jConfig.at("goal");
 		}
 		
 		unsigned lastUsedAbstractLevel() {
@@ -102,7 +110,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		unsigned mNabtLvlsUsed;
 		CellMap<BaseFuncs, Use_LifeCost> mBaseMap;
 		StarAbtCellMap<BaseFuncs, Use_LifeCost> mAbtMaps;
-		unsigned const mInitState, mGoalState;
+		unsigned mInitState, mGoalState;
 	};
 
 

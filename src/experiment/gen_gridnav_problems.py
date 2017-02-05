@@ -46,7 +46,7 @@ def genGridNavProblemSet(fmapname, block, h, w, nprobs, mindist):
 		if abs(math.hypot(*startpos) - math.hypot(*goalpos)) < griddiag * mindist:
 			return False
 		
-		proc.stdin.write(str(startpos) + " " + str(endpos) + "\n")
+		proc.stdin.write(str(*startpos) + " " + str(*endpos) + "\n")
 		return proc.stdout.readline() == "true"
 
 

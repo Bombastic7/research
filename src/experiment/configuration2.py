@@ -83,12 +83,13 @@ class AlgorithmInfo:
 class DomainInfo:
 	lookup = {}
 	
-	def __init__(self, name, cls, hdr, isabt, probcls):
+	def __init__(self, name, cls, hdr, isabt, probcls, conf = None):
 		self.name = name
 		self.cls = cls
 		self.hdr = hdr
 		self.isabt = isabt
 		self.probcls = probcls
+		self.conf = conf
 		DomainInfo.lookup[name] = self
 
 
@@ -138,7 +139,7 @@ DOMS =	[
 		DomainInfo("tiles_15h_8", tiles_stack(4,4,False,True,8), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		DomainInfo("tiles_15hw_8", tiles_stack(4,4,True,True,8), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2, True, False), "domain/pancake/fwd.hpp", True, "pancake_10"),
-		DomainInfo("gridnav_20", gridnav_blocked_starabt(20, 20, False, True, True), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
+		DomainInfo("gridnav_20", gridnav_blocked_starabt(20, 20, False, True, True), "domain/gridnav/fwd.hpp", True, "gridnav_20", {"radius":2}),
 		DomainInfo("gridnav_5", gridnav_blocked_starabt(5, 5, False, True, True), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
 		]
 
@@ -173,7 +174,7 @@ def trial_test_ugsa(appendAlgDoms = None):
 		return
 
 	
-	probset = ProblemSetInfo.lookup["tiles_8.json"]
+	probset = ProblemSetInfo.lookup["gridnav_20.json"]
 	probset.load()
 	
 	weights = [(1,1)]#, (10,1), (100,1), (1000,1)]
@@ -201,6 +202,10 @@ def trial_test_ugsa(appendAlgDoms = None):
 						params["_algorithm_conf"] = a.conf.copy()
 					else:
 						params["_algorithm_conf"] = {}
+					
+					if d.conf is not None:
+						for (k,v) in d.conf.iteritems():
+							params["_domain_conf"][k] = v
 					
 					params["_algorithm_conf"]["wf"] = w[0]
 					params["_algorithm_conf"]["wt"] = w[1]
@@ -230,6 +235,12 @@ def trial_test_ugsa(appendAlgDoms = None):
 				if not i.is_alive():
 					workers.remove(i)
 		
+		while True:
+			try:
+				print msgqueue.get_nowait()
+			except Empty:
+				break
+		
 		
 		while True:
 			try:
@@ -238,7 +249,7 @@ def trial_test_ugsa(appendAlgDoms = None):
 				try:
 					searches[jobName]["results"] = json.loads(res)
 				except Exception:
-					print jobName, res
+					print "Bad json string", jobName, res
 			except Empty:
 				break
 

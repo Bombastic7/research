@@ -147,7 +147,7 @@ PROBLEM_SETS =	[
 		ProblemSetInfo("tiles_8", "tiles_8.json", gen_tiles_problems.genTilesProblemSet, (3, 3, 5)),
 		ProblemSetInfo("tiles_15", "tiles_15.json", gen_tiles_problems.genTilesProblemSet, (4, 4, 5)),
 		ProblemSetInfo("pancake_10", "pancake_10.json", gen_pancake_problems.genPancakeProblemSet, (10, 5)),
-		ProblemSetInfo("gridnav_20", "gridnav_20.json", gen_gridnav_problems.genGridNavProblemSet, ("gridnav_20_map", 0.35, 20, 20, 5, 0.5))
+		ProblemSetInfo("gridnav_20_4way_2r", "gridnav_20.json", gen_gridnav_problems.genGridNavProblemSet, ("gridnav_20_map", 0.35, 20, 20, 5, 0.5, False, 2))
 				]
 
 WEIGHTS = ((1,0),(1,0.01),(1,0.1),(1,1),(1,10),(1,100),(0,1))

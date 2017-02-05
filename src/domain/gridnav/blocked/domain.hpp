@@ -20,7 +20,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		using State = unsigned;
 		using PackedState = unsigned;
 		using Cost = typename CellMap_t::Cost_t;
-		using Operator = unsigned;
+		using Operator = short;
 		using AdjacentCells = typename CellMap_t::AdjacentCells;
 
 		static const size_t Hash_Range = Suggested_Hash_Range;
@@ -45,7 +45,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 			
 			private:
-			const unsigned mN;
+			unsigned mN;
 		};
 		
 		
@@ -75,10 +75,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 
 		GridNav_BaseDom(CellMap_t const& pCellMap, State pInitState, State pGoalState) :
+			noOp(-1),
 			mCachedState(Null_Idx),
 			mCached_h(0),
 			mCached_d(0),
-			noOp(Null_Idx),
 			mCellMap(pCellMap),
 			mInitState(pInitState),
 			mGoalState(pGoalState)
@@ -107,7 +107,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		OperatorSet createOperatorSet(State const& pState) const {
-			return OperatorSet(mAllEdges[pState]);
+			return OperatorSet(mCellMap.getAdjCells(pState));
 		}
 		
 		size_t hash(PackedState const& pPacked) const {
@@ -120,7 +120,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			if(mCachedState != pState) {
 				mCachedState = pState;
-				mCellMap.getHeuristicValues(pState, mGoalState, mCached_h, mCached_d);
+				Cost cached_h, cached_d;
+				mCellMap.getHeuristicValues(pState, mGoalState, cached_h, cached_d);
+				mCached_h = cached_h;
+				mCached_d = cached_d;
 			}
 			
 			return mCached_h;	
@@ -132,7 +135,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			if(mCachedState != pState) {
 				mCachedState = pState;
-				mCellMap.getHeuristicValues(pState, mGoalState, mCached_h, mCached_d);
+				Cost cached_h, cached_d;
+				mCellMap.getHeuristicValues(pState, mGoalState, cached_h, cached_d);
+				mCached_h = cached_h;
+				mCached_d = cached_d;
 			}
 			
 			return mCached_d;
@@ -146,9 +152,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return a == b;
 		}
 
-		bool compare(PackedState const& a, PackedState const& b) const {
-			return a == b;
-		}
+		//~ bool compare(PackedState const& a, PackedState const& b) const {
+			//~ return a == b;
+		//~ }
 		
 		void prettyPrint(State const& s, std::ostream& out) const {
 			mCellMap.prettyPrintIndex(s, out);
@@ -165,8 +171,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 		private:
 		
-		State mCachedState;
-		Cost mCached_h, mCached_d;
+		mutable State mCachedState;
+		mutable Cost mCached_h, mCached_d;
 		
 		CellMap_t const& mCellMap;
 		const State mInitState, mGoalState;
@@ -184,7 +190,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		using State = unsigned;
 		using PackedState = unsigned;
 		using Cost = typename NavMap_t::Cost_t;
-		using Operator = unsigned;
+		using Operator = short;
 
 		using InterGroupEdge = typename NavMap_t::InterGroupEdge;
 
@@ -202,11 +208,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 			
 			OperatorSet(std::vector<InterGroupEdge> const& pEdges) :
-				mN(pEdges.size())
+				mN(pEdges.size()),
+				mEdges(pEdges)
 			{}
 			
 			private:
 			const unsigned mN;
+			std::vector<InterGroupEdge> const& mEdges;
 		};
 		
 		
@@ -237,10 +245,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 
 
-		GridNav_AbtDom(std::vector<std::vector<InterGroupEdge>> const& pAllEdges, State mGoalState) :
-			noOp(Null_Idx),
+		GridNav_AbtDom(std::vector<std::vector<InterGroupEdge>> const& pAllEdges, State pGoalState) :
+			noOp(-1),
 			mAllEdges(pAllEdges),
-			mInitState(pInitState),
 			mGoalState(pGoalState)
 		{
 			gen_assert(pAllEdges.size() <= Hash_Range);
@@ -257,10 +264,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		Edge createEdge(State& pState, Operator op) const {			
 			
-			InterGroupEdge const& e = pAllEdges[pState][op];
+			InterGroupEdge const& e = mAllEdges[pState][op];
 			
-			std::vector<InterGroupEdge> const& dstedges = pAllEdges[e.dst];
-			Operator parentOp = Null_Idx;
+			std::vector<InterGroupEdge> const& dstedges = mAllEdges[e.dst];
+			Operator parentOp = noOp;
 			
 			for(unsigned i=0; i<dstedges.size(); i++) {
 				if(dstedges[i].dst != pState)
@@ -292,9 +299,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return a == b;
 		}
 
-		bool compare(PackedState const& a, PackedState const& b) const {
-			return a == b;
-		}
+		//~ bool compare(PackedState const& a, PackedState const& b) const {
+			//~ return a == b;
+		//~ }
 		
 		void prettyPrint(State const& s, std::ostream& out) const {
 			out << "( " << s << (char)(s % 26 + 'a') << " )\n";
@@ -311,7 +318,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 		private:
 		std::vector<std::vector<InterGroupEdge>> const& mAllEdges;
-		const State mInitState, mGoalState;
+		const State mGoalState;
 	};
 
 }}}

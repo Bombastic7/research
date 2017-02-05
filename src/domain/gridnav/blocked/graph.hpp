@@ -88,11 +88,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return op-1;
 		}
 		
-		static void unitCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, unsigned& out_h, unsigned& out_d) {
-			return manhat(pPos, pGoal, pWidth);
+		static void unitCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, Cost_t& out_h, Cost_t& out_d) {
+			out_h = out_d = manhat(pPos, pGoal, pWidth);
 		}
 		
-		static void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, unsigned& out_h, unsigned& out_d) {
+		static void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, Cost_t& out_h, Cost_t& out_d) {
 			int x = pPos % pWidth, y = pPos / pWidth;
 			int gx = pGoal % pWidth, gy = pGoal / pWidth;
 			
@@ -319,22 +319,22 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}			
 		}
 		
-		void getHeuristicValues(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+		void getHeuristicValues(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
 			if(Use_LC)
 				BaseFuncs::lifeCostHeuristics(pPos, pGoal, mWidth, out_h, out_d);
 			else
 				BaseFuncs::unitCostHeuristics(pPos, pGoal, mWidth, out_h, out_d);
 		}
 
-		unsigned reverseOp(unsigned op) {
+		unsigned reverseOp(unsigned op) const {
 			return BaseFuncs::reverseOp(op);
 		}
 		
-		void prettyPrintIndex(unsigned i, std::ostream& out) {
+		void prettyPrintIndex(unsigned i, std::ostream& out) const {
 			out << "( " << i % mWidth << ", " << i / mWidth << " )\n";
 		}
 		
-		void prettyPrintDir(unsigned i, std::ostream& out) {
+		void prettyPrintDir(unsigned i, std::ostream& out) const {
 			out << BaseFuncs::getOpName(i) << "\n";
 		}
 
@@ -433,7 +433,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 		}
 		
-		unsigned abstractBaseCell(unsigned idx, unsigned pLvl) {
+		unsigned abstractBaseCell(unsigned idx, unsigned pLvl) const {
 			fast_assert(pLvl < mGroupEdges.size());
 			fast_assert(idx < mBaseGroupLabels.size());
 			
@@ -445,20 +445,20 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return c;
 		}
 		
-		unsigned checkBaseConnected(unsigned a, unsigned b) {
+		unsigned checkBaseConnected(unsigned a, unsigned b) const {
 			a = abstractBaseCell(a, mGroupEdges.size()-1);
 			b = abstractBaseCell(b, mGroupEdges.size()-1);
 			return a == b;
 		}
 		
-		unsigned getAbstractGroup(unsigned pGroup, unsigned pLvl) {
+		unsigned getAbstractGroup(unsigned pGroup, unsigned pLvl) const {
 			slow_assert(pLvl < mCellAbstractGroup.size());
 			slow_assert(pGroup < mCellAbstractGroup[pLvl].size());
 			
 			return mCellAbstractGroup[pLvl][pGroup];
 		}
 
-		std::vector<unsigned> getLevelSizes() {
+		std::vector<unsigned> getLevelSizes() const {
 			std::vector<unsigned> v;
 			
 			for(unsigned i=0; i<mGroupEdges.size(); i++) {
@@ -467,7 +467,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return v;
 		}
 		
-		std::vector<std::vector<InterGroupEdge>> const& getGroupEdges(unsigned pLvl) {
+		std::vector<std::vector<InterGroupEdge>> const& getGroupEdges(unsigned pLvl) const {
 			slow_assert(pLvl < mGroupEdges.size());
 			return mGroupEdges[pLvl];
 		}

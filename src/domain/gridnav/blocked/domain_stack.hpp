@@ -10,7 +10,8 @@
 #include "util/exception.hpp"
 #include "util/math.hpp"
 
-#include "domain/gridnav/graph.hpp"
+#include "domain/gridnav/blocked/graph.hpp"
+#include "domain/gridnav/blocked/domain.hpp"
 
 
 
@@ -24,10 +25,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		using BaseMap_t = CellMap<BaseFuncs, Use_LifeCost>;
 		using AbtMaps_t = StarAbtCellMap<BaseFuncs, Use_LifeCost>;
 		
-		
+		static const unsigned Top_Abstract_Level = 9; //Is a guess.
 		
 		static constexpr size_t estimateHashRange(unsigned L) {
-			return L == 0 ? Height*Width : 1000 + Height*Width / mathutil::pow(4, L);
+			return L == 0 ? Height*Width : 1000 + Height*Width / mathutil::pow(4u, L);
 		}
 		
 		
@@ -36,7 +37,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			Domain(DomStack_t& pStack) :
 				GridNav_AbtDom<AbtMaps_t, estimateHashRange(L)>(
 					pStack.mAbtMaps.getGroupEdges(L), 
-					pStack.mAbtMaps.abstractBaseCell(mGoalState, L))
+					pStack.mAbtMaps.abstractBaseCell(pStack.mGoalState, L))
 			{}
 		};
 		
@@ -44,8 +45,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		template<typename Ign>
 		struct Domain<0, Ign> : public GridNav_BaseDom<BaseMap_t, Use_H, estimateHashRange(0)> {
 			Domain(DomStack_t& pStack) :
-				GridNav_AbtDom<BaseMap_t, Use_H, estimateHashRange(0)>(
-					pStack.mBaseMap.getAdjCellsList(),
+				GridNav_BaseDom<BaseMap_t, Use_H, estimateHashRange(0)>(
+					pStack.mBaseMap,
 					pStack.mInitState,
 					pStack.mGoalState)
 			{}
@@ -56,10 +57,16 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			Abstractor(DomStack_t& pStack) :
 				mStack(pStack)
-			{}
+			{
+				//Ensure no further abstraction is possible.
+				if(L == Top_Abstract_Level) {
+					for(auto v : mStack.mAbtMaps.getGroupEdges(L))
+						gen_assert(v.size() == 1);
+				}
+			}
 			
 			unsigned operator()(unsigned pBaseState) {
-				return mStack.getAbstractGroup(pBaseState, L+1);
+				return mStack.mAbtMaps.getAbstractGroup(pBaseState, L+1);
 			}
 			
 			private:
@@ -70,7 +77,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		GridNav_DomainStack_StarAbt_(Json const& jConfig) :
 			mBaseMap(Height, Width, jConfig.at("map")),
-			mAbtMaps(mBaseMap),
+			mAbtMaps(mBaseMap, jConfig.at("radius")),
 			mInitState(jConfig.at("init")),
 			mGoalState(jConfig.at("goal"))
 		{

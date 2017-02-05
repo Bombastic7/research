@@ -8,6 +8,7 @@
 #include <queue>
 #include <string>
 #include <fstream>
+#include <map>
 
 #include "util/debug.hpp"
 #include "util/math.hpp"
@@ -425,7 +426,15 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			//Continue until no further abstraction is possible.
 			unsigned curlvl = 0;
 			while(true) {
-				if(mGroupEdges[curlvl].size() == 0)
+				bool reachedLast = true;
+				
+				for(unsigned i=0; i<mGroupEdges[curlvl].size(); i++)
+					if(mGroupEdges[curlvl][i].size() != 0) {
+						reachedLast = false;
+						break;
+					}
+				
+				if(reachedLast)
 					break;
 			
 				prepNextLevel(curlvl);
@@ -434,13 +443,15 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		unsigned abstractBaseCell(unsigned idx, unsigned pLvl) const {
-			fast_assert(pLvl < mGroupEdges.size());
+			if(pLvl >= mGroupEdges.size())
+				return 0;
+
 			fast_assert(idx < mBaseGroupLabels.size());
 			
 			unsigned c = mBaseGroupLabels[idx];
 			
 			for(unsigned i=0; i<pLvl; i++) {
-				c = mCellAbstractGroup[pLvl][c];
+				c = mCellAbstractGroup[i][c];
 			}
 			return c;
 		}
@@ -452,7 +463,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		unsigned getAbstractGroup(unsigned pGroup, unsigned pLvl) const {
-			slow_assert(pLvl < mCellAbstractGroup.size());
+			slow_assert(pLvl < mCellAbstractGroup.size(), "%u %u", pLvl, mCellAbstractGroup.size());
 			slow_assert(pGroup < mCellAbstractGroup[pLvl].size());
 			
 			return mCellAbstractGroup[pLvl][pGroup];
@@ -468,7 +479,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		std::vector<std::vector<InterGroupEdge>> const& getGroupEdges(unsigned pLvl) const {
-			slow_assert(pLvl < mGroupEdges.size());
+			if(pLvl >= mGroupEdges.size())
+				return mGroupEdges.back();
+
 			return mGroupEdges[pLvl];
 		}
 		
@@ -490,13 +503,31 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			for(unsigned i=0; i<mBaseHeight; i++) {
 				for(unsigned j=0; j<mBaseWidth; j++) {
 					if(groupmap[i*mBaseWidth+j] == Null_Idx)
-						std::cout << " ";
+						out << " ";
 					else
-						std::cout << (char)(groupmap[i*mBaseWidth+j] % 26 + 'a');
+						out << (char)(groupmap[i*mBaseWidth+j] % 26 + 'a');
 					}
-				std::cout << "\n";
+				out << "\n";
 			}
-			std::cout << "\n";
+			out << "\n";
+		}
+		
+		void dumpall(std::ostream& out) {
+			for(unsigned i=0; i<mGroupEdges.size(); i++) {
+				out << i << "\n";
+				dump(out, i);
+				out << "\n";
+				
+				for(unsigned j=0; j<mGroupEdges[i].size(); j++) {
+					out << j << ": ";
+					
+					for(unsigned k=0; k<mGroupEdges[i][j].size(); k++)
+						out << mGroupEdges[i][j][k].dst << " ";
+					
+					out << "\n";
+				}
+				out << "\n\n";
+			}
 		}
 		
 		private:
@@ -532,7 +563,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 			
 			
-			//Remove singleton groups, merge with a neighbour.
+			//Remove singleton groups if possible, merge with a neighbour.
 			for(unsigned i=0; i<singletonIndices.size(); i++) {
 				if(mGroupEdges[pLvl][singletonIndices[i]].size() > 0)
 					groupMembership[singletonIndices[i]] = groupMembership[mGroupEdges[pLvl][singletonIndices[i]][0].dst];

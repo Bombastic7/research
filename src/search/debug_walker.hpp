@@ -124,6 +124,11 @@ namespace mjon661 { namespace algorithm {
 		void doAbstraction(State& baseState, Tag<true>) {
 			static_assert(L < DomStack::Top_Abstract_Level, "");
 			
+			if(L == mDomStack.lastUsedAbstractLevel()) {
+				std::cout << "Abstraction not available (not used).\n\n";
+				return;
+			}
+			
 			typename DomStack::template Abstractor<L> abtor(mDomStack);
 			
 			auto abtState = abtor(baseState);

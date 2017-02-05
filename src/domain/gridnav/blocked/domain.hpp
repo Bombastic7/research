@@ -33,19 +33,22 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 			
 			Operator operator[](unsigned i) {
-				return i;
+				return mValidOps[i];
 			}
 			
 			OperatorSet(AdjacentCells const& pAdj) :
 				mN(0)
 			{
-				for(unsigned o : pAdj)
-					if(o != Null_Idx)
+				for(unsigned i=0; i<pAdj.size(); i++)
+					if(pAdj[i] != Null_Idx) {
+						mValidOps[mN] = i;
 						mN++;
+					}
 			}
 			
 			private:
 			unsigned mN;
+			std::array<Operator, 8> mValidOps;
 		};
 		
 		
@@ -163,11 +166,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		void prettyPrint(Operator const& op, std::ostream &out) const {
 			mCellMap.prettyPrintDir(op, out);
 		}
-		
-		size_t getHashRange() {
-			return mCellMap.mSize;
-		}
-		
+
 
 		private:
 		
@@ -304,7 +303,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		//~ }
 		
 		void prettyPrint(State const& s, std::ostream& out) const {
-			out << "( " << s << (char)(s % 26 + 'a') << " )\n";
+			out << "( " << s << " (" << (char)(s % 26 + 'a') << ") )\n";
 		}
 		
 		void prettyPrint(Operator const& op, std::ostream &out) const {

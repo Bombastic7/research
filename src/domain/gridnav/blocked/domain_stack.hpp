@@ -59,14 +59,14 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				mStack(pStack)
 			{
 				//Ensure no further abstraction is possible.
-				if(L == Top_Abstract_Level) {
+				if(L == pStack.lastUsedAbstractLevel()) {
 					for(auto v : mStack.mAbtMaps.getGroupEdges(L))
-						gen_assert(v.size() == 1);
+						gen_assert(v.size() == 0);
 				}
 			}
 			
 			unsigned operator()(unsigned pBaseState) {
-				return mStack.mAbtMaps.getAbstractGroup(pBaseState, L+1);
+				return mStack.mAbtMaps.getAbstractGroup(pBaseState, L);
 			}
 			
 			private:
@@ -81,10 +81,25 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mInitState(jConfig.at("init")),
 			mGoalState(jConfig.at("goal"))
 		{
+			mNabtLvlsUsed = mAbtMaps.getLevelSizes().size() - 1;
+		}
+		
+		unsigned lastUsedAbstractLevel() {
+			return mNabtLvlsUsed;
+		}
+		
+		void dump(std::ostream& out) {
+			for(unsigned i : mAbtMaps.getLevelSizes()) 
+				out << i << " ";
+			
+			out << "\n" << lastUsedAbstractLevel();
+			out << "\n\n";
+			mAbtMaps.dumpall(out);
 		}
 		
 		
 		private:
+		unsigned mNabtLvlsUsed;
 		CellMap<BaseFuncs, Use_LifeCost> mBaseMap;
 		StarAbtCellMap<BaseFuncs, Use_LifeCost> mAbtMaps;
 		unsigned const mInitState, mGoalState;

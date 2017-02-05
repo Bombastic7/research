@@ -139,6 +139,7 @@ DOMS =	[
 		DomainInfo("tiles_15hw_8", tiles_stack(4,4,True,True,8), "domain/tiles/fwd.hpp", True, "tiles_15"),
 		DomainInfo("pancake_10_7_2", pancake_stack_ignore(10, 7, 2, True, False), "domain/pancake/fwd.hpp", True, "pancake_10"),
 		DomainInfo("gridnav_20", gridnav_blocked_starabt(20, 20, False, True, True), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
+		DomainInfo("gridnav_5", gridnav_blocked_starabt(5, 5, False, True, True), "domain/gridnav/fwd.hpp", True, "gridnav_20"),
 		]
 
 PROBLEM_SETS =	[

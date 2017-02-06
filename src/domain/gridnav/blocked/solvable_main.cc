@@ -1,8 +1,10 @@
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <sstream>
 
+#include "util/debug.hpp"
 #include "domain/gridnav/blocked/graph.hpp"
 
 
@@ -16,6 +18,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		CellMap<BaseFuncs, false> cellmap(pHeight, pWidth, pMapFile);
 		StarAbtCellMap<BaseFuncs, false> abtmap(cellmap, pRadius);
+		
 		
 		while(true) {
 			unsigned startpos, endpos;
@@ -35,6 +38,15 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			else
 				std::cout << "false\n";
 		}
+		
+		
+		/*
+		std::string outfile = pMapFile + "_topabt";
+		std::ofstream ofs(outfile);
+		gen_assert(ofs);
+		
+		abtmap.writeTopAbstraction(ofs);
+		*/
 	}
 }}}
 

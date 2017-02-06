@@ -66,6 +66,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 			
 			unsigned operator()(unsigned pBaseState) {
+				if(L == 0)
+					return mStack.mAbtMaps.abstractBaseCell(pBaseState, 1);
+				
 				return mStack.mAbtMaps.getAbstractGroup(pBaseState, L);
 			}
 			
@@ -87,20 +90,27 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				mInitState = jConfig.at("init");
 			
 			if(jConfig.at("goal").is_array())
-				mInitState = jConfig.at("goal")[0].get<unsigned>() + jConfig.at("goal")[1].get<unsigned>() * Width;
+				mGoalState = jConfig.at("goal")[0].get<unsigned>() + jConfig.at("goal")[1].get<unsigned>() * Width;
 			else
-				mInitState = jConfig.at("goal");
+				mGoalState = jConfig.at("goal");
+			
+			//~ std::ofstream ofs("gridnav_test_out"); //...........
+			//~ gen_assert(ofs);
+			//~ dump(ofs);
 		}
 		
-		unsigned lastUsedAbstractLevel() {
+		unsigned lastUsedAbstractLevel() const {
 			return mNabtLvlsUsed;
 		}
 		
-		void dump(std::ostream& out) {
+		void dump(std::ostream& out) const {
 			for(unsigned i : mAbtMaps.getLevelSizes()) 
 				out << i << " ";
 			
 			out << "\n" << lastUsedAbstractLevel();
+			out << "\n" << mAbtMaps.checkBaseConnected(mInitState, mGoalState) << " " << mInitState << " " << mGoalState;
+			out << "\n" << mAbtMaps.abstractBaseCell(mInitState, lastUsedAbstractLevel());
+			out << "\n" << mAbtMaps.abstractBaseCell(mGoalState, lastUsedAbstractLevel());
 			out << "\n\n";
 			mAbtMaps.dumpall(out);
 		}

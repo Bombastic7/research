@@ -197,6 +197,7 @@ namespace mjon661 { namespace algorithm {
 			mAbtSearch			(pDomStack, jConfig, pStats),
 			mAbtor				(pDomStack),
 			mDomain				(pDomStack),
+			mDomStack			(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
@@ -229,6 +230,11 @@ namespace mjon661 { namespace algorithm {
 		
 		bool doSearch(BaseState const& pBaseState, Cost& out_h, unsigned& out_d) {
 			{
+				if(mDomStack.lastUsedAbstractLevel() == L-1) {
+					out_h = 0;
+					return false;
+				}
+				
 				State s0 = mAbtor(pBaseState);
 				PackedState pkd0;
 				
@@ -456,7 +462,8 @@ namespace mjon661 { namespace algorithm {
 		AbtSearch				mAbtSearch;
 		BaseAbstractor			mAbtor;
 		const Domain			mDomain;
-		
+		D const&				mDomStack;
+
 		OpenList_t 				mOpenList;
 		ClosedList_t 			mClosedList;
 		NodePool_t 				mNodePool;

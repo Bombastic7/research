@@ -450,22 +450,27 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			unsigned c = mBaseGroupLabels[idx];
 			
+			fast_assert(c != Null_Idx, "%u %u", idx%mBaseWidth, idx/mBaseWidth);
+			
 			for(unsigned i=0; i<pLvl; i++) {
-				c = mCellAbstractGroup[i][c];
+				c = mCellAbstractGroup.at(i).at(c);
 			}
 			return c;
 		}
 		
 		unsigned checkBaseConnected(unsigned a, unsigned b) const {
+			if(mBaseGroupLabels.at(a) == Null_Idx || mBaseGroupLabels.at(b) == Null_Idx)
+				return false;
+
 			a = abstractBaseCell(a, mGroupEdges.size()-1);
 			b = abstractBaseCell(b, mGroupEdges.size()-1);
 			return a == b;
 		}
 		
 		unsigned getAbstractGroup(unsigned pGroup, unsigned pLvl) const {
-			slow_assert(pLvl < mCellAbstractGroup.size(), "%u %u", pLvl, mCellAbstractGroup.size());
+			slow_assert(pLvl != 0 && pLvl < mCellAbstractGroup.size(), "%u %u", pLvl, mCellAbstractGroup.size());
 			slow_assert(pGroup < mCellAbstractGroup[pLvl].size());
-			
+				
 			return mCellAbstractGroup[pLvl][pGroup];
 		}
 
@@ -485,7 +490,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return mGroupEdges[pLvl];
 		}
 		
-		void dump(std::ostream& out, unsigned pLvl) {
+		void dump(std::ostream& out, unsigned pLvl) const {
 			fast_assert(pLvl < mGroupEdges.size());
 			
 			std::vector<unsigned> groupmap = mBaseGroupLabels;
@@ -512,7 +517,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			out << "\n";
 		}
 		
-		void dumpall(std::ostream& out) {
+		void dumpall(std::ostream& out) const {
 			for(unsigned i=0; i<mGroupEdges.size(); i++) {
 				out << i << "\n";
 				dump(out, i);
@@ -528,6 +533,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				}
 				out << "\n\n";
 			}
+		}
+		
+		void writeTopAbstraction(std::ostream& out) {
+			dump(out, mGroupEdges.size()-1);
 		}
 		
 		private:

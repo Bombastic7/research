@@ -48,15 +48,17 @@ def genGridNavProblemSet(fmapname, block, h, w, nprobs, mindist, eightway, abtra
 		if abs(math.hypot(*startpos) - math.hypot(*goalpos)) < griddiag * mindist:
 			return False
 		
-		proc.stdin.write(str(startpos[0] + startpos[1]*w) + " " + str(endpos[0] + endpos[1]*w) + "\n")
+		coords = str(startpos[0] + startpos[1]*w) + " " + str(endpos[0] + endpos[1]*w) + "\n"
+		proc.stdin.write(coords)
+
 		res = proc.stdout.readline()
 		
-		if res == "true":
+		if res == "true\n":
 			return True
-		elif res == "false":
+		elif res == "false\n":
 			return False
-		else
-			assert(False)
+		else:
+			raise ValueError
 
 
 	

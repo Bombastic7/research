@@ -81,7 +81,7 @@ def starAbt(grps, rad):
 	for ((s, d), c) in abtedges.iteritems():
 		abtedgeslst[s].append((d, c))
 	
-	return tuple(abtedgeslst)
+	return tuple(abtedgeslst), tuple(abtgrps)
 
 
 
@@ -108,10 +108,14 @@ class StarAbtDomain:
 				for (d, c) in n:
 					basegrpslst[basegrp[i]].append((basegrps[d], c))
 
-			self.grps = starAbt(basegrpslst, rad)
+			self.basegrps = basegrps
+			self.grps, self.trns = starAbt(basegrps rad)
 	
 		else:
-			self.grps = starAbt(parentdom.grps, rad)
+			self.grps, self.trns = starAbt(parentdom.grps, rad)
+		
+		self.goal = self.abstractState(parentdom.goal)
+		self.rad = rad
 	
 	
 	def isTrivial(self):
@@ -121,6 +125,25 @@ class StarAbtDomain:
 		return False
 	
 	
+	def abstractState(self, bs):
+		if hasattr(self, "basegrps"):
+			return self.trns[self.basegrps[bs]]
+		else:
+			return self.trns[bs]
+	
+	
+	def expand(self, s):
+		return [(State(i), c) for (i, c) in self.grps[s]]
+	
+	
+	def checkGoal(self, s):
+		return s == self.goal
+
+	def spawnAbtDomain(self):
+		if self.isTrivial():
+			return None
+		return StarAbtDomain(self, self.rad)
+
 
 
 
@@ -176,4 +199,5 @@ class Domain:
 
 
 	def spawnAbtDomain(self):
+		abtdom = StarAbtDomain(self, 2)
 		

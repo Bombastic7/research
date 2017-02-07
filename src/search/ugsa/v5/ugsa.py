@@ -1,8 +1,7 @@
 #!/bin/python
 
 
-import heapq
-import functools
+from functools import total_ordering
 
 
 
@@ -25,12 +24,12 @@ class NodeHeap:
 		ret = self.t[0]
 		
 		if len(self.t) == 1:
-			self.t == []
+			self.t = []
 	
 		else:
 			self.t[0] = self.t.pop()
 			self.t[0].openidx = 0
-			_pushdown(0)
+			self._pushdown(0)
 		
 		return ret
 
@@ -63,9 +62,9 @@ class NodeHeap:
 			r = None
 	
 		sml = i
-		if l is not None and self[l] < self[i]:
+		if l is not None and self.t[l] < self.t[i]:
 			sml = l
-		if r is not None and self[r] < self[sml]:
+		if r is not None and self.t[r] < self.t[sml]:
 			sml = r
 		
 		if sml != i:
@@ -78,10 +77,12 @@ class NodeHeap:
 		tmp = self.t[i]
 		self.t[i] = self.t[j]
 		self.t[j] = tmp
+		self.t[i].openidx = i
+		self.t[j].openidx = j
 
 
 
-
+@total_ordering
 class Node:
 	def __init__(self, s, g, f, parent):
 		self.s = s
@@ -92,7 +93,7 @@ class Node:
 	def __eq__(self, o):
 		return self.s == o.s
 	
-	@total_ordering
+
 	def __lt__(self, o):
 		if self.f == o.f:
 			return self.g > o.g
@@ -100,45 +101,74 @@ class Node:
 		return self.f < o.f
 
 	def __hash__(self):
-		return hash(s)
+		return hash(self.s)
 
 
 
 def astarMain(dom):
+	expd = 0
+	gend = 0
+	dups = 0
+	reopnd = 0
 	
-	openlist = []
-	closedlist = set()
+	openlist = NodeHeap()
+	closedlist = {}
 	
 	s0 = dom.initState()	
 	n0 = Node(s0, 0, dom.hval(s0), None)
 	n0.isopen = True
 	
-	heapq.heappush(openlist, n0)
-	closedlist.insert(n0)
-	
-	
+	openlist.push(n0)
+	closedlist[s0] = n0
+
 	while True:
-		n = heapq.heappop(openlist)
+		n = openlist.pop()
 		n.isopen = False
 		
 		if dom.checkGoal(n.s):
-			return n
+			return n, (expd, gend, dups, reopnd)
 		
+		expd += 1
 		
 		childnodes = [Node(c, n.g + edgecost, n.g + edgecost + dom.hval(c), n) for (c, edgecost) in dom.expand(n.s)]
-		
+
 		for cn in childnodes:
-			if cn not in closedlist:
-				heapq.heappush(openlist, cn)
-				closedlist.insert(cn)
+			if n.parent is not None and cn == n.parent:
+				continue
+				
+			gend += 1
+			cn.isopen = True
+
+			if cn.s not in closedlist:
+				openlist.push(cn)
+				closedlist[cn.s] = cn
 			
 			else:
-				dup = closedlist[cn]
+				dups += 1
+				dup = closedlist[cn.s]
 				
 				if cn.g < dup.g:
-					closedlist.remove(dup)
-					closedlist.insert(cn)
+					dup.g = cn.g
+					dup.f = cn.f
+					dup.parent = cn.parent
 					
 					if dup.isopen:
-						
-		
+						openlist.update(dup.openidx)
+					else:
+						reopnd += 1
+						openlist.push(dup)
+						dup.isopen = True
+
+
+
+
+
+
+
+
+
+
+
+
+
+

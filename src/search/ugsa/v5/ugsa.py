@@ -112,32 +112,31 @@ class HAstar:
 	def __init__(self, dom):
 		self.doms = [(dom, None)]
 		while True:
-			abtdom = self.doms[-1]
+			abtdom = self.doms[-1][0].spawnAbtDomain()
 			if abtdom is None:
 				break
 			self.doms.append((abtdom, {}))
-	
-	
-	def hval(self, s, lvl):
-	
+
+	def execute(self):
+		return self.doSearch(self.doms[0][0].initState(), 0)
 	
 	def doSearch(self, bs, lvl):
+		if lvl == len(self.doms):
+			return 0;
+		
 		expd = 0
 		gend = 0
 		dups = 0
 		reopnd = 0
 		
 		bestExactNode = None
-
-		if lvl == len(self.doms):
-			return 0;
 		
 		dom = self.doms[lvl][0]
 		cache = self.doms[lvl][1]
 		
-		s0 = dom.abstractState(bs)
+		s0 = dom.abstractState(bs) if lvl > 0 else bs
 		
-		if cache not None and s0 in cache and cache[s0][1]:
+		if cache is not None and s0 in cache and cache[s0][1]:
 			return cache[s0][0]
 		
 		openlist = NodeHeap()
@@ -146,7 +145,7 @@ class HAstar:
 		if cache is not None:
 			if s0 not in cache:
 				cache[s0] = [self.doSearch(s0, lvl+1), False]
-			h0 = cache[s0]
+			h0 = cache[s0][0]
 		else:
 			h0 = self.doSearch(s0, lvl+1)
 			assert(lvl == 0)
@@ -173,12 +172,14 @@ class HAstar:
 
 			expd += 1
 			
-			def heval(c):
+			def heval(s):
+				if lvl == 0:
+					return self.doSearch(s, 1)
 				if s not in cache:
 					cache[s] = [self.doSearch(s, lvl+1), False]
 				return cache[s][0]
 			
-			childnodes = [Node(c, n.g + edgecost, n.g + edgecost + hval(c), n) for (c, edgecost) in dom.expand(n.s)]
+			childnodes = [Node(c, n.g + edgecost, n.g + edgecost + heval(c), n) for (c, edgecost) in dom.expand(n.s)]
 
 			for cn in childnodes:
 				if n.parent is not None and cn == n.parent:
@@ -213,25 +214,26 @@ class HAstar:
 							assert(not cache[s0][1])
 
 
-		for n in closedlist.itervalues():
-			if n.isopen:
-				continue
+		if lvl > 0:
+			for n in closedlist.itervalues():
+				if n.isopen:
+					continue
+				
+				pg = goalNode.f - n.g
+				
+				if pg > cache[n.s][0]:
+					cache[n.s][0] = pg
 			
-			pg = goalNode.f - n.g
+			m = goalNode
 			
-			if pg < cache[n.s][0]:
-				cache[n.s][0] = pg
-		
-		m = goalNode
-		
-		while m.parent is not None:
-			cache[m.s][1] = True
-			m = m.parent
-		
-		if lvl == 0:
-			return n, (expd, gend, dups, reopnd)
-		else:
+			while m is not None:
+				cache[m.s][1] = True
+				m = m.parent
+			
 			return n.f
+			
+		else:
+			return n, (expd, gend, dups, reopnd)
 
 
 

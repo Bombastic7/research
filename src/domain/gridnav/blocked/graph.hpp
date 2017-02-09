@@ -371,7 +371,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			unsigned idx, outdegree;
 			
 			bool operator()(OutDegNode const& a, OutDegNode const& b) {
-				return a.outdegree == b.outdegree ? a.idx < b.idx : a.outdegree > b.outdegree;
+				return a.outdegree == b.outdegree ? a.idx > b.idx : a.outdegree < b.outdegree;
 			}
 		};
 

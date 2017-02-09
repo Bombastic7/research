@@ -43,8 +43,8 @@ class NodeHeap:
 		if i == 0:
 			return i
 		
-		p = (i - 1)/2
-		
+		p = (i - 1)//2
+		#print self.t[i].f, self.t[p].f
 		if self.t[i] < self.t[p]:
 			self._swap(i, p)
 			return self._pullup(p)
@@ -116,6 +116,8 @@ class HAstar:
 			if abtdom is None:
 				break
 			self.doms.append((abtdom, {}))
+		
+		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.doms))]
 
 	def execute(self):
 		return self.doSearch(self.doms[0][0].initState(), 0)
@@ -123,11 +125,7 @@ class HAstar:
 	def doSearch(self, bs, lvl):
 		if lvl == len(self.doms):
 			return 0;
-		
-		expd = 0
-		gend = 0
-		dups = 0
-		reopnd = 0
+
 		
 		bestExactNode = None
 		
@@ -160,17 +158,22 @@ class HAstar:
 		goalNode = None
 		
 		while True:
-			n = openlist.pop()
+			try:
+				n = openlist.pop()
+			except ValueError:
+				print "error level", lvl
+				raise
+			
 			n.isopen = False
 			
-			if dom.checkGoal(n.s) or (lvl != 0 and bestExactNode is n):
+			if dom.checkGoal(n.s) or (lvl != 0 and bestExactNode is n): 
 				goalNode = n
 				if dom.checkGoal(n.s):
 					assert(n.g == n.f)
 				break
 
 
-			expd += 1
+			self.stats[lvl]["expd"] += 1
 			
 			def heval(s):
 				if lvl == 0:
@@ -185,7 +188,7 @@ class HAstar:
 				if n.parent is not None and cn == n.parent:
 					continue
 					
-				gend += 1
+				self.stats[lvl]["gend"] += 1
 				cn.isopen = True
 
 				if cn.s not in closedlist:
@@ -195,7 +198,7 @@ class HAstar:
 						bestExactNode = cn
 				
 				else:
-					dups += 1
+					self.stats[lvl]["dups"] += 1
 					dup = closedlist[cn.s]
 					
 					if cn.g < dup.g:
@@ -208,7 +211,7 @@ class HAstar:
 							if lvl != 0 and cache[cn.s][1] and (bestExactNode is None or bestExactNode.f > cn.f):
 								bestExactNode = dup
 						else:
-							reopnd += 1
+							self.stats[lvl]["reopnd"] += 1
 							openlist.push(dup)
 							dup.isopen = True
 							assert(not cache[s0][1])
@@ -233,13 +236,47 @@ class HAstar:
 			return n.f
 			
 		else:
-			return n, (expd, gend, dups, reopnd)
+			return n, self.stats
 
 
 
 
 
+class BFSearch:
+	
+	@total_ordering
+	class Node:
+		def __init__(self, s, depth, parent):
+			self.s = s
+			self.depth = depth
+			self.parent = parent
 
+		def __lt__(self, o):
+			return self.depth < o.depth
+	
+	
+	def __init__(self, dom):
+		self.dom = dom
+	
+	def execute(self):
+		openlist = NodeHeap()
+		closedlist = {}
+		
+		n0 = BFSearch.Node(self.dom.initState(), 0, None)
 
+		openlist.push(n0)
+		closedlist[n0.s] = n0
+		
+		while True:
+			n = openlist.pop()
+			
+			if self.dom.checkGoal(n.s):
+				return n
+			
+			childnodes = [BFSearch.Node(c, n.depth+1, n) for (c, edgecost) in self.dom.expand(n.s)]
 
+			for cn in childnodes:
+				if cn.s not in closedlist:
+					openlist.push(cn)
+					closedlist[cn.s] = cn
 

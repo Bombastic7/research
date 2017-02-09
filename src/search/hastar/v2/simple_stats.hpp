@@ -80,8 +80,8 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				}
 
 				j["NSearches"] = mNsearches;
-				j["expd"] = mExpd;
-				j["gend"] = mGend;
+				j["expd"] = mTotalExpd;
+				j["gend"] = mTotalGend;
 
 
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;

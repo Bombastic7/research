@@ -25,7 +25,7 @@ def starAbt(grps, rad):
 	abtgrps = [None] * len(grps)
 
 	outdegqueue = [ (len(grps[i]), i) for i in range(len(grps)) ]
-	outdegqueue.sort(cmp=lambda x, y: x[1] < y[1] if x[0] == y[0] else x[0] > y[0])
+	outdegqueue.sort(cmp=lambda x, y: x[1] - y[1] if x[0] == y[0] else y[0] - x[0])
 
 	curgrp = 0
 	singletons = []
@@ -53,6 +53,8 @@ def starAbt(grps, rad):
 	for i in singletons:
 		if len(grps[i]) > 0:
 			abtgrps[i] = abtgrps[grps[i][0][0]]
+			if grps[i][0][0] in singletons:
+				singletons.remove(grps[i][0][0])
 	
 	curgrp = 0
 	relabel = {}
@@ -107,6 +109,7 @@ class StarAbtDomain:
 				for (d, c) in n:
 					basegrpslst[basegrps[i]].append((basegrps[d.idx], c))
 
+			self.basegrps = basegrps
 			self.grps, self.trns = starAbt(basegrpslst, rad)
 			self.expectsCellIndex = True
 			self.baserepr = [None] * parentdom.size
@@ -133,7 +136,7 @@ class StarAbtDomain:
 				if ln[i] is None:
 					ln[i] = " "
 				else:
-					ln[i] = chr(ord("a") + ln[i])
+					ln[i] = chr(ord("a") + ln[i] % 26)
 			print ''.join(ln)
 
 	
@@ -146,7 +149,7 @@ class StarAbtDomain:
 	
 	def abstractState(self, bs):
 		if hasattr(self, "expectsCellIndex"):
-			return State(self.trns[self.baserepr[bs.idx]])
+			return State(self.trns[self.basegrps[bs.idx]])
 		else:
 			return State(self.trns[bs.idx])
 	

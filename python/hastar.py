@@ -2,84 +2,7 @@
 
 
 from functools import total_ordering
-
-
-
-
-class NodeHeap:
-	def __init__(self):
-		self.t = []
-
-	
-	def push(self, n):
-		n.openidx = len(self.t)
-		self.t.append(n)
-		self._pullup(n.openidx)
-
-	
-	def pop(self):
-		if len(self.t) == 0:
-			raise ValueError
-		
-		ret = self.t[0]
-		
-		if len(self.t) == 1:
-			self.t = []
-	
-		else:
-			self.t[0] = self.t.pop()
-			self.t[0].openidx = 0
-			self._pushdown(0)
-		
-		return ret
-
-
-	def update(self, i):
-		j = self._pullup(i)
-		self._pushdown(j)
-		
-
-	def _pullup(self, i):
-		if i == 0:
-			return i
-		
-		p = (i - 1)//2
-		#print self.t[i].f, self.t[p].f
-		if self.t[i] < self.t[p]:
-			self._swap(i, p)
-			return self._pullup(p)
-		else:
-			return i
-	
-	
-	def _pushdown(self, i):
-		l = i*2 + 1
-		r = i*2 + 2
-
-		if l >= len(self.t):
-			l = None
-		if r >= len(self.t):
-			r = None
-	
-		sml = i
-		if l is not None and self.t[l] < self.t[i]:
-			sml = l
-		if r is not None and self.t[r] < self.t[sml]:
-			sml = r
-		
-		if sml != i:
-			self._swap(sml, i)
-			return self._pushdown(sml)
-		
-		return i
-
-	def _swap(self, i, j):
-		tmp = self.t[i]
-		self.t[i] = self.t[j]
-		self.t[j] = tmp
-		self.t[i].openidx = i
-		self.t[j].openidx = j
-
+from nodeheap import NodeHeap
 
 
 @total_ordering
@@ -165,7 +88,7 @@ class HAstar:
 				raise
 			
 			n.isopen = False
-			
+
 			if dom.checkGoal(n.s) or (lvl != 0 and bestExactNode is n): 
 				goalNode = n
 				if dom.checkGoal(n.s):
@@ -214,7 +137,8 @@ class HAstar:
 							self.stats[lvl]["reopnd"] += 1
 							openlist.push(dup)
 							dup.isopen = True
-							assert(not cache[s0][1])
+							if cache is not None:
+								assert(not cache[s0][1])
 
 
 		if lvl > 0:
@@ -239,44 +163,4 @@ class HAstar:
 			return goalNode, self.stats
 
 
-
-
-
-class BFSearch:
-	
-	@total_ordering
-	class Node:
-		def __init__(self, s, depth, parent):
-			self.s = s
-			self.depth = depth
-			self.parent = parent
-
-		def __lt__(self, o):
-			return self.depth < o.depth
-	
-	
-	def __init__(self, dom):
-		self.dom = dom
-	
-	def execute(self):
-		openlist = NodeHeap()
-		closedlist = {}
-		
-		n0 = BFSearch.Node(self.dom.initState(), 0, None)
-
-		openlist.push(n0)
-		closedlist[n0.s] = n0
-		
-		while True:
-			n = openlist.pop()
-			
-			if self.dom.checkGoal(n.s):
-				return n
-			
-			childnodes = [BFSearch.Node(c, n.depth+1, n) for (c, edgecost) in self.dom.expand(n.s)]
-
-			for cn in childnodes:
-				if cn.s not in closedlist:
-					openlist.push(cn)
-					closedlist[cn.s] = cn
 

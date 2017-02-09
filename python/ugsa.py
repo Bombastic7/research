@@ -165,7 +165,7 @@ class HAstar:
 				raise
 			
 			n.isopen = False
-			
+
 			if dom.checkGoal(n.s) or (lvl != 0 and bestExactNode is n): 
 				goalNode = n
 				if dom.checkGoal(n.s):
@@ -214,7 +214,8 @@ class HAstar:
 							self.stats[lvl]["reopnd"] += 1
 							openlist.push(dup)
 							dup.isopen = True
-							assert(not cache[s0][1])
+							if cache is not None:
+								assert(not cache[s0][1])
 
 
 		if lvl > 0:
@@ -233,10 +234,10 @@ class HAstar:
 				cache[m.s][1] = True
 				m = m.parent
 			
-			return goalNode.f
+			return n.f
 			
 		else:
-			return goalNode, self.stats
+			return n, self.stats
 
 
 

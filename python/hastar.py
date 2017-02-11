@@ -1,5 +1,6 @@
 #!/bin/python
 
+import misc
 
 from functools import total_ordering
 from nodeheap import NodeHeap
@@ -39,17 +40,20 @@ class HAstar:
 			if abtdom is None:
 				break
 			self.doms.append((abtdom, {}))
+
+
+	def execute(self, s0 = None, lvl = 0):
+		if s0 is None:
+			s0 = self.doms[0][0].initState()
 		
 		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.doms))]
-
-	def execute(self):
-		return self.doSearch(self.doms[0][0].initState(), 0)
+		return self.doSearch(s0, lvl)
+	
 	
 	def doSearch(self, bs, lvl):
-		if lvl == len(self.doms):
-			return 0;
+		if lvl >= len(self.doms):
+			return Node(bs,0,0,None)
 
-		
 		bestExactNode = None
 		
 		dom = self.doms[lvl][0]
@@ -58,23 +62,22 @@ class HAstar:
 		s0 = dom.abstractState(bs) if lvl > 0 else bs
 		
 		if cache is not None and s0 in cache and cache[s0][1]:
-			return cache[s0][0]
+			return Node(bs,0,cache[s0][0],None)
 		
 		openlist = NodeHeap()
 		closedlist = {}
 		
 		if cache is not None:
 			if s0 not in cache:
-				cache[s0] = [self.doSearch(s0, lvl+1), False]
+				cache[s0] = [self.doSearch(s0, lvl+1).f, False]
 			h0 = cache[s0][0]
 		else:
 			h0 = self.doSearch(s0, lvl+1)
 			assert(lvl == 0)
 
-
 		n0 = Node(s0, 0, h0, None)
 		n0.isopen = True
-		
+
 		openlist.push(n0)
 		closedlist[s0] = n0
 
@@ -100,14 +103,15 @@ class HAstar:
 			
 			def heval(s):
 				if lvl == 0:
-					return self.doSearch(s, 1)
+					return self.doSearch(s, 1).f
 				if s not in cache:
-					cache[s] = [self.doSearch(s, lvl+1), False]
+					cache[s] = [self.doSearch(s, lvl+1).f, False]
 				return cache[s][0]
 			
 			childnodes = [Node(c, n.g + edgecost, n.g + edgecost + heval(c), n) for (c, edgecost) in dom.expand(n.s)]
 
 			for cn in childnodes:
+
 				if n.parent is not None and cn == n.parent:
 					continue
 					
@@ -156,11 +160,11 @@ class HAstar:
 			while m is not None:
 				cache[m.s][1] = True
 				m = m.parent
-			
-			return goalNode.f
-			
-		else:
-			return goalNode, self.stats
+		
+		if lvl == 0:
+			self.goalNode = goalNode
+
+		return goalNode
 
 
 

@@ -15,8 +15,17 @@ class Domain:
 
 
 	def initState(self):
-		return self.s0
+		if self.lvl == 0:
+			return self.s0
+		if self.lvl == 1:
+			return self.abstractState(self.s0)
 	
+
+	def randomInitState(self):
+		assert(self.lvl == 0)
+		return tuple(genRandInitState(self.goal, self.width))
+
+
 	def expand(self, s):
 		children = []
 		blankpos = s.index(0)
@@ -75,7 +84,7 @@ class Domain:
 
 	
 	def drawState(self, s):
-		for ln in [s[i:i+self.width] for i in range(0, self.size, self.width)]:
+		for ln in [list(s[i:i+self.width]) for i in range(0, self.size, self.width)]:
 			for i in range(self.width):
 				if ln[i] is None:
 					ln[i] = " "
@@ -95,8 +104,41 @@ class Domain:
 		return d
 
 
-def rand_3_3():
-	s0 = range(9)
-	random.shuffle(s0)
+
+def getParity(s, width):
+	n = 0
+	for i in range(len(s)):
+		for j in range(i+1, len(s)):
+			if(s[i] > s[j] and s[j] != 0):
+				n += 1
 	
+	if width%2 == 1:
+		return n%2 == 0
+	
+	return (s.index(0)/width) % 2 == n % 2
+
+
+def genRandInitState(goal, width):
+	gpar = getParity(goal, width)
+	s0 = range(len(goal))
+	random.shuffle(s0)
+	while getParity(s0, width) != gpar:
+		random.shuffle(s0)
+	return s0
+
+
+def rand_3_3():
+	s0 = genRandInitState(range(9), 3)
 	return Domain(0, 3, 3, tuple(s0), tuple(range(9)), (10, 5, 4, 3, 2, 1, 1, 1, 1))
+
+
+def rand_3_4():
+	s0 = genRandInitState(range(12), 4)
+	return Domain(0, 3, 4, tuple(s0), tuple(range(12)), (10, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1))
+
+
+def rand_4_4():
+	s0 = genRandInitState(range(16), 4)
+	return Domain(0, 4, 4, tuple(s0), tuple(range(16)), (10, 8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1))
+
+

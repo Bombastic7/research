@@ -46,7 +46,9 @@ class NodeHeap:
 		else:
 			return i
 	
-	
+	def size(self):
+		return len(self.t)
+
 	def _pushdown(self, i):
 		l = i*2 + 1
 		r = i*2 + 2

@@ -3,19 +3,21 @@
 
 from functools import total_ordering
 from nodeheap import NodeHeap
+from ugsa import CompUtil
 
 
 class BFSearch:
 	
 	@total_ordering
 	class Node:
-		def __init__(self, s, depth, parent):
+		def __init__(self, s, depth, g, parent):
 			self.s = s
 			self.depth = depth
+			self.g = g
 			self.parent = parent
 
 		def __lt__(self, o):
-			return self.depth < o.depth
+			return self.g < o.g
 	
 	
 	def __init__(self, dom):
@@ -25,7 +27,7 @@ class BFSearch:
 		openlist = NodeHeap()
 		closedlist = {}
 		
-		n0 = BFSearch.Node(self.dom.initState(), 0, None)
+		n0 = BFSearch.Node(self.dom.initState(), 0, 0, None)
 
 		openlist.push(n0)
 		closedlist[n0.s] = n0
@@ -36,7 +38,7 @@ class BFSearch:
 			if self.dom.checkGoal(n.s):
 				return n
 			
-			childnodes = [BFSearch.Node(c, n.depth+1, n) for (c, edgecost) in self.dom.expand(n.s)]
+			childnodes = [BFSearch.Node(c, n.depth+1, n.g+edgecost, n) for (c, edgecost) in self.dom.expand(n.s)]
 
 			for cn in childnodes:
 				if cn.s not in closedlist:
@@ -47,10 +49,11 @@ class BFSearch:
 
 class Astar:
 	class Node:
-		def __init__(self, s, g, f, parent):
+		def __init__(self, s, g, f, depth, parent):
 			self.s = s
 			self.g = g
 			self.f = f
+			self.depth = depth
 			self.parent = parent
 
 		def __lt__(self, o):
@@ -59,14 +62,36 @@ class Astar:
 
 	def __init__(self, dom):
 		self.dom = dom
+		self.compUtil = CompUtil()
+		self.memoizeCache = {}
+
+	def getCost(self, s0):
+		if s0 in self.memoizeCache:
+			return self.memoizeCache[s0]
 		
-	def execute(self):
+		n = self.execute(s0)
+		m = n
+		while m is not None:
+			if m.s in self.memoizeCache:
+				assert(self.memoizeCache[m.s] == n.g-m.g)
+			self.memoizeCache[m.s] = n.g - m.g
+			if m.parent is None:
+				assert(m.s == s0)
+			m = m.parent
+			
+		
+		return self.memoizeCache[s0]
+
+
+	def execute(self, s0 = None):
+		if s0 is None:
+			s0 = self.dom.initState()
+
 		openlist = NodeHeap()
 		closedlist = {}
 		stats = {"expd":0, "gend":0, "dups":0, "reopnd":0}
-		
-		s0 = self.dom.initState()
-		n0 = Astar.Node(self.dom.initState(), 0, self.dom.hval(s0), None)
+
+		n0 = Astar.Node(s0, 0, self.dom.hval(s0), 0, None)
 		n0.isopen = True
 		
 		openlist.push(n0)
@@ -77,11 +102,13 @@ class Astar:
 			n.isopen = False
 			
 			if self.dom.checkGoal(n.s):
-				return n, stats
+				return n
 			
 			stats["expd"] += 1
-			
-			childnodes = [Astar.Node(c, n.g+edgecost, n.g+edgecost+self.dom.hval(c), n) for (c, edgecost) in self.dom.expand(n.s)]
+			self.compUtil.compBaseUtil(0,0,0)
+			self.compUtil.informExpansion(n)
+
+			childnodes = [Astar.Node(c, n.g+edgecost, n.g+edgecost+self.dom.hval(c), n.depth+1, n) for (c, edgecost) in self.dom.expand(n.s)]
 
 			for cn in childnodes:
 				if n.parent is not None and cn == n.parent:
@@ -99,6 +126,7 @@ class Astar:
 					if cn.g < dup.g:
 						dup.g = cn.g
 						dup.f = cn.f
+						dup.depth = cn.depth
 						dup.parent = cn.parent
 						
 						if dup.isopen:
@@ -107,3 +135,7 @@ class Astar:
 							stats[lvl]["reopnd"] += 1
 							openlist.push(dup)
 							dup.isopen = True
+
+
+
+

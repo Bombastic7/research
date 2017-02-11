@@ -1,0 +1,164 @@
+
+
+========================================================================================
+========================================================================================
+
+Record of solution length vs nodes expanded on the unit cost 3*4 tiles domain.
+Goal state was identity.
+100 random initial states used.
+Heuristic was manhattan distance.
+
+
+data =
+{20: [804],
+ 27: [476, 1048, 1248, 577],
+ 28: [1647],
+ 29: [1860, 6396, 1765, 958],
+ 30: [3342, 7129, 4532, 2521, 986],
+ 31: [4633, 9203, 2080, 2059, 5279, 2570, 2805],
+ 32: [34741, 5350, 9216, 4226],
+ 33: [17853, 4274, 4878, 1368, 2800, 7857, 9317, 6740],
+ 34: [23772,
+  29362,
+  8636,
+  4502,
+  11498,
+  18094,
+  8443,
+  12026,
+  10358,
+  8130,
+  13282,
+  18340],
+ 35: [7090, 14332, 21537, 31616, 16584, 18342, 34001, 62533],
+ 36: [11299, 2175, 23146, 34284, 5398],
+ 37: [101007,
+  42667,
+  54490,
+  13257,
+  42898,
+  21754,
+  31234,
+  35540,
+  18833,
+  23787,
+  32999],
+ 38: [57894, 14193, 34819, 12808, 19095, 72613, 45267, 54401, 28593],
+ 39: [131205, 85757, 63604, 76760],
+ 40: [52478, 56500, 83671, 41872, 44810],
+ 41: [357317, 334473, 202694, 9518, 86077],
+ 42: [156732],
+ 43: [310064, 462894, 129512],
+ 44: [205267, 550915],
+ 46: [593551]}
+
+
+
+HBF A:
+	for all pairs of solution lengths (i,j) where i+1=j
+	sample = mean(data[j]) / mean(data[i])
+	
+	[1.9671543744401314,
+	 1.6665148755312689,
+	 1.3487567173695236,
+	 1.1047696225978234,
+	 3.272302560340913,
+	 0.51451441167130552,
+	 2.0143046453791276,
+	 1.8568068347722644,
+	 0.5925362195743441,
+	 2.4928811588401119,
+	 0.99211909954718203,
+	 2.3668641056514454,
+	 0.62538074475409011,
+	 3.5444651685634607,
+	 0.79151259646957473,
+	 1.9193485269972521,
+	 1.2568539674449013]
+
+	mean = 1.6662991547026305
+	stddev = 0.8731074586431391
+
+
+
+HBF B:
+	for all pairs of solution lengths (p,i,j) where p=i-1, j=i+1
+	
+	let avg(data[-1]) = 0
+	
+	sample = (mean(data[p]) + mean(data[j])) / (mean(data[p]) + mean(data[i]))
+	
+	[1.4418838683707356,
+	 1.2179655035008823,
+	 1.0601632051587455,
+	 2.1927057550923124,
+	 0.62814999376593017,
+	 1.3445819688812417,
+	 1.572559907015399,
+	 0.73516531702192767,
+	 1.5554574817578211,
+	 0.99437537455180747,
+	 1.6807283691073103,
+	 0.73664726561458249,
+	 1.9790072432276817,
+	 0.83738981101456589,
+	 1.4061796389810828,
+	 1.1688706502528656]
+
+
+	mean = 1.2844894595821805
+	stddev = 0.43651082428731391
+
+
+
+========================================================================================
+========================================================================================
+
+Domain is unit cost 3*4 tiles, with manhattan distance heuristic.
+Goal state was identity.
+50 random initial states.
+
+Data: see tiles_trial2_data.txt
+Has format [array] -> [map with f as key] -> number of expansions at that f level.
+
+For each of the 50 initial states, recorded number of expansions that occured at each f level.
+
+
+HBF A:
+	for initial state I = [0,50), let fcount be a mapping from each f level to node expansion count.
+	
+	Let flist be an array of f level counts in fcount, sort in ascending order of their f level.
+	x = fcount.iteritems()
+	x.sort()
+	flist = [v[1] for v in x]
+	
+	For i = 0,1,...,len(flist)-3, compute the mean and stddev of flist[i+1]/flist[i].
+	
+	
+	hbflists = []
+	
+	flists = []
+	for fc in fcounts:
+		fl = [i for i in fc.iteritems()]
+		fl.sort()
+		flists.append([i[1] for i in fl])
+	
+	for i in range(len(flists)):
+		s = []
+		fl = flists[i]
+		
+		for i in range(len(fl)-2):
+			assert(i >= 0)
+			s.append(float(fl[i+1]) / fl[i])
+
+		hbflists.append(s)
+	
+	medhbf = np.median([np.mean(i) for i in hbflists])
+	medstd = np.median([np.std(i) for i in hbflists if not np.isnan(np.std(i))])
+	
+	In [69]: medhbf
+	Out[69]: 4.354234063543954
+
+	In [70]: medstd
+	Out[70]: 1.1832997923735822
+

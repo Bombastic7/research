@@ -1,283 +1,257 @@
 #!/bin/python
 
+import math
+import tiles
 
 from functools import total_ordering
-
-
-
-
-class NodeHeap:
-	def __init__(self):
-		self.t = []
-
-	
-	def push(self, n):
-		n.openidx = len(self.t)
-		self.t.append(n)
-		self._pullup(n.openidx)
-
-	
-	def pop(self):
-		if len(self.t) == 0:
-			raise ValueError
-		
-		ret = self.t[0]
-		
-		if len(self.t) == 1:
-			self.t = []
-	
-		else:
-			self.t[0] = self.t.pop()
-			self.t[0].openidx = 0
-			self._pushdown(0)
-		
-		return ret
-
-
-	def update(self, i):
-		j = self._pullup(i)
-		self._pushdown(j)
-		
-
-	def _pullup(self, i):
-		if i == 0:
-			return i
-		
-		p = (i - 1)//2
-		#print self.t[i].f, self.t[p].f
-		if self.t[i] < self.t[p]:
-			self._swap(i, p)
-			return self._pullup(p)
-		else:
-			return i
-	
-	
-	def _pushdown(self, i):
-		l = i*2 + 1
-		r = i*2 + 2
-
-		if l >= len(self.t):
-			l = None
-		if r >= len(self.t):
-			r = None
-	
-		sml = i
-		if l is not None and self.t[l] < self.t[i]:
-			sml = l
-		if r is not None and self.t[r] < self.t[sml]:
-			sml = r
-		
-		if sml != i:
-			self._swap(sml, i)
-			return self._pushdown(sml)
-		
-		return i
-
-	def _swap(self, i, j):
-		tmp = self.t[i]
-		self.t[i] = self.t[j]
-		self.t[j] = tmp
-		self.t[i].openidx = i
-		self.t[j].openidx = j
-
+from nodeheap import NodeHeap
 
 
 @total_ordering
 class Node:
-	def __init__(self, s, g, f, parent):
+	def __init__(self, s, g, f, u, parent):
 		self.s = s
 		self.g = g
 		self.f = f
+		self.u = u
 		self.parent = parent
 
 	def __eq__(self, o):
 		return self.s == o.s
-	
 
 	def __lt__(self, o):
-		if self.f == o.f:
-			return self.g > o.g
+		if self.u != o.u:
+			return self.u < o.u
+		if self.f != o.f:
+			return self.f < o.f
+		return self.g > o.g
 		
-		return self.f < o.f
 
 	def __hash__(self):
 		return hash(self.s)
 
 
-
-
-
-
-class HAstar:
-	def __init__(self, dom):
-		self.doms = [(dom, None)]
-		while True:
-			abtdom = self.doms[-1][0].spawnAbtDomain()
-			if abtdom is None:
-				break
-			self.doms.append((abtdom, {}))
-		
-		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.doms))]
-
-	def execute(self):
-		return self.doSearch(self.doms[0][0].initState(), 0)
+@total_ordering
+class AbtNode:
+	def __init__(self, s, g, depth, u, parent):
+		self.s = s
+		self.g = g
+		self.depth = depth
+		self.u = u
+		self.parent = parent
 	
-	def doSearch(self, bs, lvl):
-		if lvl == len(self.doms):
-			return 0;
+	def __eq__(self, o):
+		return self.s == o.s
+	
+	def __lt__(self, o):
+		if self.u != o.u:
+			return self.u < o.u
+		if self.depth != o.depth:
+			return self.depth < o.depth
+		return self.g < o.g
+	
+	def __hash__(self):
+		return hash(self.s)
 
+
+
+def fitExp(v):
+	if len(v) == 0:
+		return 1.0
+	#v = list of (x,y) pairs
+	z = [math.log(y) / x for (x,y) in v]
+	avg = math.fsum(z) / len(z)
+	return math.exp(avg)
+
+
+
+class CompUtil:
+	def __init__(self, pBF = None):
+		self.fcounts = {}
+		self.dirty = False
+		self.bf = 1.0
+		self.hardBF = pBF
+		self.bflist = []
+
+	def informExpansion(self, n):
+		if n.u not in self.fcounts:
+			self.fcounts[n.u] = 1
+		else:
+			self.fcounts[n.u] += 1
+		self.bflist.append(self.bf)
+		self.dirty = True
 		
-		bestExactNode = None
+
+	def compBaseUtil(self, g, h, d, openSz):
+		bf = self.getBF()
+		return (g+h) + openSz * math.pow(bf, d), (math.pow(bf, d), bf, d)
+	
+	def compAbtUtil(self, g, depth):
+		bf = self.getBF()
+		return g + math.pow(bf, depth)
+	
+	def getBF(self):
+		if self.hardBF is not None:
+			return self.hardBF
+		if self.dirty:
+			v = [i for i in self.fcounts.iteritems()]
+			#v.sort()
+			self.bf = fitExp(v)
+			self.dirty = False
+		return self.bf
+
+
+
+def getRemExpAccuracy(goalNode):
+	solpath = [goalNode]
+	while solpath[0].parent is not None:
+		solpath.insert(0, solpath[0].parent)
+	
+	for n in solpath:
+		realRemExp = goalNode.expd - n.expd
+		print solpath.index(n), n.expd, n.info, realRemExp
+
+
+
+class UGSA_A:
+	def __init__(self, dom, hardBF = None):
+		self.doms = [dom, dom.spawnAbtDomain()]
+		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.doms))]
+		self.compUtil = CompUtil(hardBF)
 		
-		dom = self.doms[lvl][0]
-		cache = self.doms[lvl][1]
-		
-		s0 = dom.abstractState(bs) if lvl > 0 else bs
-		
-		if cache is not None and s0 in cache and cache[s0][1]:
-			return cache[s0][0]
+	def execute(self):
+		return self.doBaseSearch(self.doms[0].initState())
+	
+	def doBaseSearch(self, s0):
+		dom = self.doms[0]
 		
 		openlist = NodeHeap()
 		closedlist = {}
-		
-		if cache is not None:
-			if s0 not in cache:
-				cache[s0] = [self.doSearch(s0, lvl+1), False]
-			h0 = cache[s0][0]
-		else:
-			h0 = self.doSearch(s0, lvl+1)
-			assert(lvl == 0)
 
-
-		n0 = Node(s0, 0, h0, None)
+		(h0, d0) = self.doAbtSearch(s0)
+		u0, info0 = self.compUtil.compBaseUtil(0, h0, d0, 1)
+		n0 = Node(s0, 0, h0, u0, None)
+		n0.info = info0
 		n0.isopen = True
 		
 		openlist.push(n0)
 		closedlist[s0] = n0
-
-		goalNode = None
 		
 		while True:
 			try:
 				n = openlist.pop()
 			except ValueError:
-				print "error level", lvl
+				print "error level 0"
 				raise
 			
 			n.isopen = False
-
-			if dom.checkGoal(n.s) or (lvl != 0 and bestExactNode is n): 
-				goalNode = n
-				if dom.checkGoal(n.s):
-					assert(n.g == n.f)
-				break
-
-
-			self.stats[lvl]["expd"] += 1
+			n.expd = self.stats[0]["expd"]
 			
-			def heval(s):
-				if lvl == 0:
-					return self.doSearch(s, 1)
-				if s not in cache:
-					cache[s] = [self.doSearch(s, lvl+1), False]
-				return cache[s][0]
-			
-			childnodes = [Node(c, n.g + edgecost, n.g + edgecost + heval(c), n) for (c, edgecost) in dom.expand(n.s)]
+			if dom.checkGoal(n.s):
+				self.goalNode = n
+				return n
 
-			for cn in childnodes:
+			self.stats[0]["expd"] += 1
+			self.compUtil.informExpansion(n)
+			
+
+			for (c, edgecost) in dom.expand(n.s):
 				if n.parent is not None and cn == n.parent:
 					continue
-					
-				self.stats[lvl]["gend"] += 1
-				cn.isopen = True
 
-				if cn.s not in closedlist:
-					openlist.push(cn)
-					closedlist[cn.s] = cn
-					if lvl != 0 and cache[cn.s][1] and (bestExactNode is None or bestExactNode.f > cn.f):
-						bestExactNode = cn
+				self.stats[0]["gend"] += 1
+
+				(h, d) = self.doAbtSearch(c)
+				cg = n.g+edgecost
 				
-				else:
-					self.stats[lvl]["dups"] += 1
-					dup = closedlist[cn.s]
+				if c not in closedlist:
+					cu, info = self.compUtil.compBaseUtil(cg, h, d, openlist.size()+1)
+					cn = Node(c, cg, cg+h, cu, n)
+					cn.info = info
+					cn.isopen = True
+					openlist.push(cn)
+					closedlist[c] = cn
 					
-					if cn.g < dup.g:
-						dup.g = cn.g
-						dup.f = cn.f
-						dup.parent = cn.parent
-						
+				else:
+					self.stats[0]["dups"] += 1
+					dup = closedlist[c]
+					
+					if cg < dup.g:
+						dup.g = cg
+						dup.f = cg + h
+						cu, info = self.compUtil.compBaseUtil(cg, h, d, openlist.size()+1)
+						dup.u = cu
+						dup.info = info
+						dup.parent = n
+
 						if dup.isopen:
 							openlist.update(dup.openidx)
-							if lvl != 0 and cache[cn.s][1] and (bestExactNode is None or bestExactNode.f > cn.f):
-								bestExactNode = dup
 						else:
-							self.stats[lvl]["reopnd"] += 1
+							self.stats[0]["reopnd"] += 1
 							openlist.push(dup)
 							dup.isopen = True
-							if cache is not None:
-								assert(not cache[s0][1])
 
 
-		if lvl > 0:
-			for n in closedlist.itervalues():
-				if n.isopen:
-					continue
-				
-				pg = goalNode.f - n.g
-				
-				if pg > cache[n.s][0]:
-					cache[n.s][0] = pg
-			
-			m = goalNode
-			
-			while m is not None:
-				cache[m.s][1] = True
-				m = m.parent
-			
-			return n.f
-			
-		else:
-			return n, self.stats
-
-
-
-
-
-class BFSearch:
-	
-	@total_ordering
-	class Node:
-		def __init__(self, s, depth, parent):
-			self.s = s
-			self.depth = depth
-			self.parent = parent
-
-		def __lt__(self, o):
-			return self.depth < o.depth
-	
-	
-	def __init__(self, dom):
-		self.dom = dom
-	
-	def execute(self):
+	def doAbtSearch(self, bs):
+		dom = self.doms[1]
+		
 		openlist = NodeHeap()
 		closedlist = {}
 		
-		n0 = BFSearch.Node(self.dom.initState(), 0, None)
-
+		n0 = AbtNode(dom.abstractState(bs), 0, 0, self.compUtil.compAbtUtil(0, 0), None)
+		n0.isopen = True
 		openlist.push(n0)
 		closedlist[n0.s] = n0
 		
 		while True:
-			n = openlist.pop()
+			try:
+				n = openlist.pop()
+			except ValueError:
+				print "error level 1"
+				raise
 			
-			if self.dom.checkGoal(n.s):
-				return n
-			
-			childnodes = [BFSearch.Node(c, n.depth+1, n) for (c, edgecost) in self.dom.expand(n.s)]
+			n.isopen = False
 
-			for cn in childnodes:
-				if cn.s not in closedlist:
+			if dom.checkGoal(n.s):
+				return (n.g, n.depth)
+
+			self.stats[1]["expd"] += 1
+
+			for (c, edgecost) in dom.expand(n.s):
+				if n.parent is not None and cn == n.parent:
+					continue
+
+				self.stats[1]["gend"] += 1
+
+				cg = n.g+edgecost
+				cdepth = n.depth+1
+				
+				if c not in closedlist:
+					cn = AbtNode(c, cg, cdepth, self.compUtil.compAbtUtil(cg, cdepth), n)
+					cn.isopen = True
 					openlist.push(cn)
-					closedlist[cn.s] = cn
+					closedlist[c] = cn
+					
+				else:
+					self.stats[1]["dups"] += 1
+					dup = closedlist[c]
+					
+					cu = self.compUtil.compAbtUtil(cg, cdepth)
+					
+					if cu < dup.u:
+						dup.g = cg
+						dup.depth = cdepth
+						dup.u = cu
+						dup.parent = n
+
+						if dup.isopen:
+							openlist.update(dup.openidx)
+						else:
+							self.stats[1]["reopnd"] += 1
+							openlist.push(dup)
+							dup.isopen = True
+							
+
+
+
 

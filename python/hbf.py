@@ -1,7 +1,7 @@
 #!/bin/python
 
 import misc, hastar
-
+import numpy as np
 from nodeheap import NodeHeap
 
 
@@ -23,7 +23,9 @@ class InvestigateHBF:
 		self.abtalg = hastar.HAstar(dom)
 
 
-	def execute(self, runs):
+	#sets self.rec, which is an dict of solutioncost -> list of expansion counts.
+	#Performs n searches, stores solution cost and nodes expanded.
+	def execute_solcost(self, runs):
 		rec = {}
 		for i in range(runs):
 			s0 = self.dom.randomInitState()
@@ -39,7 +41,8 @@ class InvestigateHBF:
 		self.rec = rec
 		return rec
 
-
+	
+	#Executes n searches, returns list of dicts, one for each search, mapping f-level to expansions at that level.
 	def execute_countf(self, runs):
 		fcounts = []
 		for i in range(runs):
@@ -108,3 +111,117 @@ class InvestigateHBF:
 							stats[lvl]["reopnd"] += 1
 							openlist.push(dup)
 							dup.isopen = True
+
+
+
+
+
+#fcounts is list of dicts as produced by execute_countf.
+#For each fcount dict, make list of f-level count values, ordered by f-level key. Return these lists in a list.
+def flatten_fcounts(fcounts):
+	flists = []
+	
+	for fc in fcounts:
+		fl = [i for i in fc.iteritems()]
+		fl.sort()
+		flists.append([i[1] for i in fl])
+	
+	return flists
+
+
+#flists is list of lists of expansions at each f-level, ordered by f-level.
+#returns list of lists of computed hbf, for each pair of adjacent f-level counts in each input list.
+#hbf(flvl) = count(flvl+1) / count(flvl)
+def compute_hbf_A(flists):
+	hbflists = []
+	
+	for i in range(len(flists)):
+		s = []
+		fl = flists[i]
+		
+		for i in range(len(fl)-2): #last f-level is ignored as it presumably wasn't fully explored.
+			assert(i >= 0)
+			s.append(float(fl[i+1]) / fl[i])
+
+		hbflists.append(s)
+	
+	return hbflists
+
+
+#Same as compute_hbf_A, but hbf(flvl) = (count(flvl+1) + C) / C, where C is sum of 
+#	count(j) where j <= flvl.
+def compute_hbf_B(flists):
+	hbflists = []
+	
+	cumflist = [[j for j in i] for i in flists]
+	
+	for fl in cumflists:
+		s = 0
+		for i in range(len(fl)):
+			fl[i] += s
+			s = fl[i]
+
+	for i in range(len(cumflists)):
+		s = []
+		fl = cumflists[i]
+		
+		for i in range(len(fl)-2):
+			assert(i >= 0)
+			s.append(float(fl[i+1]) / fl[i])
+
+		hbflists.append(s)
+	
+	return hbflists
+
+
+#Returns list of lists. The i-th list contains the i-th element of each list in hbflists (if long enough).
+def arrangeRelativeFlevel(hbflists):
+	hbflvl = []
+	i=0
+	while True:
+		lst2 = [l for l in lst2 if len(l) > i]
+		
+		if len(lst2) == 0:
+			break
+	
+		x = []
+		for l in lst2:
+			x.append(l[i])
+
+		hbflvl.append(x)
+		i += 1
+	
+	return hbflvl
+
+
+def meanOfMeans(lst):
+	x = []
+	return np.mean([np.mean(i) for i in lst]), np.mean([np.std(i, ddof=1) for i in lst if not np.isnan(np.std(i, ddof=1))])
+
+
+def medOfMeans(lst):
+	x = []
+	return np.median([np.mean(i) for i in lst]), np.median([np.std(i, ddof=1) for i in lst if not np.isnan(np.std(i, ddof=1))])
+
+
+def makeReport(dom):
+	alg = InvestigateHBF(dom)
+	fcounts = alg.execute_countf(50)
+	flists = flatten_fcounts(fcounts)
+	
+	rep = {}
+	
+	hbflists_A = compute_hbf_A(flists)
+	hbflists_B = compute_hbf_B(flists)
+	
+	hbflvl_A = arrangeRelativeFlevel(hbflists_A)
+	hbflvl_B = arrangeRelativeFlevel(hbflists_B)
+	
+	rep["mean hbf_A"] = meanOfMeans(hbflists_A)
+	rep["median hbf_A"] = medOfMeans(hbflists_A)
+	rep["mean hbf_B"] = meanOfMeans(hbflists_B)
+	rep["median hbf_B"] = medOfMeans(hbflists_B)
+	rep["mean rel flvl hbf_A"] = meanOfMeans(hbflvl_A)
+	rep["mean rel flvl hbf_B"] = meanOfMeans(hbflvl_B)
+	
+	return rep

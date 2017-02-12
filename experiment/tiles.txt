@@ -134,7 +134,7 @@ HBF A:
 	
 	For i = 0,1,...,len(flist)-3, compute the mean and stddev of flist[i+1]/flist[i].
 	
-	
+	#fcounts = [{flvl1:n1, flvl2:n2}, {flvl1:n1, flvl2:n2}, ... ]  in data file.
 	hbflists = []
 	
 	flists = []
@@ -162,3 +162,80 @@ HBF A:
 	In [70]: medstd
 	Out[70]: 1.1832997923735822
 
+
+
+HBF B:
+	Similar to HBF A, but f level counts have added to them the sum of all previous f levels.
+	
+	#fcounts = ...
+	hbflists = []
+	
+	flists = []
+	for fc in fcounts:
+		fl = [i for i in fc.iteritems()]
+		fl.sort()
+		flists.append([i[1] for i in fl])
+	
+	for fl in flists:
+		s = 0
+		for i in range(len(fl)):
+			fl[i] += s
+			s = fl[i]
+
+	for i in range(len(flists)):
+		s = []
+		fl = flists[i]
+		
+		for i in range(len(fl)-2):
+			assert(i >= 0)
+			s.append(float(fl[i+1]) / fl[i])
+
+		hbflists.append(s)
+	
+	medhbf = np.median([np.mean(i) for i in hbflists])
+	medstd = np.median([np.std(i) for i in hbflists if not np.isnan(np.std(i))])
+
+	In [10]: medhbf
+	Out[10]: 4.6355413457957928
+
+	In [11]: medstd
+	Out[11]: 1.2462989819646531
+
+
+
+How does hbf vary over f levels?:
+	
+	#Compute hbflists as above, following uses HBF B.
+	
+	lst2 = [i for i in hbflists]
+	
+	hbflvl = []
+	
+	i=0
+	while True:
+		lst2 = [l for l in lst2 if len(l) > i]
+		
+		if len(lst2) == 0:
+			break
+	
+		x = []
+		for l in lst2:
+			x.append(l[i])
+
+		hbflvl.append(x)
+		i += 1
+	
+	meanhbflvl = [(np.mean(i), np.std(i)) for i in hbflvl]
+	
+	In [22]: meanhbflvl
+	Out[22]:
+	[(12.976578046953048, 18.285730199184673),
+	 (5.2150308777811318, 1.525554091341252),
+	 (4.2480350459907017, 0.74324816563653406),
+	 (3.7819951593005268, 0.52821074449360672),
+	 (3.5833768693820054, 0.44675611014945038),
+	 (3.3183458915483084, 0.33206176481249067),
+	 (3.2071251601738795, 0.34220282252020706),
+	 (3.0954972565076524, 0.31270701585677635),
+	 (3.2935246997525045, 0.27620108979527513),
+	 (2.843300020395676, 0.0)]

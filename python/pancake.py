@@ -1,6 +1,6 @@
 #!/bin/python
 
-
+import random
 
 """
 s0 = (ci, cj, ck)
@@ -16,8 +16,9 @@ class Domain:
 		self.lvl = lvl
 		self.s0 = s0
 		self.dropcakes = dropcakes
-		self.goal = self.abstractState(goal)
-				
+		self.goal = goal
+		self.randShuffled = range(len(goal))
+		
 	def expand(self, s):
 		children = []
 		
@@ -40,6 +41,12 @@ class Domain:
 		return self.s0
 	
 	
+	def randomInitState(self):
+		assert(self.lvl == 0)
+		random.shuffle(self.randShuffled)
+		return self.randShuffled
+
+		
 	def checkGoal(self, s):
 		for i in range(len(s)):
 			if s[i] is not None and s[i] != self.goal[i]:

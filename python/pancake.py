@@ -14,9 +14,9 @@ class Domain:
 	def __init__(self, lvl, s0, goal, dropcakes):
 		assert(len(s0) == len(goal) == len(dropcakes))
 		self.lvl = lvl
-		self.s0 = s0
-		self.dropcakes = dropcakes
-		self.goal = goal
+		self.s0 = tuple(s0)
+		self.dropcakes = tuple(dropcakes)
+		self.goal = tuple(goal)
 		self.randShuffled = range(len(goal))
 		
 	def expand(self, s):
@@ -44,7 +44,7 @@ class Domain:
 	def randomInitState(self):
 		assert(self.lvl == 0)
 		random.shuffle(self.randShuffled)
-		return self.randShuffled
+		return tuple(self.randShuffled)
 
 		
 	def checkGoal(self, s):

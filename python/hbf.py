@@ -20,6 +20,7 @@ class InvestigateHBF:
 	
 	def __init__(self, dom):
 		self.dom = dom
+		self.abtdom = dom.spawnAbtDomain()
 		self.abtalg = hastar.HAstar(dom)
 
 
@@ -55,8 +56,10 @@ class InvestigateHBF:
 
 	
 	def heval(self, s):
-		#return self.abtalg.execute(s, 1).f
-		return self.dom.hval(s)
+		if hasattr(self.dom, "hval"):
+			return self.dom.hval(s)
+		return self.abtalg.execute(self.abtdom.abstractState(s), 1).f
+		
 
 	
 	def doSearch(self, s0, fcounts = None):
@@ -153,7 +156,7 @@ def compute_hbf_A(flists):
 def compute_hbf_B(flists):
 	hbflists = []
 	
-	cumflist = [[j for j in i] for i in flists]
+	cumflists = [[j for j in i] for i in flists]
 	
 	for fl in cumflists:
 		s = 0
@@ -178,6 +181,8 @@ def compute_hbf_B(flists):
 def arrangeRelativeFlevel(hbflists):
 	hbflvl = []
 	i=0
+	lst2 = [l for l in hbflists]
+	
 	while True:
 		lst2 = [l for l in lst2 if len(l) > i]
 		
@@ -195,13 +200,15 @@ def arrangeRelativeFlevel(hbflists):
 
 
 def meanOfMeans(lst):
-	x = []
-	return np.mean([np.mean(i) for i in lst]), np.mean([np.std(i, ddof=1) for i in lst if not np.isnan(np.std(i, ddof=1))])
+	x = [(np.mean(i), np.std(i, ddof=1)) for i in lst]
+	x = [(m,s) for (m,s) in x if not np.isnan(m) and not np.isnan(s)]
+	return np.mean([i[0] for i in x]), np.mean([i[1] for i in x])
 
 
 def medOfMeans(lst):
-	x = []
-	return np.median([np.mean(i) for i in lst]), np.median([np.std(i, ddof=1) for i in lst if not np.isnan(np.std(i, ddof=1))])
+	x = [(np.mean(i), np.std(i, ddof=1)) for i in lst]
+	x = [(m,s) for (m,s) in x if not np.isnan(m) and not np.isnan(s)]
+	return np.median([i[0] for i in x]), np.median([i[1] for i in x])
 
 
 def makeReport(dom):
@@ -224,4 +231,8 @@ def makeReport(dom):
 	rep["mean rel flvl hbf_A"] = meanOfMeans(hbflvl_A)
 	rep["mean rel flvl hbf_B"] = meanOfMeans(hbflvl_B)
 	
+	rep["hbflvl_A"] = hbflvl_A
+	rep["hbflvl_B"] = hbflvl_B
+	rep["hbflists_A"] = hbflists_A
+	rep["hbflists_B"] = hbflists_B
 	return rep

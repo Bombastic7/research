@@ -72,7 +72,7 @@ class HAstar:
 				cache[s0] = [self.doSearch(s0, lvl+1).f, False]
 			h0 = cache[s0][0]
 		else:
-			h0 = self.doSearch(s0, lvl+1)
+			h0 = self.doSearch(s0, lvl+1).f
 			assert(lvl == 0)
 
 		n0 = Node(s0, 0, h0, None)

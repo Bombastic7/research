@@ -32,7 +32,18 @@ class NodeHeap:
 	def update(self, i):
 		j = self._pullup(i)
 		self._pushdown(j)
+	
+	
+	def reinit(self):
+		if len(self.t) == 0:
+			return
+			
+		i = len(self.t) // 2
 		
+		while i >= 0:
+			self._pushdown(i)
+			i -= 1
+
 
 	def _pullup(self, i):
 		if i == 0:

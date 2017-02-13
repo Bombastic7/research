@@ -1,0 +1,34 @@
+
+
+Domains:
+	3*3 unit cost tiles, ident goal, md heuristic
+	20*20 unit cost gridnav, star abt with radius 2
+	7 pancake, dropCakeAtlvl = (1,1,1,1,2,3,4)
+
+
+UGSA variations:
+	HBF:
+		H1:
+			HBF computed with ugsa.fitExp function on expansion count of u levels.
+		H2:
+			HBF computed with ugsa.fitExp function on expansion count of f levels.
+		H3:
+			
+	
+	
+	
+	Base utility:
+		B1:
+			baseUtil = wf * (g+h) + wt * hbf ** d
+		
+		B2:
+			baseUtil = wf * (g+h) + wt * hbf ** (d + depth)
+
+		B3:
+			baseUtil = wf * (g+h) + wt [avg exp delay]
+			
+	Abt utility:
+		A1:
+			abtUtil = wf * g + hbf ** depth
+
+

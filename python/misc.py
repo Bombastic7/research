@@ -3,7 +3,15 @@
 
 from functools import total_ordering
 from nodeheap import NodeHeap
-from ugsa import CompUtil
+
+
+def statesFromGoalNode(goalNode):
+	states = []
+	n = goalNode
+	while n is not None:
+		states.insert(0, n.s)
+		n = n.parent
+	return states
 
 
 class BFSearch:
@@ -62,7 +70,6 @@ class Astar:
 
 	def __init__(self, dom):
 		self.dom = dom
-		self.compUtil = CompUtil()
 		self.memoizeCache = {}
 
 	def getCost(self, s0):
@@ -105,8 +112,6 @@ class Astar:
 				return n
 			
 			stats["expd"] += 1
-			self.compUtil.compBaseUtil(0,0,0)
-			self.compUtil.informExpansion(n)
 
 			childnodes = [Astar.Node(c, n.g+edgecost, n.g+edgecost+self.dom.hval(c), n.depth+1, n) for (c, edgecost) in self.dom.expand(n.s)]
 

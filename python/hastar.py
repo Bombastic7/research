@@ -1,7 +1,5 @@
 #!/bin/python
 
-import misc
-
 from functools import total_ordering
 from nodeheap import NodeHeap
 

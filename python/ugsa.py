@@ -8,65 +8,17 @@ from nodeheap import NodeHeap
 
 
 
-VAR_HBF = "H1"
-VAR_BU = "B3"
-VAR_AU = None
-
-
-def trial_A():
-	global VAR_HBF
-	global VAR_BU
-	global VAR_AU
-	
-	varhbf_opts = ["H1", "H2"]
-	varbu_opts = ["B1", "B2"]
-	
-	weights = [(1,1), (10,1), (100,1), (1000,1)]
-	dom = tiles.rand_3_3()
-	
-	varres = {}
-	
-	for v in [(v1,v2) for v1 in varhbf_opts for v2 in varbu_opts]:
-		VAR_HBF = v[0]
-		VAR_BU = v[1]
-		varres[v] = makeReport(dom, weights)
-	
-	return varres
-			
-	
-
-
-
-def makeReport(dom, weights, runs = 10):
-	res = []
-	for r in range(runs):
-		s0 = dom.randomInitState()
-		res.append({})
-		
-		for (wf, wt) in weights:
-			alg = UGSA(dom, wf, wt)
-			alg.execute(s0)
-			
-			gn = alg.goalNode
-			stats = alg.stats[0]
-			
-			res[-1][(wf,wt)] = {"cost":gn.g, "length":gn.depth, "expd":stats["expd"]}
-			res[-1][(wf,wt)]["utility"] = wf*gn.g + wt*stats["expd"]
-	
-	return res
-			
-
 
 
 
 @total_ordering
 class Node:
-	def __init__(self, s, g, f, depth, u, parent):
+	def __init__(self, s, depth, g, f, parent):
 		self.s = s
 		self.g = g
 		self.f = f
 		self.depth = depth
-		self.u = u
+		self.u = None
 		self.parent = parent
 
 	def __eq__(self, o):
@@ -86,11 +38,11 @@ class Node:
 
 @total_ordering
 class AbtNode:
-	def __init__(self, s, g, depth, u, parent):
+	def __init__(self, s, depth, g, parent):
 		self.s = s
 		self.g = g
 		self.depth = depth
-		self.u = u
+		self.u = None
 		self.parent = parent
 	
 	def __eq__(self, o):
@@ -126,89 +78,16 @@ def computeAvgBF(lst):
 	return acc / (len(lst)-1)
 
 
-class CompUtil:
-	def __init__(self, wf, wt, pBF = None):
-		self.fcounts = {}
-		self.dirty = False
-		self.bf = 1.0
-		self.hardBF = pBF
-		self.exppoints = []
-		self.wf = wf
-		self.wt = wt
-		self.delayInfo = [0.0, 0]
-		self.nxtResort = 16
-		self.avgDelay = 1
-		
-		
-	def informExpansion(self, n, curexpd):
-		if VAR_HBF == "H1":
-			x = n.u
-		elif VAR_HBF == "H2":
-			x = n.f
-		
-		if x not in self.fcounts:
-			self.fcounts[x] = 1
-		else:
-			self.fcounts[x] += 1
-		self.dirty = True
-		#self.exppoints.append((n.f, n.u))
-		self.delayInfo[0] += curexpd - n.expdAtGen
-		self.delayInfo[1] += 1
-
-
-	def compBaseUtil(self, g, h, d, depth, openlist, curexpd, abtsearch):		
-		if VAR_BU == "B1":
-			remexp = math.pow(self.getBF(), d) * openlist.size()
-		elif VAR_BU == "B2":
-			remexp = math.pow(self.getBF(), depth+d)
-		elif VAR_BU == "B3":
-			if curexpd >= self.nxtResort:
-				self.nxtResort *= 2
-				self.avgDelay = self.delayInfo[0] / self.delayInfo[1]
-				
-				for n in openlist.t:
-					(hn, dn) = abtsearch(n.s, n.depth)
-					n.f = n.g + hn
-					n.u = self.wf * n.f + self.wt * self.avgDelay * dn
-
-			remexp = d * self.avgDelay
-
-		else:
-			print VAR_BU
-			raise ValueError
-
-		return self.wf * (g+h) + self.wt * remexp
-
-	
-	def compAbtUtil(self, g, depth, basedepth):
-		if VAR_BU == "B1" or VAR_BU == "B2":
-			bf = self.getBF()
-			return self.wf * g + self.wt * math.pow(bf, depth)
-		elif VAR_BU == "B3":
-			if self.delayInfo[1] == 0:
-				return depth
-			return depth * self.avgDelay
-		else:
-			raise ValueError
-
-	
-	def getBF(self):
-		if self.hardBF is not None:
-			return self.hardBF
-		if self.dirty:
-			v = [i for i in self.fcounts.iteritems()]
-			v.sort()
-			#self.bf = fitExp(v[1:-1])
-			self.bf = computeAvgBF([i[1] for i in v[1:-1]])
-			self.dirty = False
-		return self.bf
 
 
 
 class UGSA:
-	def __init__(self, dom, wf, wt, hardBF = None):
-		self.doms = [dom, dom.spawnAbtDomain()]
-		self.compUtil = CompUtil(wf, wt, hardBF)
+	def __init__(self, domstack, wf, wt, hardBF = None):
+		self.doms = [domstack.getDomain(i) for i in range(2)]
+		self.wf = wf
+		self.wt = wt
+		self.hardBF = hardBF
+
 		
 	def execute(self, s0 = None):
 		if s0 is None:
@@ -216,18 +95,30 @@ class UGSA:
 		
 		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.doms))]
 		self.abtcache = {}
+		self.fcounts = {}
+		self.delayInfo = [0.0, 0]
+		self.nxtResort = 16
+		self.avgDelay = 1
+		self.bf = 1.0
+		self.dirty = False
 		
-		return self.doBaseSearch(s0)
+		self.var_hbf_countattr = lambda n: n.f
+		
+		
+		return self._doBaseSearch(s0)
+
 	
-	def doBaseSearch(self, s0):
+	
+	def _doBaseSearch(self, s0):
 		dom = self.doms[0]
 		
 		openlist = NodeHeap()
 		closedlist = {}
 
-		(h0, d0) = self.doAbtSearch(s0, 0)
-		u0 = self.compUtil.compBaseUtil(0, h0, d0, 0, openlist, 0, self.doAbtSearch)
-		n0 = Node(s0, 0, h0, 0, u0, None)
+		(h0, d0) = self._doAbtSearch(s0, 0)
+		n0 = Node(s0, 0, 0, h0, None)
+		n0.u = self._compBaseUtil(n)
+		
 		n0.isopen = True
 		n0.expdAtGen = 0
 		
@@ -248,7 +139,7 @@ class UGSA:
 				self.goalNode = n
 				return n
 
-			self.compUtil.informExpansion(n, self.stats[0]["expd"])
+			self._informExpansion(n)
 			self.stats[0]["expd"] += 1		
 
 			for (c, edgecost) in dom.expand(n.s):
@@ -257,12 +148,12 @@ class UGSA:
 
 				self.stats[0]["gend"] += 1
 
-				(h, d) = self.doAbtSearch(c, n.depth+1)
+				(h, d) = self._doAbtSearch(c, n.depth+1)
 				cg = n.g+edgecost
 				
 				if c not in closedlist:
-					cu = self.compUtil.compBaseUtil(cg, h, d, n.depth+1, openlist, self.stats[0]["expd"], self.doAbtSearch)
-					cn = Node(c, cg, cg+h, n.depth+1, cu, n)
+					cn = Node(c, n.depth+1, cg, ch+h, n)
+					cn.u = self._compBaseUtil(n)
 					cn.isopen = True
 					cn.expdAtGen = self.stats[0]["expd"]
 					openlist.push(cn)
@@ -275,10 +166,9 @@ class UGSA:
 					if cg < dup.g:
 						dup.g = cg
 						dup.f = cg + h
-						cu = self.compUtil.compBaseUtil(cg, h, d, n.depth+1, openlist, self.stats[0]["expd"], self.doAbtSearch)
-						dup.u = cu
 						dup.depth = n.depth+1
 						dup.parent = n
+						dup.u = self._compBaseUtil(dup)
 						dup.expdAtGen = self.stats[0]["expd"]
 
 						if dup.isopen:
@@ -289,7 +179,7 @@ class UGSA:
 							dup.isopen = True
 
 
-	def doAbtSearch(self, bs, basedepth):
+	def _doAbtSearch(self, bs, basedepth):
 		dom = self.doms[1]
 		s0 = dom.abstractState(bs)
 		
@@ -301,7 +191,8 @@ class UGSA:
 		closedlist = {}
 		
 		
-		n0 = AbtNode(s0, 0, 0, self.compUtil.compAbtUtil(0, 0, basedepth), None)
+		n0 = AbtNode(s0, 0, 0, None)
+		n0.u = self._compAbtUtil(n0, basedepth)
 		n0.isopen = True
 		openlist.push(n0)
 		closedlist[n0.s] = n0
@@ -330,24 +221,23 @@ class UGSA:
 				cg = n.g+edgecost
 				cdepth = n.depth+1
 				
+				cn = AbtNode(c, cdepth, cg, n)
+				cn.u = self._compAbtUtil(cn, basedepth)
+				cn.isopen = True
+				
 				if c not in closedlist:
-					cn = AbtNode(c, cg, cdepth, self.compUtil.compAbtUtil(cg, cdepth, basedepth), n)
-					cn.isopen = True
 					openlist.push(cn)
 					closedlist[c] = cn
-					
 				else:
 					self.stats[1]["dups"] += 1
 					dup = closedlist[c]
-					
-					cu = self.compUtil.compAbtUtil(cg, cdepth, basedepth)
-					
-					if cu < dup.u:
-						dup.g = cg
-						dup.depth = cdepth
-						dup.u = cu
-						dup.parent = n
 
+					if cn.u < dup.u:
+						dup.g = cn.g
+						dup.depth = cn.depth
+						dup.u = cn.u
+						dup.parent = cn.parent
+						dup.u = cn.u
 						if dup.isopen:
 							openlist.update(dup.openidx)
 						else:
@@ -357,5 +247,71 @@ class UGSA:
 							
 
 
+	def _informExpansion(self, n):
+		x = self.var_hbf_countattr(n)
+		
+		if x not in self.fcounts:
+			self.fcounts[x] = 1
+		else:
+			self.fcounts[x] += 1
+		self.dirty = True
+		#self.exppoints.append((n.f, n.u))
+		self.delayInfo[0] += curexpd - n.expdAtGen
+		self.delayInfo[1] += 1
 
 
+	def _compBaseUtil(self, n):
+		"""
+		if VAR_BU == "B1":
+			remexp = math.pow(self.getBF(), d) * openlist.size()
+		elif VAR_BU == "B2":
+			remexp = math.pow(self.getBF(), depth+d)
+		elif VAR_BU == "B3":
+			if curexpd >= self.nxtResort:
+				self.nxtResort *= 2
+				self.avgDelay = self.delayInfo[0] / self.delayInfo[1]
+				
+				for n in openlist.t:
+					(hn, dn) = abtsearch(n.s, n.depth)
+					n.f = n.g + hn
+					n.u = self.wf * n.f + self.wt * self.avgDelay * dn
+
+			remexp = d * self.avgDelay
+
+		else:
+			print VAR_BU
+			raise ValueError
+
+		return self.wf * (g+h) + self.wt * remexp
+		"""
+		return n.f
+
+
+	
+	def _compAbtUtil(self, n, basedepth):
+		"""
+		if VAR_BU == "B1" or VAR_BU == "B2":
+			bf = self.getBF()
+			return self.wf * g + self.wt * math.pow(bf, depth)
+		elif VAR_BU == "B3":
+			if self.delayInfo[1] == 0:
+				return depth
+			return depth * self.avgDelay
+		else:
+			raise ValueError
+		"""
+		return n.g
+
+	
+	def _getBF(self):
+		"""
+		if self.hardBF is not None:
+			return self.hardBF
+		if self.dirty:
+			v = [i for i in self.fcounts.iteritems()]
+			v.sort()
+			#self.bf = fitExp(v[1:-1])
+			self.bf = computeAvgBF([i[1] for i in v[1:-1]])
+			self.dirty = False
+		return self.bf
+		"""

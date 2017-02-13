@@ -198,10 +198,54 @@ class StarAbtDomainStack(object):
 
 		return a_abt == b_abt
 
-	
+
+	def _abstractBaseToLevel(self, lvl, s):
+		s_abt = s
+		for dom in self.doms[1:lvl+1]:
+			s_abt = dom.abstractState(s_abt)
+		return s_abt
 
 
+	def printToFile(self, fname, tracepath = None):
+		with open(fname, "w") as f:
+			for i in range(self.doms[0].size):
+				if self.doms[0].cellmap.cells[i] == CELL_OPEN:
+					if tracepath is not None and tracepath.count(i) > 0:
+						f.write("~")
+					else:
+						f.write(" ")
+				else:
+					f.write("O")
+				if (i+1) % self.doms[0].width == 0:
+					f.write("\n")
 
+			f.write("\n\n")
+			
+			m = [None] * self.doms[0].size
+			
+			for i in range(self.doms[0].size):
+				if self.doms[0].cellmap.cells[i] == CELL_OPEN:
+					m[i] = i
+
+			for dom in self.doms[1:]:
+				for i in range(len(m)):
+					if m[i] is not None:
+						m[i] = dom.abstractState(m[i])
+				
+				for i in range(len(m)):
+					if m[i] is None:
+						f.write(" ")
+					else:
+						if tracepath is not None and tracepath.count(i) > 0:
+							f.write("~")
+						else:
+							f.write(chr((m[i] % 10) + ord("!")))
+					if (i+1) % self.doms[0].width == 0:
+						f.write("\n")
+
+				f.write("\n\n")
+
+			
 class CellMap:
 	#geninfo is (height, width, blockedprob)
 	def __init__(self, mapname = None, geninfo = None):
@@ -246,7 +290,7 @@ class CellMap:
 		adjcells = []
 		if s >= self.width:
 			adjcells.append(s - self.width)
-		if s< (self.height - 1) * self.width:
+		if s < (self.height - 1) * self.width:
 			adjcells.append(s + self.width)
 		if s % self.width != 0:
 			adjcells.append(s - 1)
@@ -256,3 +300,9 @@ class CellMap:
 
 
 
+		
+
+def inst_100():
+	cm = CellMap("gridnav_100_map")
+	dom = Domain(cm, 9995)
+	return StarAbtDomainStack(dom, 2)

@@ -33,31 +33,25 @@ class Node:
 
 
 class HAstar:
-	def __init__(self, dom):
-		self.doms = [(dom, None)]
-		while True:
-			abtdom = self.doms[-1][0].spawnAbtDomain()
-			if abtdom is None:
-				break
-			self.doms.append((abtdom, {}))
+	def __init__(self, domstack):
+		self.domstack = domstack
+		self.hcaches = [{} for i in range(domstack.getTopLevel()+1)]
+		self.hcaches[0] = None
 
 
-	def execute(self, s0 = None, lvl = 0):
-		if s0 is None:
-			s0 = self.doms[0][0].initState()
-		
-		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.doms))]
+	def execute(self, s0, lvl = 0):
+		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.hcaches))]
 		return self.doSearch(s0, lvl)
 	
 	
 	def doSearch(self, bs, lvl):
-		if lvl >= len(self.doms):
+		if lvl >= len(self.hcaches):
 			return Node(bs,0,0,None)
 
 		bestExactNode = None
 		
-		dom = self.doms[lvl][0]
-		cache = self.doms[lvl][1]
+		dom = self.domstack.getDomain(lvl)
+		cache = self.hcaches[lvl]
 		
 		s0 = dom.abstractState(bs) if lvl > 0 else bs
 		

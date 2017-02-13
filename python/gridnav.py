@@ -23,7 +23,7 @@ class Domain(object):
 	
 	
 	def expand(self, s):
-		return [(c, 1) for c in self.cellmap.adjcells(s)]
+		return [(c, 1) for c in self.cellmap.getAdj(s)]
 
 
 	def checkGoal(self, s):
@@ -46,7 +46,7 @@ class Domain(object):
 
 
 class StarAbtDomain(object):
-	def _makeAbtGroups(baseGroups, rad):
+	def _makeAbtGroups(self, baseGroups, rad):
 		trnsFromBaseGroup = [None] * len(baseGroups)
 
 		outdegqueue = [ (len(baseGroups[i]), i) for i in range(len(baseGroups)) ]
@@ -55,22 +55,22 @@ class StarAbtDomain(object):
 		curgrp = 0
 		singletons = []
 		
-		def recAssignAbtGrp(i, depth, g, abtgrps):	
+		def recAssignAbtGrp(i, depth, g, grpedges, abtgrps):	
 			if abtgrps[i] is not None or depth > rad:
 				return 0
 
 			abtgrps[i] = g
 			assignedcells = 0
-			for e in grps[i]:
-				assignedcells += recAssignAbtGrp(e[0], depth+1, g, abtgrps)
+			for e in grpedges[i]:
+				assignedcells += recAssignAbtGrp(e[0], depth+1, g, grpedges, abtgrps)
 			return assignedcells + 1
 		
 		
 		for g in outdegqueue:
-			if abtgrps[g[1]] is not None:
+			if trnsFromBaseGroup[g[1]] is not None:
 				continue
 		
-			assignedcells = recAssignAbtGrp(g[1], 0, curgrp, trnsFromBaseGroup)
+			assignedcells = recAssignAbtGrp(g[1], 0, curgrp, baseGroups, trnsFromBaseGroup)
 			curgrp += 1
 			if assignedcells == 1:
 				singletons.append(g[1])
@@ -115,11 +115,12 @@ class StarAbtDomain(object):
 		
 	def __init__(self, parentdom, abtRadius):
 		self.abtRadius = abtRadius
+
 		if isinstance(parentdom, Domain):
-			_prepFromBase(parentdom)
+			self._prepFromBase(parentdom)
 			self.parentDomIsBase = True
 		else:
-			_prepFromAbt(parentdom)
+			self._prepFromAbt(parentdom)
 			self.parentDomIsBase = False
 
 		self.goal = self.abstractState(parentdom.goal)
@@ -130,22 +131,22 @@ class StarAbtDomain(object):
 		trnsFromBaseIdx = [None] * parentdom.size
 		
 		for i in range(parentdom.size):
-			if parentdom.cellmap[i] != CELL_BLOCKED:
+			if parentdom.cellmap.cells[i] != CELL_BLOCKED:
 				trnsFromBaseIdx[i] = curgrp
 				curgrp += 1
 				
 		baseGroupEdges = [None] * curgrp
 		
 		for i in range(parentdom.size):
-			if parentdom.cellmap[i] != CELL_BLOCKED:
+			if parentdom.cellmap.cells[i] != CELL_BLOCKED:
 				baseGroupEdges[trnsFromBaseIdx[i]] = [(trnsFromBaseIdx[j], cost) for (j, cost) in parentdom.expand(i)]
 
 		self.trnsFromBaseIdx = trnsFromBaseIdx
-		self.groupEdges, self.trnsFromBaseGroup = StarAbtDomain._makeAbtGroups(baseGroupEdges, self.abtRadius)
+		self.groupEdges, self.trnsFromBaseGroup = self._makeAbtGroups(baseGroupEdges, self.abtRadius)
 
 	
 	def _prepFromAbt(self, parentdom):
-		self.groupEdges, self.trnsFromBaseGroup = StarAbtDomain._makeAbtGroups(parentdom.groupEdges, self.abtRadius)
+		self.groupEdges, self.trnsFromBaseGroup = self._makeAbtGroups(parentdom.groupEdges, self.abtRadius)
 
 	
 	def abstractState(self, bs):
@@ -183,6 +184,9 @@ class StarAbtDomainStack(object):
 	
 	def getDomain(self, lvl):
 		return self.doms[lvl]
+
+	def getTopLevel(self):
+		return len(self.doms)-1
 
 	def _baseIdxConnected(self, a, b):
 		a_abt = a

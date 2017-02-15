@@ -300,7 +300,10 @@ class CellMap:
 
 
 
-		
+def inst_20():
+	cm = CellMap("gridnav_20_map")
+	dom = Domain(cm, 380)
+	return StarAbtDomainStack(dom, 2)
 
 def inst_100():
 	cm = CellMap("gridnav_100_map")

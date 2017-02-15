@@ -3,6 +3,7 @@
 
 from functools import total_ordering
 from nodeheap import NodeHeap
+#import networkx as nx
 
 
 def statesFromGoalNode(goalNode):
@@ -90,17 +91,19 @@ class Astar:
 		return self.memoizeCache[s0]
 
 
-	def execute(self, s0 = None):
+	def execute(self, s0 = None, nxgraph = None):
 		if s0 is None:
 			s0 = self.dom.initState()
 
 		openlist = NodeHeap()
 		closedlist = {}
-		stats = {"expd":0, "gend":0, "dups":0, "reopnd":0}
+		self.stats = {"expd":0, "gend":0, "dups":0, "reopnd":0}
 
 		n0 = Astar.Node(s0, 0, self.dom.hval(s0), 0, None)
 		n0.isopen = True
 		
+		if nxgraph is not None:
+			nxgraph.add_node(n0.s)
 		openlist.push(n0)
 		closedlist[n0.s] = n0
 		
@@ -109,9 +112,17 @@ class Astar:
 			n.isopen = False
 			
 			if self.dom.checkGoal(n.s):
+				if nxgraph is not None:
+					nxgraph.add_node(n.s)
+					nxgraph.add_edge(n.parent.s, n.s)
+					
+					m = n
+					while m is not None:
+						nxgraph.node[m.s]['color'] = 'blue'
+						m = m.parent
 				return n
 			
-			stats["expd"] += 1
+			self.stats["expd"] += 1
 
 			childnodes = [Astar.Node(c, n.g+edgecost, n.g+edgecost+self.dom.hval(c), n.depth+1, n) for (c, edgecost) in self.dom.expand(n.s)]
 
@@ -119,16 +130,23 @@ class Astar:
 				if n.parent is not None and cn == n.parent:
 					continue
 				
-				stats["gend"] += 1
+				self.stats["gend"] += 1
 				cn.isopen = True
 				
 				if cn.s not in closedlist:
+					if nxgraph is not None:
+						nxgraph.add_node(cn.s)
+						nxgraph.add_edge(cn.parent.s, cn.s)
 					openlist.push(cn)
 					closedlist[cn.s] = cn
 				else:
-					stats["dups"] += 1
+					self.stats["dups"] += 1
 					dup = closedlist[cn.s]
 					if cn.g < dup.g:
+						if nxgraph is not None:
+							nxgraph.remove_edge(dup.parent.s, dup.s)
+							nxgraph.add_edge(n.s, dup.s)
+						
 						dup.g = cn.g
 						dup.f = cn.f
 						dup.depth = cn.depth
@@ -137,7 +155,7 @@ class Astar:
 						if dup.isopen:
 							openlist.update(dup.openidx)
 						else:
-							stats[lvl]["reopnd"] += 1
+							self.stats[lvl]["reopnd"] += 1
 							openlist.push(dup)
 							dup.isopen = True
 

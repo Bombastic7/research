@@ -2,6 +2,7 @@
 
 import math
 import tiles
+import hastar
 
 from functools import total_ordering
 from nodeheap import NodeHeap
@@ -42,15 +43,18 @@ class AbtNode:
 		self.s = s
 		self.g = g
 		self.depth = depth
-		self.u = None
+		#self.u = None
+		#self.uf = None
 		self.parent = parent
 	
 	def __eq__(self, o):
 		return self.s == o.s
 	
 	def __lt__(self, o):
+		if self.uf != o.uf:
+			return self.uf < o.uf
 		if self.u != o.u:
-			return self.u < o.u
+			return self.u > o.u
 		if self.depth != o.depth:
 			return self.depth < o.depth
 		return self.g < o.g
@@ -83,11 +87,12 @@ def computeAvgBF(lst):
 
 class UGSA:
 	def __init__(self, domstack, wf, wt, hardBF = None):
-		self.doms = [domstack.getDomain(i) for i in range(2)]
+		self.doms = [domstack.getDomain(i) for i in range(domstack.getTopLevel()+1)]
 		self.wf = wf
 		self.wt = wt
 		self.hardBF = hardBF
-
+		self.abt2alg_h = hastar.HAstar(domstack)
+		self.abt2alg_d = hastar.HAstar(domstack, True)
 		
 	def execute(self, s0 = None):
 		if s0 is None:
@@ -96,6 +101,9 @@ class UGSA:
 		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.doms))]
 		self.abtcache = {}
 		self.fcounts = {}
+		self.ucounts = {}
+		self.fexp = []
+		self.uexp = []
 		self.delayInfo = [0.0, 0]
 		self.nxtResort = 16
 		self.avgDelay = 1
@@ -117,7 +125,7 @@ class UGSA:
 
 		(h0, d0) = self._doAbtSearch(s0, 0)
 		n0 = Node(s0, 0, 0, h0, None)
-		n0.u = self._compBaseUtil(n)
+		n0.u = self._compBaseUtil(n0)
 		
 		n0.isopen = True
 		n0.expdAtGen = 0
@@ -143,7 +151,7 @@ class UGSA:
 			self.stats[0]["expd"] += 1		
 
 			for (c, edgecost) in dom.expand(n.s):
-				if n.parent is not None and cn == n.parent:
+				if n.parent is not None and c == n.parent.s:
 					continue
 
 				self.stats[0]["gend"] += 1
@@ -152,8 +160,8 @@ class UGSA:
 				cg = n.g+edgecost
 				
 				if c not in closedlist:
-					cn = Node(c, n.depth+1, cg, ch+h, n)
-					cn.u = self._compBaseUtil(n)
+					cn = Node(c, n.depth+1, cg, cg+h, n)
+					cn.u = self._compBaseUtil(cn)
 					cn.isopen = True
 					cn.expdAtGen = self.stats[0]["expd"]
 					openlist.push(cn)
@@ -182,17 +190,16 @@ class UGSA:
 	def _doAbtSearch(self, bs, basedepth):
 		dom = self.doms[1]
 		s0 = dom.abstractState(bs)
-		
+		"""
 		if s0 in self.abtcache:
 			if self.stats[0]["expd"] - self.abtcache[s0][1] < self.stats[0]["expd"] * 0.25:
 				return self.abtcache[s0][0]
-
+		"""
 		openlist = NodeHeap()
 		closedlist = {}
-		
-		
+
 		n0 = AbtNode(s0, 0, 0, None)
-		n0.u = self._compAbtUtil(n0, basedepth)
+		n0.u = self._compAbtUtil(basedepth, n0)
 		n0.isopen = True
 		openlist.push(n0)
 		closedlist[n0.s] = n0
@@ -207,13 +214,13 @@ class UGSA:
 			n.isopen = False
 
 			if dom.checkGoal(n.s):
-				self.abtcache[s0] = ((n.g, n.depth), self.stats[0]["expd"])
+				#self.abtcache[s0] = ((n.g, n.depth), self.stats[0]["expd"])
 				return (n.g, n.depth)
 
 			self.stats[1]["expd"] += 1
 
 			for (c, edgecost) in dom.expand(n.s):
-				if n.parent is not None and cn == n.parent:
+				if n.parent is not None and c == n.parent.s:
 					continue
 
 				self.stats[1]["gend"] += 1
@@ -222,7 +229,9 @@ class UGSA:
 				cdepth = n.depth+1
 				
 				cn = AbtNode(c, cdepth, cg, n)
-				cn.u = self._compAbtUtil(cn, basedepth)
+				cn.u = self._compAbtUtil(basedepth, cn)
+				cn.uf = self._compAbtGoalUtil(cn)
+				assert(cn.u <= cn.uf)
 				cn.isopen = True
 				
 				if c not in closedlist:
@@ -236,8 +245,8 @@ class UGSA:
 						dup.g = cn.g
 						dup.depth = cn.depth
 						dup.u = cn.u
+						dup.uf = cn.uf
 						dup.parent = cn.parent
-						dup.u = cn.u
 						if dup.isopen:
 							openlist.update(dup.openidx)
 						else:
@@ -247,16 +256,40 @@ class UGSA:
 							
 
 
-	def _informExpansion(self, n):
-		x = self.var_hbf_countattr(n)
+	def _compAbtGoalUtil(self, n):
+		abtstate = self.doms[2].abstractState(n.s)
 		
-		if x not in self.fcounts:
-			self.fcounts[x] = 1
+		self.abt2alg_h.execute(abtstate, 2)
+		cheap_h, cheap_d = self.abt2alg_h.getCachedVals(abtstate, 2)
+		
+		self.abt2alg_d.execute(abtstate, 2)
+		short_d, short_h = self.abt2alg_d.getCachedVals(abtstate, 2)
+		
+		cheapGoalUtil = self._compAbtUtil(0, nodeVals = (n.depth + cheap_d, n.g + cheap_h))
+		shortGoalUtil = self._compAbtUtil(0, nodeVals = (n.depth + short_d, n.g + short_h))
+		
+		return max(cheapGoalUtil, shortGoalUtil)
+
+
+	def _informExpansion(self, n):
+		#x = self.var_hbf_countattr(n)
+		
+		if n.f not in self.fcounts:
+			self.fcounts[n.f] = 1
 		else:
-			self.fcounts[x] += 1
+			self.fcounts[n.f] += 1
+		
+		if n.u not in self.ucounts:
+			self.ucounts[n.u] = 1
+		else:
+			self.ucounts[n.u] += 1
+		
+		self.fexp.append((n.f, self.stats[0]["expd"]))
+		self.uexp.append((n.u, self.stats[0]["expd"]))
+		
 		self.dirty = True
 		#self.exppoints.append((n.f, n.u))
-		self.delayInfo[0] += curexpd - n.expdAtGen
+		self.delayInfo[0] += self.stats[0]["expd"] - n.expdAtGen
 		self.delayInfo[1] += 1
 
 
@@ -288,7 +321,7 @@ class UGSA:
 
 
 	
-	def _compAbtUtil(self, n, basedepth):
+	def _compAbtUtil(self, basedepth, n = None, nodeVals = None):
 		"""
 		if VAR_BU == "B1" or VAR_BU == "B2":
 			bf = self.getBF()
@@ -300,7 +333,10 @@ class UGSA:
 		else:
 			raise ValueError
 		"""
-		return n.g
+		if n is not None:
+			return n.g
+		if nodeVals is not None:
+			return nodeVals[1]
 
 	
 	def _getBF(self):

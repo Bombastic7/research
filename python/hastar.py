@@ -34,20 +34,27 @@ class CacheEntry:
 
 
 class HAstar:
-	def __init__(self, domstack, useUnitCost = False):
+	def __init__(self, domstack, useUnitCost = False, cacheBaseLevel = False):
 		self.domstack = domstack
 		self.hcaches = [{} for i in range(domstack.getTopLevel()+1)]
-		self.hcaches[0] = None
 		self.useUnitCost = useUnitCost
-		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.hcaches))]
+		self.cacheBaseLevel = cacheBaseLevel
 
-	def execute(self, s0, lvl = 0):
-		pc = self._doSearch(s0, lvl)
-		assert(lvl == 0 or self.hcaches[lvl][s0].exact)
-		return pc
+		if not cacheBaseLevel:
+			self.hcaches[0] = None
+
+	def execute(self, s0, solPath = True, lvl = 0):
+		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.hcaches))]
+		r = self._doSearch(s0, solPath, lvl)
+		assert((not self.cacheBaseLevel and lvl == 0) or self.hcaches[lvl][s0].exact)
+		if solPath:
+			return r
+
 
 	def getCachedVals(self, s, lvl = 0):
 		ent = self.hcaches[lvl][s]
+		if self.useUnitCost:
+			return ent.sec, ent.prim
 		return ent.prim, ent.sec
 
 
@@ -56,15 +63,15 @@ class HAstar:
 			return 0
 		abtdom = self.domstack.getDomain(lvl+1)
 		abtstate = abtdom.abstractState(s)
-		return self._doSearch(abtstate, lvl+1)
+		return self._doSearch(abtstate, False, lvl+1)
 
 	
-	def _doSearch(self, s0, lvl):
+	def _doSearch(self, s0, solPath, lvl):
 		bestExactNode = None
 		dom = self.domstack.getDomain(lvl)
 		cache = self.hcaches[lvl]
 		
-		if cache is not None and s0 in cache and cache[s0].exact:
+		if not solPath and cache is not None and s0 in cache and cache[s0].exact:
 			return cache[s0].prim
 		
 		openlist = NodeHeap()
@@ -77,7 +84,6 @@ class HAstar:
 			h0 = cache[s0].prim
 		else:
 			h0 = self._heval(s0, lvl)
-			assert(lvl == 0)
 
 		n0 = Node(s0, 0, 0, h0, None)
 		n0.isopen = True
@@ -96,7 +102,7 @@ class HAstar:
 			
 			n.isopen = False
 
-			if dom.checkGoal(n.s) or (lvl != 0 and bestExactNode is n): 
+			if dom.checkGoal(n.s) or bestExactNode is n: 
 				goalNode = n
 				closedlist[n.s] = n
 				if dom.checkGoal(n.s):
@@ -105,11 +111,12 @@ class HAstar:
 
 
 			self.stats[lvl]["expd"] += 1
-			assert(n.w == n.x)
+			
+			assert(cache is None or cache[n.s].prim is not None)
 			
 			def heval(s):
 				if cache is None:
-					return self._heval(s, 1)
+					return self._heval(s, lvl)
 				if s not in cache:
 					cache[s] = CacheEntry()
 					cache[s].prim = self._heval(s, lvl)
@@ -130,7 +137,7 @@ class HAstar:
 				if cn.s not in closedlist:
 					openlist.push(cn)
 					closedlist[cn.s] = cn
-					if lvl != 0 and cache[cn.s].exact and (bestExactNode is None or bestExactNode.y > cn.y):
+					if not solPath and cache[cn.s].exact and (bestExactNode is None or bestExactNode.y > cn.y):
 						bestExactNode = cn
 						cn.w += cache[cn.s].sec
 				
@@ -146,7 +153,7 @@ class HAstar:
 						
 						if dup.isopen:
 							openlist.update(dup.openidx)
-							if lvl != 0 and cache[cn.s].exact and (bestExactNode is None or bestExactNode.y > cn.y):
+							if not solPath and cache[cn.s].exact and (bestExactNode is None or bestExactNode.y > cn.y):
 								bestExactNode = dup
 								dup.w += cache[dup.s].sec
 						else:
@@ -157,7 +164,7 @@ class HAstar:
 								assert(not cache[dup.s].exact)
 
 
-		if lvl > 0:
+		if cache is not None:
 			for n in closedlist.itervalues():
 				if n.isopen:
 					continue
@@ -175,8 +182,10 @@ class HAstar:
 					cache[m.s].sec = goalNode.w - m.w
 				m = m.parent
 
-		if lvl > 0:
-			assert(cache[goalNode.s].exact)
-			assert(cache[s0].exact)
+		assert(cache[goalNode.s].exact)
+		assert(cache[s0].exact)
+		
+		if solPath:
+			return goalNode
 		return goalNode.y
 

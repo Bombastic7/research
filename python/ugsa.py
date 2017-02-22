@@ -91,8 +91,8 @@ class UGSA:
 		self.wf = wf
 		self.wt = wt
 		self.hardBF = hardBF
-		self.abt2alg_h = hastar.HAstar(domstack)
-		self.abt2alg_d = hastar.HAstar(domstack, True)
+		self.abtalg_h = hastar.HAstar(domstack)
+		self.abtalg_d = hastar.HAstar(domstack, True)
 		
 	def execute(self, s0 = None):
 		if s0 is None:
@@ -186,6 +186,107 @@ class UGSA:
 							openlist.push(dup)
 							dup.isopen = True
 
+
+
+	def _doBaseSearch_2(self, s0, distHeuristic = False):
+		dom = self.doms[0]
+		
+		openlist = NodeHeap()
+		closedlist = {}
+
+		abts0 = self.doms[1].abstractState(s0)
+		
+		if distHeuristic:
+			self.abtalg_h.execute(abts0, 1)
+			h0, d0 = self.abtalg_h.getCachedVals(abts0, 1)
+		else:
+			self.abtalg_d.execute(abts0, 1)
+			d0, h0 = self.abtalg_d.getCachedVals(abts0, 1)
+
+		
+		n0 = Node(s0, 0, 0, h0, None)
+		n0.u = self._compBaseUtil_2(h0, d0)
+		n0.isopen = True
+		n0.expdAtGen = 0
+		
+		openlist.push(n0)
+		closedlist[s0] = n0
+
+		while True:
+			if self.stats[0]["expd"] >= self.nxtResort:
+				self.avgDelay = self.delayInfo[0] / self.delayInfo[1]
+				self.delayInfo = [0,0]
+				self.nxtResort *= 2
+				self._resort_2()
+				
+			try:
+				n = openlist.pop()
+			except ValueError:
+				print "error level 0"
+				raise
+			
+			n.isopen = False
+			n.expd = self.stats[0]["expd"]
+			
+			if dom.checkGoal(n.s):
+				self.goalNode = n
+				return n
+
+			self._informExpansion(n)
+			self.stats[0]["expd"] += 1		
+
+			for (c, edgecost) in dom.expand(n.s):
+				if n.parent is not None and c == n.parent.s:
+					continue
+
+				self.stats[0]["gend"] += 1
+
+				abtstate = self.doms[1].abstractState(c)
+				if distHeuristic:
+					self.abtalg_h.execute(abtstate, 1)
+					h, d = self.abtalg_h.getCachedVals(abtstate, 1)
+				else:
+					self.abtalg_d.execute(abtstate, 1)
+					d, h = self.abtalg_d.getCachedVals(abtstate, 1)
+				cg = n.g+edgecost
+				
+				if c not in closedlist:
+					cn = Node(c, n.depth+1, cg, cg+h, n)
+					cn.u = self._compBaseUtil_2(cn, d)
+					cn.isopen = True
+					cn.expdAtGen = self.stats[0]["expd"]
+					openlist.push(cn)
+					closedlist[c] = cn
+					
+				else:
+					self.stats[0]["dups"] += 1
+					dup = closedlist[c]
+					
+					if cg < dup.g:
+						dup.g = cg
+						dup.f = cg + h
+						dup.depth = n.depth+1
+						dup.parent = n
+						dup.u = self._compBaseUtil_2(dup, d)
+						dup.expdAtGen = self.stats[0]["expd"]
+
+						if dup.isopen:
+							openlist.update(dup.openidx)
+						else:
+							self.stats[0]["reopnd"] += 1
+							openlist.push(dup)
+							dup.isopen = True
+
+
+	def _resort_2(self, openlist):
+		for n in openlist:
+			if distHeuristic:
+				self.abtalg_h.execute(n.s, 1)
+				h0, d0 = self.abtalg_h.getCachedVals(abts0, 1)
+			else:
+				self.abtalg_d.execute(abts0, 1)
+				d0, h0 = self.abtalg_d.getCachedVals(abts0, 1)
+			n.u = 
 
 	def _doAbtSearch(self, bs, basedepth):
 		dom = self.doms[1]
@@ -319,6 +420,9 @@ class UGSA:
 		"""
 		return n.f
 
+
+	def _compBaseUtil_2(self, n, d):
+		return n.f * self.wf + d * self.avgDelay * self.wt
 
 	
 	def _compAbtUtil(self, basedepth, n = None, nodeVals = None):

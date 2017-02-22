@@ -11,7 +11,7 @@ CELL_BLOCKED = 1
 
 
 class Domain(object):
-	def __init__(self, cellmap, goal):
+	def __init__(self, cellmap, goal = None):
 		self.cellmap = cellmap
 		self.goal = goal
 		self.height = cellmap.height
@@ -19,7 +19,7 @@ class Domain(object):
 		self.size = self.height * self.width
 		self.abtstack = None
 
-		assert(self.cellmap.cells[goal] == CELL_OPEN)
+		assert(goal is None or self.cellmap.cells[goal] == CELL_OPEN)
 	
 	
 	def expand(self, s):
@@ -206,11 +206,11 @@ class StarAbtDomainStack(object):
 		return s_abt
 
 
-	def printToFile(self, fname, tracepath = None):
+	def printToFile(self, fname, markstates = None):
 		with open(fname, "w") as f:
 			for i in range(self.doms[0].size):
 				if self.doms[0].cellmap.cells[i] == CELL_OPEN:
-					if tracepath is not None and tracepath.count(i) > 0:
+					if markstates is not None and markstates.count(i) > 0:
 						f.write("~")
 					else:
 						f.write(" ")
@@ -236,12 +236,26 @@ class StarAbtDomainStack(object):
 					if m[i] is None:
 						f.write(" ")
 					else:
-						if tracepath is not None and tracepath.count(i) > 0:
+						if markstates is not None and markstates.count(i) > 0:
 							f.write("~")
 						else:
-							f.write(chr((m[i] % 10) + ord("!")))
+							f.write(chr((m[i] % 10) + ord("0")))
 					if (i+1) % self.doms[0].width == 0:
 						f.write("\n")
+				f.write("\n")
+				
+				for i in range(len(dom.groupEdges)):
+					f.write(str(i) + ": ")
+					lst = []
+					for j in dom.groupEdges[i]:
+						lst.append(j)
+					lst.sort()
+					f.write(str(lst))
+					if dom is not self.doms[-1]:
+						f.write(" -> ")
+						abtgroup = self.doms[self.doms.index(dom)+1].abstractState(i)
+						f.write(str(abtgroup))
+					f.write("\n")
 
 				f.write("\n\n")
 
@@ -309,3 +323,10 @@ def inst_100():
 	cm = CellMap("gridnav_100_map")
 	dom = Domain(cm, 9995)
 	return StarAbtDomainStack(dom, 2)
+
+# goal=(258, 980) ,  good s0 = (845, 346) = 346845
+def inst_1000():
+	with open("gridnav_1000_starabt.pk2") as f:
+		pkd = cPickle.load(f)
+	return pkd
+

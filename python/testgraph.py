@@ -214,14 +214,11 @@ class UgsaTraverseGraph:
 						print "cache exact", n, n.inferredGoalState
 					return
 
-		"""
 		if n.s in self.cache_partial:
-			for ent in self.cache_partial[n.s]:
-				for i in range(len(self.cache_partial[n.s])):
-					if self.cache_partial[n.s][i][0] <= n.depth and (i+1 == len(self.cache_partial[n.s]) or self.cache_partial[n.s][i+1][0] > n.depth):
-						n.u += self.cache_partial[n.s][i][1]
-						assert(n.u <= self.uncachedAlg.doSearch2(self.s0, n.s))
-		"""				
+			x = [e for e in self.cache_partial[n.s].iteritems() if e[0] <= n.depth]
+			if len(x) > 0:
+				x.sort()
+				n.uf += x[-1][1]
 
 
 	def doSearch2(self, s0, sg):
@@ -337,28 +334,7 @@ class UgsaTraverseGraph:
 
 
 	def doCaching(self):
-		"""
-		for n in self.closedlist.itervalues():
-			if n.isopen:
-				continue
-			if n.s not in self.cache_partial:
-				self.cache_partial[n.s] = []
-			
-			foundEntry = False
-			for ent in self.cache_partial[n.s]:
-				if ent[0] == n.depth:
-					foundEntry = True
-					if ent[1] < n.u-n.g:
-						ent[1] = n.u-n.g
-				if foundEntry:
-					break
-			
-			if not foundEntry:
-				self.cache_partial[n.s].append([n.depth, n.u-n.g])
-				self.cache_partial[n.s].sort(reverse=True)
-		"""
-
-
+		
 		if self.solpath[-1].isExact:
 			goalState = self.solpath[-1].inferredGoalState
 			goal_g = self.solpath[-1].goal_g
@@ -367,6 +343,25 @@ class UgsaTraverseGraph:
 			goalState = self.solpath[-1].s
 			goal_g = self.solpath[-1].g
 			goal_depth = self.solpath[-1].depth
+
+		goal_ug = self.compUtil(goal_g, goal_depth)
+		
+		for n in self.closedlist.itervalues():
+			if n.isopen:
+				continue
+			if n.s not in self.cache_partial:
+				self.cache_partial[n.s] = {}
+			
+			pu = goal_ug - n.ug
+			
+			
+			if n.depth not in self.cache_partial[n.s]:
+				self.cache_partial[n.s][n.depth] = 0
+			
+			if self.cache_partial[n.s][n.depth] < pu:
+				self.cache_partial[n.s][n.depth] = pu
+
+
 		
 		for n in self.solpath:
 			if n.isExact:
@@ -476,5 +471,5 @@ class DoTest1:
 			a = self.ugsat.doSearch(s)
 			b = self.ugsat2.doSearch(s)
 			print s, a, b
-			assert(a  == b)
+			assert(a == b)
 

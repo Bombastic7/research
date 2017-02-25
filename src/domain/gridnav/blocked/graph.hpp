@@ -26,15 +26,14 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		N, S, W, E, NW, NE, SW, SE
 	};
 	
-	const unsigned Null_Idx = (unsigned)-1;
 
 
+	template<bool Use_Nways, bool Use_LifeCost>
 	inline unsigned manhat(unsigned pState, unsigned pGoal, unsigned pWidth) {
 		int x = pState % pWidth, y = pState / pWidth;
 		int gx = pGoal % pWidth, gy = pGoal / pWidth;
 		return std::abs(gx - x) + std::abs(gy - y);
 	}
-	
 
 	/* returns  sum of contiguous rows from pY to {mGoaly-1 / mGoaly+1} if {pY < mGoalY / pY > mGoalY} */
 	inline unsigned verticalPathFactor(int pY, int goaly) {
@@ -51,6 +50,363 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 		return s;
 	}
+	
+	template<typename = void>
+	class CellMap {
+		
+		public:
+		
+		class StateIterator {
+			public:
+			
+			StateIterator& operator++() {
+				if(mIdx == pInst.getSize())
+					return;
+				do {
+					++mIdx;
+				} while(mIdx < pInst.getSize() && pInst.isOpen(mIdx));
+			}
+			
+			bool operator==(StateIterator const& o) {
+				return mIdx == o.mIdx;
+			}
+			
+			bool operator!=(iterator const& o) {
+				return mIdx != o.mIdx;
+			}
+			
+			unsigned operator*() {
+				return mIdx;
+			}
+			
+			private:
+			friend CellMap<void>;
+			
+			OpenCellIterator(CellMap<void> const& pInst, bool pAtEnd) :
+				mInst(pInst),
+				mIdx(0)
+			{
+				if(pAtEnd)
+					mIdx = mInst.getSize();
+			}
+			
+			CellMap<void> const& mInst;
+			unsigned mIdx;
+		};
+		
+		
+		CellMap(unsigned pSize, std::string const& pMapFile) :
+			mSize(pSize),
+			mCells(mSize)
+		{
+			std::ifstream ifs(pMapFile);
+			
+			if(!ifs)
+				throw std::runtime_error("Could not open map file");
+
+			for(unsigned i=0; i<mSize; i++) {
+				int v;
+				Cell_t c;
+				in >> v;
+				c = (Cell_t)v;
+				
+				gen_assert(c == Cell_t::Open || c == Cell_t::Blocked);
+				cellMap[i] = c;
+			}
+		}
+		
+		std::vector<Cell_t> const& cells() {
+			return mCells;
+		}
+		
+		unsigned getSize() {
+			return mSize;
+		}
+		
+		bool isOpen(unsigned i) {
+			slow_assert(i < mSize);
+			return mCells[i] == Cell_t::Open;
+		}
+		
+		StateIterator stateBegin() {
+			return StateIterator(*this, false);
+		}
+		
+		StateIterator stateEnd() {
+			return StateIterator(*this, true);
+		}
+		
+		private:
+		const unsigned mSize;
+		std::vector<Cell_t> mCells;
+	};
+	
+	
+	
+	template<bool Use_LifeCost>
+	class CellGraph_4 : public CellMap<> {
+		using Cost_t = int;
+		
+		struct Edge {
+			unsigned dst;
+			Cost_t cost;
+		};
+	
+		struct AdjacentCells {
+			unsigned n;
+			std::array<Edge, 4> adjCells;
+		};
+		
+		CellGraph_4(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
+			CellMap(pHeight*pWidth, pMapFile),
+			mHeight(pHeight),
+			mWidth(pWidth)
+		{}
+
+		const AdjacentCells getAdjacentCells(unsigned s) {
+			AdjacentCells adj{.n=0};
+			
+			Cost_t costMul = Use_LifeCost ? s/mWidth : 1;
+			
+			if(s >= mWidth && this->isOpen(s-Width))
+				adj.adjCells[adj.n++] = Edge{.dst=s-mWidth, .cost=costMul};
+			if(s < (mHeight-1)*mWidth && this->isOpen(s+Width))
+				adj.adjCells[adj.n++] = Edge{.dst=s+mWidth, .cost=costMul};
+			if(s%mWidth != 0 && this->isOpen(s-1))
+				adj.adjCells[adj.n++] = Edge{.dst=s-1, .cost=costMul};
+			if((s+1)%mWidth != 0 && this->isOpen(s+1))
+				adj.adjCells[adj.n++] = Edge{.dst=s+1, .cost=costMul};
+			return adj;
+		}
+
+		unsigned getHeight() {
+			return mHeight;
+		}
+		
+		unsigned getWidth() {
+			return mWidth;
+		}
+		
+		private:
+		const unsigned mHeight, mWidth;
+	};
+	
+	
+	template<bool Use_LifeCost>
+	class CellGraph_8 : public CellMap<> {
+		using Cost_t = float;
+		
+		static constexpr Cost_t Diag_Mv_Cost = 1.41421356237309504880168872420969807857;
+
+		struct Edge {
+			unsigned dst;
+			Cost_t cost;
+		};
+		struct AdjacentCells {
+			unsigned n;
+			std::array<Edge, 8> adjCells;
+		};
+		
+		CellGraph_8(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
+			CellMap(pHeight*pWidth, pMapFile),
+			mHeight(pHeight),
+			mWidth(pWidth)
+		{}
+
+		const AdjacentCells getAdjacentCells(unsigned s) {
+			AdjacentCells adj{.n=0};
+			
+			Cost_t costMul = Use_LifeCost ? s/mWidth : 1.0;
+			
+			bool vn=false, vs=false, ve=false, vw=false;
+			
+			if(s >= mWidth && this->isOpen(s-Width)) {
+				adj.adjCells[adj.n++] = Edge{.dst=s-mWidth, .cost=costMul};
+				vn = true;
+			}
+			if(s < (mHeight-1)*mWidth && this->isOpen(s+Width)) {
+				adj.adjCells[adj.n++] = Edge{.dst=s+mWidth, .cost=costMul};
+				vs = true;
+			}
+			if(s%mWidth != 0 && this->isOpen(s-1)) {
+				adj.adjCells[adj.n++] = Edge{.dst=s-1, .cost=costMul};
+				vw = true;
+			}
+			if((s+1)%mWidth != 0 && this->isOpen(s+1)) {
+				adj.adjCells[adj.n++] = Edge{.dst=s+1, .cost=costMul};
+				ve = true;
+			}
+			if(vn && vw && this->isOpen(s-mWidth-1))
+				adj.adjCells[adj.n++] = Edge{.dst=s-mWidth-1, .cost=costMul*Diag_Mv_Cost};
+			if(vn && ve && this->isOpen(s-mWidth+1))
+				adj.adjCells[adj.n++] = Edge{.dst=s-mWidth+1, .cost=costMul*Diag_Mv_Cost};
+			if(vs && vw && this->isOpen(s+mWidth-1))
+				adj.adjCells[adj.n++] = Edge{.dst=s+mWidth-1, .cost=costMul*Diag_Mv_Cost};
+			if(vs && ve && this->isOpen(s+mWidth+1))
+				adj.adjCells[adj.n++] = Edge{.dst=s+mWidth+1, .cost=costMul*Diag_Mv_Cost};
+			return adj;
+		}
+		
+		unsigned getHeight() {
+			return mHeight;
+		}
+		
+		unsigned getWidth() {
+			return mWidth;
+		}
+		
+		private:
+		const unsigned mHeight, mWidth;
+	};
+	
+	
+	template<bool Use_LifeCost, bool Use_Hr>
+	class CellGraph_4_hr : public CellGraph_4<Use_LifeCost> {
+		public:
+		using CellGraph_4::Cost_t;
+		
+		CellGraph_4_hr(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
+			CellGraph_4(pHeight, pWidth, pMapFile)
+		{}
+		
+		void compHrVals(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+			if(!Use_Hr) {
+				out_h = 0;
+				out_d = 0;
+				return;
+			}
+			
+			if(Use_LifeCost)
+				return lifeCostHeuristics(pPos, pGoal, out_h, out_d);
+			return unitCostHeuristics(pPos, pGoal, out_h, out_d);
+		}
+		
+		private:
+		void unitCostHeuristics(unsigned pPos, unsigned pGoal Cost_t& out_h, Cost_t& out_d) {
+			out_h = out_d = manhat(pPos, pGoal, this->getWidth());
+		}
+		
+		void lifeCostHeuristics(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) {
+			unsigned pWidth = this->getWidth();
+			
+			int x = pPos % pWidth, y = pPos / pWidth;
+			int gx = pGoal % pWidth, gy = pGoal / pWidth;
+			
+			int dx = std::abs(x-gx), miny = mathutil::min(y, gy);
+			
+			// Horizontal segment at the cheaper of y/gy. Vertical segment straight from y to goaly.
+			int p1 = dx * miny + verticalPathFactor(y, gy);
+			
+			// From (x,y) to (x,0), then to (gx, 0), then to (gx, gy). Note that horizontal segment is free (row 0).
+			int p2 = verticalPathFactor(y, 0) + verticalPathFactor(0, gy);
+			
+			if(p1 < p2) {
+				out_h = p1;
+				out_d = dx + std::abs(y - gy);
+			} else {
+				out_h = p2;
+				out_d = dx + y + gy;
+			}
+		}
+	};
+	
+
+	template<bool Use_LifeCost, bool Use_Hr>
+	class CellGraph_8_hr : public CellGraph_8<Use_LifeCost> {
+		public:
+		using CellGraph_8::Cost_t;
+		
+		CellGraph_8_hr(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
+			CellGraph_8(pHeight, pWidth, pMapFile)
+		{}
+		
+		void compHrVals(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+			if(!Use_Hr) {
+				out_h = 0;
+				out_d = 0;
+				return;
+			}
+			
+			if(Use_LifeCost)
+				return lifeCostHeuristics(pPos, pGoal, out_h, out_d);
+			return unitCostHeuristics(pPos, pGoal, out_h, out_d);
+		}
+		
+		private:
+		
+		void unitCostHeuristics(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+			unsigned pWidth = this->getWidth();
+			
+			int dx = std::abs(pPos % pWidth - pGoal % pWidth), dy = std::abs(pPos / pWidth - pGoal / pWidth);
+				
+			out_h = std::abs(dx-dy) + mathutil::min(dx, dy) * Diag_Mv_Cost;
+			out_d = mathutil::max(dx, dy);
+		}
+		
+		void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+			unsigned pWidth = this->getWidth();
+			
+			int x = pPos % pWidth, y = pPos / pWidth;
+			int gx = pGoal % pWidth, gy = pGoal / pWidth;
+			
+			int dx = std::abs(x - gx);
+			int dy = std::abs(y - gy);
+			
+			if(dx <= dy) {
+				out_h = verticalPathFactor(pPos, gy);
+				out_d = dy;
+				return;
+			}
+			
+			//int maxdown = min(y, mGoaly);
+			int extra = dx - dy;
+			
+			int down = mathutil::min(mathutil::min(y, gy), (dx-dy)/2);
+			int botRow = mathutil::min(y, y) - down;
+			int across = extra - 2*down;
+			
+			out_h = verticalPathFactor(y, botRow) + across * botRow + verticalPathFactor(botRow, gy);
+			out_d = dx;
+		}
+	};
+
+
+
+	template<unsigned Nways, bool Use_LifeCost, bool Use_Hr>
+	class CellGraph_;
+	
+	template<bool Use_LifeCost, bool Use_Hr>
+	class CellGraph_<4, Use_LifeCost, Use_Hr> : public CellGraph_4_hr<Use_LifeCost, Use_Hr> {
+		using CellGraph_4_hr<Use_LifeCost, Use_Hr>::CellGraph_4_hr;
+	};
+
+	template<bool Use_LifeCost, bool Use_Hr>
+	class CellGraph_<8, Use_LifeCost, Use_Hr> : public CellGraph_8_hr<Use_LifeCost, Use_Hr> {
+		using CellGraph_8_hr<Use_LifeCost, Use_Hr>::CellGraph_8_hr;
+	};
+	
+	template<unsigned Nways, bool Use_LifeCost, bool Use_Hr>
+	class CellGraph : public CellGraph_<Nways, Use_Hr> {
+		using CellGraph_<Nways, Use_Hr>::CellGraph_;
+	};
+	
+	
+	
+	template<typename BaseDomain>
+	class StarAbtStack {
+	
+		public:
+		
+		StarAbtStack(BaseDomain const& pDomain) :
+			mDomain(pDomain)
+		{}
+	
+	
+	
+	
+	};
+	
+	
 	
 	template<typename = void>
 	struct FourWayFuncs {
@@ -89,30 +445,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return op-1;
 		}
 		
-		static void unitCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, Cost_t& out_h, Cost_t& out_d) {
-			out_h = out_d = manhat(pPos, pGoal, pWidth);
-		}
 		
-		static void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, Cost_t& out_h, Cost_t& out_d) {
-			int x = pPos % pWidth, y = pPos / pWidth;
-			int gx = pGoal % pWidth, gy = pGoal / pWidth;
-			
-			int dx = std::abs(x-gx), miny = mathutil::min(y, gy);
-			
-			// Horizontal segment at the cheaper of y/gy. Vertical segment straight from y to goaly.
-			int p1 = dx * miny + verticalPathFactor(y, gy);
-			
-			// From (x,y) to (x,0), then to (gx, 0), then to (gx, gy). Note that horizontal segment is free (row 0).
-			int p2 = verticalPathFactor(y, 0) + verticalPathFactor(0, gy);
-			
-			if(p1 < p2) {
-				out_h = p1;
-				out_d = dx + std::abs(y - gy);
-			} else {
-				out_h = p2;
-				out_d = dx + y + gy;
-			}
-		}
 	};
 	
 	template<typename = void>
@@ -163,36 +496,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			if(op == 7) return 4;
 		}
 		
-		static void unitCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, unsigned& out_h, unsigned& out_d) {
-			int dx = std::abs(pPos % pWidth - pGoal % pWidth), dy = std::abs(pPos / pWidth - pGoal / pWidth);
-				
-			out_h = std::abs(dx-dy) + mathutil::min(dx, dy) * Diag_Mv_Cost;
-			out_d = mathutil::max(dx, dy);
-		}
 		
-		static void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, unsigned& out_h, unsigned& out_d) {
-			int x = pPos % pWidth, y = pPos / pWidth;
-			int gx = pGoal % pWidth, gy = pGoal / pWidth;
-			
-			int dx = std::abs(x - gx);
-			int dy = std::abs(y - gy);
-			
-			if(dx <= dy) {
-				out_h = verticalPathFactor(pPos, gy);
-				out_d = dy;
-				return;
-			}
-			
-			//int maxdown = min(y, mGoaly);
-			int extra = dx - dy;
-			
-			int down = mathutil::min(mathutil::min(y, gy), (dx-dy)/2);
-			int botRow = mathutil::min(y, y) - down;
-			int across = extra - 2*down;
-			
-			out_h = verticalPathFactor(y, botRow) + across * botRow + verticalPathFactor(botRow, gy);
-			out_d = dx;
-		}
 	};
 	
 	

@@ -443,6 +443,7 @@ class UGSA2:
 
 		while True:
 			if self.stats["expd"] >= self.nxtResort:
+				self.nxtResort *= 2
 				pass
 			
 			n = openlist.pop()
@@ -501,7 +502,7 @@ class UGSA2:
 		self.test_expd = self.stats["expd"]
 		
 		for n in self.solpath:
-			self.test_expPred.append((n.test_expn, n.test_remexp, self.test_expd - n.test_remexp))
+			self.test_expPred.append((n.test_expn, n.test_remexp, (self.test_expd-n.test_expn) - n.test_remexp))
 
 		return goalNode
 	

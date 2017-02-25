@@ -8,7 +8,7 @@
 #include <queue>
 #include <string>
 #include <fstream>
-#include <map>
+#include <unordered_map>
 #include <utility>
 #include <algorithm>
 
@@ -63,18 +63,20 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			public:
 			
 			StateIterator& operator++() {
-				if(mIdx == pInst.getSize())
-					return;
+				if(mIdx == mInst.getSize())
+					return *this;
 				do {
 					++mIdx;
-				} while(mIdx < pInst.getSize() && pInst.isOpen(mIdx));
+				} while(mIdx < mInst.getSize() && mInst.isOpen(mIdx));
+				
+				return *this;
 			}
 			
 			bool operator==(StateIterator const& o) {
 				return mIdx == o.mIdx;
 			}
 			
-			bool operator!=(iterator const& o) {
+			bool operator!=(StateIterator const& o) {
 				return mIdx != o.mIdx;
 			}
 			
@@ -85,7 +87,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			private:
 			friend CellMap<void>;
 			
-			OpenCellIterator(CellMap<void> const& pInst, bool pAtEnd) :
+			StateIterator(CellMap<void> const& pInst, bool pAtEnd) :
 				mInst(pInst),
 				mIdx(0)
 			{
@@ -110,11 +112,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			for(unsigned i=0; i<mSize; i++) {
 				int v;
 				Cell_t c;
-				in >> v;
+				ifs >> v;
 				c = (Cell_t)v;
 				
 				gen_assert(c == Cell_t::Open || c == Cell_t::Blocked);
-				cellMap[i] = c;
+				mCells[i] = c;
 			}
 		}
 		
@@ -122,20 +124,20 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return mCells;
 		}
 		
-		unsigned getSize() {
+		unsigned getSize() const {
 			return mSize;
 		}
 		
-		bool isOpen(unsigned i) {
+		bool isOpen(unsigned i) const {
 			slow_assert(i < mSize);
 			return mCells[i] == Cell_t::Open;
 		}
 		
-		StateIterator stateBegin() {
+		StateIterator stateBegin() const {
 			return StateIterator(*this, false);
 		}
 		
-		StateIterator stateEnd() {
+		StateIterator stateEnd() const {
 			return StateIterator(*this, true);
 		}
 		
@@ -148,6 +150,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	template<bool Use_LifeCost>
 	class CellGraph_4 : public CellMap<> {
+		public:
 		using Cost_t = int;
 
 		struct AdjacentCells {
@@ -161,14 +164,14 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mWidth(pWidth)
 		{}
 
-		const AdjacentCells getAdjacentCells(unsigned s) {
+		const AdjacentCells getAdjacentCells(unsigned s) const {
 			AdjacentCells adj{.n=0};
 			
 			Cost_t costMul = Use_LifeCost ? s/mWidth : 1;
 			
-			if(s >= mWidth && this->isOpen(s-Width))
+			if(s >= mWidth && this->isOpen(s-mWidth))
 				adj.adjCells[adj.n++] = s-mWidth;
-			if(s < (mHeight-1)*mWidth && this->isOpen(s+Width))
+			if(s < (mHeight-1)*mWidth && this->isOpen(s+mWidth))
 				adj.adjCells[adj.n++] = s+mWidth;
 			if(s%mWidth != 0 && this->isOpen(s-1))
 				adj.adjCells[adj.n++] = s-1;
@@ -177,15 +180,15 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return adj;
 		}
 		
-		Cost_t getMoveCost(unsigned src, unsigned dst) {
+		Cost_t getMoveCost(unsigned src, unsigned dst) const {
 			return Use_LifeCost ? src/mWidth : 1;
 		}
 
-		unsigned getHeight() {
+		unsigned getHeight() const {
 			return mHeight;
 		}
 		
-		unsigned getWidth() {
+		unsigned getWidth() const {
 			return mWidth;
 		}
 		
@@ -211,16 +214,16 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mWidth(pWidth)
 		{}
 
-		const AdjacentCells getAdjacentCells(unsigned s) {
+		const AdjacentCells getAdjacentCells(unsigned s) const {
 			AdjacentCells adj{.n=0};
 
 			bool vn=false, vs=false, ve=false, vw=false;
 			
-			if(s >= mWidth && this->isOpen(s-Width)) {
+			if(s >= mWidth && this->isOpen(s-mWidth)) {
 				adj.adjCells[adj.n++] = s-mWidth;
 				vn = true;
 			}
-			if(s < (mHeight-1)*mWidth && this->isOpen(s+Width)) {
+			if(s < (mHeight-1)*mWidth && this->isOpen(s+mWidth)) {
 				adj.adjCells[adj.n++] = s+mWidth;
 				vs = true;
 			}
@@ -243,7 +246,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return adj;
 		}
 		
-		Cost_t getMoveCost(unsigned src, unsigned dst) {
+		Cost_t getMoveCost(unsigned src, unsigned dst) const {
 			Cost_t cst = Use_LifeCost ? src/mWidth : 1;
 
 			if(src%mWidth != dst%mWidth && src/mWidth != dst/mWidth)
@@ -252,11 +255,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return cst;
 		}
 		
-		unsigned getHeight() {
+		unsigned getHeight() const {
 			return mHeight;
 		}
 		
-		unsigned getWidth() {
+		unsigned getWidth() const {
 			return mWidth;
 		}
 		
@@ -268,13 +271,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	template<bool Use_LifeCost, bool Use_Hr>
 	class CellGraph_4_hr : public CellGraph_4<Use_LifeCost> {
 		public:
-		using CellGraph_4::Cost_t;
+		using typename CellGraph_4<Use_LifeCost>::Cost_t;
 		
 		CellGraph_4_hr(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
-			CellGraph_4(pHeight, pWidth, pMapFile)
+			CellGraph_4<Use_LifeCost>(pHeight, pWidth, pMapFile)
 		{}
 		
-		void compHrVals(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+		void compHrVals(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
 			if(!Use_Hr) {
 				out_h = 0;
 				out_d = 0;
@@ -287,11 +290,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		private:
-		void unitCostHeuristics(unsigned pPos, unsigned pGoal Cost_t& out_h, Cost_t& out_d) {
+		void unitCostHeuristics(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
 			out_h = out_d = manhat(pPos, pGoal, this->getWidth());
 		}
 		
-		void lifeCostHeuristics(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) {
+		void lifeCostHeuristics(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
 			unsigned pWidth = this->getWidth();
 			
 			int x = pPos % pWidth, y = pPos / pWidth;
@@ -319,13 +322,14 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	template<bool Use_LifeCost, bool Use_Hr>
 	class CellGraph_8_hr : public CellGraph_8<Use_LifeCost> {
 		public:
-		using CellGraph_8::Cost_t;
+		using typename CellGraph_8<Use_LifeCost>::Cost_t;
+		using CellGraph_8<Use_LifeCost>::Diag_Mv_Cost;
 		
 		CellGraph_8_hr(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
-			CellGraph_8(pHeight, pWidth, pMapFile)
+			CellGraph_8<Use_LifeCost>(pHeight, pWidth, pMapFile)
 		{}
 		
-		void compHrVals(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+		void compHrVals(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
 			if(!Use_Hr) {
 				out_h = 0;
 				out_d = 0;
@@ -339,7 +343,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		private:
 		
-		void unitCostHeuristics(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+		void unitCostHeuristics(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
 			unsigned pWidth = this->getWidth();
 			
 			int dx = std::abs(pPos % pWidth - pGoal % pWidth), dy = std::abs(pPos / pWidth - pGoal / pWidth);
@@ -348,7 +352,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			out_d = mathutil::max(dx, dy);
 		}
 		
-		void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned& out_h, unsigned& out_d) {
+		void lifeCostHeuristics(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
 			unsigned pWidth = this->getWidth();
 			
 			int x = pPos % pWidth, y = pPos / pWidth;
@@ -391,8 +395,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	};
 	
 	template<unsigned Nways, bool Use_LifeCost, bool Use_Hr>
-	class CellGraph : public CellGraph_<Nways, Use_Hr> {
-		using CellGraph_<Nways, Use_Hr>::CellGraph_;
+	class CellGraph : public CellGraph_<Nways, Use_LifeCost, Use_Hr> {
+		using CellGraph_<Nways, Use_LifeCost, Use_Hr>::CellGraph_;
 	};
 	
 	
@@ -407,7 +411,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		using Operator = unsigned;
 		
 		
-		struct OperatorSet : public typename Base_t::AdjacentCells {
+		struct OperatorSet : public Base_t::AdjacentCells {
 			OperatorSet(typename Base_t::AdjacentCells const& o) :
 				Base_t::AdjacentCells(o)
 			{}
@@ -437,7 +441,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 			
 			unsigned parentOp() {
-				return pParentOp;
+				return mParentOp;
 			}
 			
 			const unsigned mState;
@@ -463,18 +467,18 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			pState = pPacked;
 		}
 		
-		Edge createEdge(State& pState, Operator op) const {
+		Edge createEdge(State pState, Operator op) const {
 			return Edge(op, this->getMoveCost(pState, op), pState);
 		}
 		
 		void destroyEdge(Edge&) const {
 		}
 		
-		OperatorSet createOperatorSet(State const& pState) const {
+		OperatorSet createOperatorSet(unsigned pState) const {
 			return OperatorSet(this->getAdjacentCells(pState));
 		}
 		
-		size_t hash(PackedState const& pPacked) const {
+		size_t hash(PackedState pPacked) const {
 			return pPacked;
 		}
 		
@@ -482,29 +486,29 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return true;
 		}
 		
-		Cost costHeuristic(State const& pState) const {
+		Cost costHeuristic(unsigned pState) const {
 			Cost h, d;
 			this->getHeuristicValues(pState, mGoalState, h, d);
 			return h;
 		}
 		
-		Cost distanceHeuristic(State const& pState) const {
+		Cost distanceHeuristic(unsigned pState) const {
 			Cost h, d;
 			this->getHeuristicValues(pState, mGoalState, h, d);
 			return d;
 		}
 		
-		std::pair<Cost, Cost>(State const& pState) const {
+		std::pair<Cost, Cost> pairHeuristics(unsigned pState) const {
 			Cost h, d;
 			this->getHeuristicValues(pState, mGoalState, h, d);
 			return std::pair<Cost, Cost>(h, d);
 		}
 		
-		bool checkGoal(State const& pState) const {
+		bool checkGoal(unsigned pState) const {
 			return pState == mGoalState;
 		}
 
-		bool compare(State const& a, State const& b) const {
+		bool compare(unsigned a, unsigned b) const {
 			return a == b;
 		}
 
@@ -541,8 +545,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		};
 		
 		using BaseGroupTrns = std::unordered_map<BaseState, unsigned>;
-		using GroupAdj = std::vector<GroupEdge>;
 		using GroupTrns = std::vector<unsigned>;
+		
+		using GroupAdj = std::vector<GroupEdge>;
+		using LevelGroupAdj = std::vector<GroupAdj>;
 
 		static const unsigned Null_Group = (unsigned)-1;
 
@@ -563,30 +569,31 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				mBaseTrns[*it] = curgrp++;
 			}
 			
-			mGroupAdj[0] = GroupAdj(curgrp);
+			mLevelGroupAdj.push_back(LevelGroupAdj(curgrp));
 			
 			for(auto it = mDomain.stateBegin(); it != mDomain.stateEnd(); ++it) {
-				OperatorSet opset = mBaseDomain.createOperatorSet(*it);
+				OperatorSet opset = mDomain.createOperatorSet(*it);
 				
 				GroupAdj grpadj;
 				
 				for(unsigned i=0; i<opset.size(); i++) {
-					Edge edge = mBaseDomain.createEdge(*it, opset[i]);
-					grpadj.append(GroupEdge{.dst=mBaseTrns[edge.state()], .cost=edge.cost()});
-					mBaseDomain.destroyEdge(edge);
+					Edge edge = mDomain.createEdge(*it, opset[i]);
+					grpadj.push_back(GroupEdge{.dst=mBaseTrns[edge.state()], .cost=edge.cost()});
+					mDomain.destroyEdge(edge);
 				}
 				
-				mGroupAdj[mBaseTrns[*it]] = grpadj;
+				mLevelGroupAdj[0][mBaseTrns[*it]] = grpadj;
 			}
 		}
 		
 		bool prepAbtGroups() {
-			mGroupTrns.append(std::vector<GroupTrns>(mGroupAdj.top().size(), Null_Group));
+			unsigned nullGroup = Null_Group;
+			mLevelGroupTrns.push_back(GroupTrns(mLevelGroupAdj.back().size(), nullGroup));
 			
 			std::vector<std::pair<unsigned, unsigned>> hubprio;
 			
-			for(unsigned i=0; i<mGroupAdj.top().size(); i++)
-				hubprio.append(std::pair<unsigned, unsigned>(mGroupAdj.top()[i].size(), i);
+			for(unsigned i=0; i<mLevelGroupAdj.back().size(); i++)
+				hubprio.push_back(std::pair<unsigned, unsigned>(mLevelGroupAdj.back()[i].size(), i));
 			
 			std::sort(hubprio.begin(), hubprio.end(), HubPrioCmp());
 			
@@ -595,41 +602,41 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			for(unsigned i=0; i<hubprio.size(); i++) {
 				if(tryAssignGroupRec(i, 0, curAbtGrp) == 1)
-					singletonGroups.append(i);
+					singletonGroups.push_back(i);
 				curAbtGrp++;
 			}
 			
 			for(unsigned i=0; i<singletonGroups.size(); i++) {
 				
-				for(unsigned j=0; j<mGroupAdj.top()[i].size(); i++)
-					slow_assert(std::find(singletonGroups.begin(), singletonGroups.end(), mGroupAdj.top()[singletonGroups[i]][j].dst) == singletonGroups.end());
+				for(unsigned j=0; j<mLevelGroupAdj.back()[i].size(); i++)
+					slow_assert(std::find(singletonGroups.begin(), singletonGroups.end(), mLevelGroupAdj.back()[singletonGroups[i]][j].dst) == singletonGroups.end());
 			
-				if(mGroupAdj.top()[i].size() > 0) {
-					slow_assert(mGroupTrns.top()[mGroupAdj.top()[i][0]] != Null_Group);
-					mGroupTrns.top()[singletonGroups[i]] = mGroupTrns.top()[mGroupAdj.top()[singletonGroups[i]][0]];
+				if(mLevelGroupAdj.back()[i].size() > 0) {
+					slow_assert(mLevelGroupTrns.back()[mLevelGroupAdj.back()[i][0].dst] != Null_Group);
+					mLevelGroupTrns.back()[singletonGroups[i]] = mLevelGroupTrns.back()[mLevelGroupAdj.back()[singletonGroups[i]][0].dst];
 				}
 			}
 			
 			std::map<unsigned, unsigned> groupRelabel;
 			curAbtGrp = 0;
 			
-			for(unsigned i=0; i<mGroupTrns.top().size(); i++) {
-				if groupRelabel.count(mGroupTrns.top()[i]) == 0) {
-					groupRelabel[GroupTrns.top()[i]] = curAbtGrp++;
-				mGroupTrns.top()[i] = groupRelabel[mGroupTrns.top()[i]];
+			for(unsigned i=0; i<mLevelGroupTrns.back().size(); i++) {
+				if(groupRelabel.count(mLevelGroupTrns.back()[i] == 0))
+					groupRelabel[mLevelGroupTrns.back()[i]] = curAbtGrp++;
+				mLevelGroupTrns.back()[i] = groupRelabel[mLevelGroupTrns.back()[i]];
 			}
 			
 			std::map<unsigned, std::map<unsigned, Cost>> abtgroupadj; //srcgrp -> dstgrp -> edgecost
 			
-			for(unsigned i=0; i<mGroupAdj.top().size(); i++) {
-				for(unsigned j=0; j<mGroupAdj.top()[i].size(); j++) {
-					unsigned srcgrp = mGroupTrns[i];
-					unsigned dstgrp = mGroupTrns[mGroupAdj.top()[i][j]];
+			for(unsigned i=0; i<mLevelGroupAdj.back().size(); i++) {
+				for(unsigned j=0; j<mLevelGroupAdj.back()[i].size(); j++) {
+					unsigned srcgrp = mLevelGroupTrns.back()[i];
+					unsigned dstgrp = mLevelGroupTrns.back()[mLevelGroupAdj.back()[i][j].dst];
 					
 					if(srcgrp == dstgrp)
 						continue;
 					
-					Cost edgecost = mGroupAdj.top()[i][j].cost;
+					Cost edgecost = mLevelGroupAdj.back()[i][j].cost;
 					
 					if(abtgroupadj[srcgrp][dstgrp] > edgecost)
 						abtgroupadj[srcgrp][dstgrp] = edgecost;
@@ -638,11 +645,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			bool isTrivial = true;
 			
-			mGroupAdj.append(std::vector<GroupAdj>(curAbtGrp));
+			mLevelGroupAdj.push_back(LevelGroupAdj(curAbtGrp));
 			
 			for(unsigned i=0; i<curAbtGrp; i++) {
 				for(auto it=abtgroupadj[i].begin(); it != abtgroupadj[i].end(); ++it) {
-					mGroupAdj.top()[i].append(GroupEdge{.dst=it->first, .cost=it->second});
+					mLevelGroupAdj.back()[i].push_back(GroupEdge{.dst=it->first, .cost=it->second});
 					isTrivial = false;
 				}
 			}
@@ -651,15 +658,15 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		
-		unsigned tryAssignedGroupRec(unsigned i, unsigned depth, unsigned curAbtGrp) {
-			if(mGroupTrns.top()[i] != Null_Group || depth > mAbtRadius)
+		unsigned tryAssignGroupRec(unsigned i, unsigned depth, unsigned curAbtGrp) {
+			if(mLevelGroupTrns.back()[i] != Null_Group || depth > mAbtRadius)
 				return 0;
 			
-			mGroupTrns.top()[i] = curAbtGrp;
+			mLevelGroupTrns.back()[i] = curAbtGrp;
 			
 			unsigned ret = 1;
-			for(unsigned j=0; j<mGroupAdj.top()[i].size(); j++)
-				ret += tryAssignedGroupRec(mGroupAdj.top()[i][j].dst, depth+1, curAbtGrp);
+			for(unsigned j=0; j<mLevelGroupAdj.back()[i].size(); j++)
+				ret += tryAssignGroupRec(mLevelGroupAdj.back()[i][j].dst, depth+1, curAbtGrp);
 			
 			return ret;
 		}
@@ -669,16 +676,16 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		struct HubPrioCmp {
 			bool operator()(std::pair<unsigned, unsigned> const& a, std::pair<unsigned, unsigned> const& b) const {
-				if(a[0] != b[0])
-					return a[0] > b[0];
-				return a[1] < b[1];
+				if(a.first != b.first)
+					return a.first > b.first;
+				return a.second < b.second;
 			}
 		};
 		
 		BaseGroupTrns mBaseTrns;
-		std::vector<std::vector<GroupAdj>> mGroupAdj;
-		std::vector<GroupTrns> mGroupTrns;
-		BaseDomain const& mBaseDomain;
+		std::vector<LevelGroupAdj> mLevelGroupAdj;
+		std::vector<GroupTrns> mLevelGroupTrns;
+		BaseDomain const& mDomain;
 		const unsigned mAbtRadius;
 	};
 }}}

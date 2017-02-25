@@ -204,6 +204,16 @@ class StarAbtDomainStack(object):
 		for dom in self.doms[1:lvl+1]:
 			s_abt = dom.abstractState(s_abt)
 		return s_abt
+	
+
+	def _isValidBaseState(self, s):
+		return s < len(self.doms[0].cellmap.cells) and self.doms[0].cellmap.cells[s] == CELL_OPEN
+
+
+	def _iterConnectedBaseStates(self):
+		for i in range(self.doms[0].width * self.doms[0].height):
+			if self._isValidBaseState(i) and self._baseIdxConnected(i, self.doms[0].goal):
+				yield i
 
 
 	def printToFile(self, fname, markstates = None):

@@ -4,8 +4,7 @@
 #include <iostream>
 #include <cstdio>
 #include <vector>
-#include "domain/gridnav/fwd.hpp"
-#include "search/debug_walker.hpp"
+#include "domain/gridnav/blocked/graph.hpp"
 
 
 #include "util/debug.hpp"
@@ -21,15 +20,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		jConfig["goal"] = 1;
 		jConfig["radius"] = 2;
 		
-		GridNav_DomainStack_StarAbt<5,5,false,false,true> dom(jConfig);
+		GridNav_BaseDomain<4, false, false> dom(jConfig);
 		
-		std::ofstream ofs("gridnav_test_out");
-		gen_assert(ofs);
-		
-		dom.dump(ofs);
-		
-		algorithm::DebugWalker<GridNav_DomainStack_StarAbt<5,5,false,false,true>> alg(dom);
-		alg.execute();
+		StarAbtStack<GridNav_BaseDomain<4, false, false>> abtStack(dom, 2);
 	}
 
 }}}

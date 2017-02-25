@@ -9,9 +9,11 @@
 #include <string>
 #include <fstream>
 #include <map>
+#include <utility>
 
 #include "util/debug.hpp"
 #include "util/math.hpp"
+#include "util/json.hpp"
 
 #include <cstdio>
 
@@ -146,15 +148,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	template<bool Use_LifeCost>
 	class CellGraph_4 : public CellMap<> {
 		using Cost_t = int;
-		
-		struct Edge {
-			unsigned dst;
-			Cost_t cost;
-		};
-	
+
 		struct AdjacentCells {
 			unsigned n;
-			std::array<Edge, 4> adjCells;
+			std::array<unsigned, 4> adjCells;
 		};
 		
 		CellGraph_4(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
@@ -169,14 +166,18 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			Cost_t costMul = Use_LifeCost ? s/mWidth : 1;
 			
 			if(s >= mWidth && this->isOpen(s-Width))
-				adj.adjCells[adj.n++] = Edge{.dst=s-mWidth, .cost=costMul};
+				adj.adjCells[adj.n++] = s-mWidth;
 			if(s < (mHeight-1)*mWidth && this->isOpen(s+Width))
-				adj.adjCells[adj.n++] = Edge{.dst=s+mWidth, .cost=costMul};
+				adj.adjCells[adj.n++] = s+mWidth;
 			if(s%mWidth != 0 && this->isOpen(s-1))
-				adj.adjCells[adj.n++] = Edge{.dst=s-1, .cost=costMul};
+				adj.adjCells[adj.n++] = s-1;
 			if((s+1)%mWidth != 0 && this->isOpen(s+1))
-				adj.adjCells[adj.n++] = Edge{.dst=s+1, .cost=costMul};
+				adj.adjCells[adj.n++] = s+1;
 			return adj;
+		}
+		
+		Cost_t getMoveCost(unsigned src, unsigned dst) {
+			return Use_LifeCost ? src/mWidth : 1;
 		}
 
 		unsigned getHeight() {
@@ -198,13 +199,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		static constexpr Cost_t Diag_Mv_Cost = 1.41421356237309504880168872420969807857;
 
-		struct Edge {
-			unsigned dst;
-			Cost_t cost;
-		};
 		struct AdjacentCells {
 			unsigned n;
-			std::array<Edge, 8> adjCells;
+			std::array<unsigned, 8> adjCells;
 		};
 		
 		CellGraph_8(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
@@ -215,36 +212,43 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 		const AdjacentCells getAdjacentCells(unsigned s) {
 			AdjacentCells adj{.n=0};
-			
-			Cost_t costMul = Use_LifeCost ? s/mWidth : 1.0;
-			
+
 			bool vn=false, vs=false, ve=false, vw=false;
 			
 			if(s >= mWidth && this->isOpen(s-Width)) {
-				adj.adjCells[adj.n++] = Edge{.dst=s-mWidth, .cost=costMul};
+				adj.adjCells[adj.n++] = s-mWidth;
 				vn = true;
 			}
 			if(s < (mHeight-1)*mWidth && this->isOpen(s+Width)) {
-				adj.adjCells[adj.n++] = Edge{.dst=s+mWidth, .cost=costMul};
+				adj.adjCells[adj.n++] = s+mWidth;
 				vs = true;
 			}
 			if(s%mWidth != 0 && this->isOpen(s-1)) {
-				adj.adjCells[adj.n++] = Edge{.dst=s-1, .cost=costMul};
+				adj.adjCells[adj.n++] = s-1;
 				vw = true;
 			}
 			if((s+1)%mWidth != 0 && this->isOpen(s+1)) {
-				adj.adjCells[adj.n++] = Edge{.dst=s+1, .cost=costMul};
+				adj.adjCells[adj.n++] = s+1;
 				ve = true;
 			}
 			if(vn && vw && this->isOpen(s-mWidth-1))
-				adj.adjCells[adj.n++] = Edge{.dst=s-mWidth-1, .cost=costMul*Diag_Mv_Cost};
+				adj.adjCells[adj.n++] = s-mWidth-1;
 			if(vn && ve && this->isOpen(s-mWidth+1))
-				adj.adjCells[adj.n++] = Edge{.dst=s-mWidth+1, .cost=costMul*Diag_Mv_Cost};
+				adj.adjCells[adj.n++] = s-mWidth+1;
 			if(vs && vw && this->isOpen(s+mWidth-1))
-				adj.adjCells[adj.n++] = Edge{.dst=s+mWidth-1, .cost=costMul*Diag_Mv_Cost};
+				adj.adjCells[adj.n++] = s+mWidth-1;
 			if(vs && ve && this->isOpen(s+mWidth+1))
-				adj.adjCells[adj.n++] = Edge{.dst=s+mWidth+1, .cost=costMul*Diag_Mv_Cost};
+				adj.adjCells[adj.n++] = s+mWidth+1;
 			return adj;
+		}
+		
+		Cost_t getMoveCost(unsigned src, unsigned dst) {
+			Cost_t cst = Use_LifeCost ? src/mWidth : 1;
+
+			if(src%mWidth != dst%mWidth && src/mWidth != dst/mWidth)
+				cst *= Diag_Mv_Cost;
+			
+			return cst;
 		}
 		
 		unsigned getHeight() {
@@ -388,6 +392,135 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	template<unsigned Nways, bool Use_LifeCost, bool Use_Hr>
 	class CellGraph : public CellGraph_<Nways, Use_Hr> {
 		using CellGraph_<Nways, Use_Hr>::CellGraph_;
+	};
+	
+	
+	template<unsigned Nways, bool Use_LifeCost, bool Use_Hr>
+	class GridNav_BaseDomain : public CellGraph<Nways, Use_LifeCost, Use_Hr> {
+		public:
+		
+		using Base_t = CellGraph<Nways, Use_LifeCost, Use_Hr>;
+		using State = unsigned;
+		using PackedState = unsigned;
+		using Cost = typename Base_t::Cost_t;
+		using Operator = unsigned;
+		
+		
+		struct OperatorSet : public typename Base_t::AdjacentCells {
+			OperatorSet(typename Base_t::AdjacentCells const& o) :
+				Base_t::AdjacentCells(o)
+			{}
+			
+			unsigned size() {
+				return this->n;
+			}
+			
+			Operator const& operator[](unsigned i) {
+				return this->adjCells[i];
+			}
+		};
+		
+		struct Edge {
+			Edge(unsigned pState, Cost pCost, unsigned pParentOp) :
+				mState(pState),
+				mCost(pCost),
+				mParentOp(pParentOp)
+			{}
+			
+			unsigned state() {
+				return mState;
+			}
+			
+			Cost cost() {
+				return mCost;
+			}
+			
+			unsigned parentOp() {
+				return pParentOp;
+			}
+			
+			const unsigned mState;
+			const Cost mCost;
+			const unsigned mParentOp;
+		};
+		
+		
+		GridNav_BaseDomain(Json const& jConfig) :
+			Base_t(jConfig.at("height"), jConfig.at("width"), jConfig.at("map")),
+			mGoalState(jConfig.at("goal"))
+		{}
+		
+		Operator getNoOp() {
+			return (unsigned)-1;
+		}
+
+		void packState(State const& pState, PackedState& pPacked) const {
+			pPacked = pState;
+		}
+		
+		void unpackState(State& pState, PackedState const& pPacked) const {
+			pState = pPacked;
+		}
+		
+		Edge createEdge(State& pState, Operator op) const {
+			return Edge(op, this->getMoveCost(pState, op), pState);
+		}
+		
+		void destroyEdge(Edge&) const {
+		}
+		
+		OperatorSet createOperatorSet(State const& pState) const {
+			return OperatorSet(this->getAdjacentCells(pState));
+		}
+		
+		size_t hash(PackedState const& pPacked) const {
+			return pPacked;
+		}
+		
+		bool isPerfectHash() const {
+			return true;
+		}
+		
+		Cost costHeuristic(State const& pState) const {
+			Cost h, d;
+			this->getHeuristicValues(pState, mGoalState, h, d);
+			return h;
+		}
+		
+		Cost distanceHeuristic(State const& pState) const {
+			Cost h, d;
+			this->getHeuristicValues(pState, mGoalState, h, d);
+			return d;
+		}
+		
+		std::pair<Cost, Cost>(State const& pState) const {
+			Cost h, d;
+			this->getHeuristicValues(pState, mGoalState, h, d);
+			return std::pair<Cost, Cost>(h, d);
+		}
+		
+		bool checkGoal(State const& pState) const {
+			return pState == mGoalState;
+		}
+
+		bool compare(State const& a, State const& b) const {
+			return a == b;
+		}
+
+		//~ bool compare(PackedState const& a, PackedState const& b) const {
+			//~ return a == b;
+		//~ }
+		
+		void prettyPrint(State const& s, std::ostream& out) const {
+			out << "[" << s << ", " << s%this->getWidth() << ", " << s/this->getWidth() << "]";
+		}
+		
+		//~ void prettyPrint(Operator const& op, std::ostream &out) const {
+
+		//~ }
+
+		private:
+		const unsigned mGoalState;
 	};
 	
 	

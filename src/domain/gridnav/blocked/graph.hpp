@@ -403,20 +403,18 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	};
 	
 	
-	template<unsigned Nways, bool Use_LifeCost, bool Use_Hr>
-	class GridNav_BaseDomain : public CellGraph<Nways, Use_LifeCost, Use_Hr> {
+	template<typename CellGraph_t>
+	class GridNav_BaseDomain {
 		public:
-		
-		using Base_t = CellGraph<Nways, Use_LifeCost, Use_Hr>;
 		using State = unsigned;
 		using PackedState = unsigned;
-		using Cost = typename Base_t::Cost_t;
+		using Cost = typename CellGraph_t::Cost_t;
 		using Operator = unsigned;
 		
 		
-		struct OperatorSet : public Base_t::AdjacentCells {
-			OperatorSet(typename Base_t::AdjacentCells const& o) :
-				Base_t::AdjacentCells(o)
+		struct OperatorSet : public CellGraph_t::AdjacentCells {
+			OperatorSet(typename CellGraph_t::AdjacentCells const& o) :
+				CellGraph_t::AdjacentCells(o)
 			{}
 			
 			unsigned size() {
@@ -453,9 +451,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		};
 		
 		
-		GridNav_BaseDomain(Json const& jConfig) :
-			Base_t(jConfig.at("height"), jConfig.at("width"), jConfig.at("map")),
-			mGoalState(jConfig.at("goal"))
+		GridNav_BaseDomain(CellGraph_t pCellGraph, unsigned pGoalState) :
+			mCellGraph(pCellGraph),
+			mGoalState(pGoalState)
 		{}
 		
 		Operator getNoOp() {
@@ -475,14 +473,14 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		Edge createEdge(State pState, Operator op) const {
-			return Edge(op, this->getMoveCost(pState, op), pState);
+			return Edge(op, mCellGraph.getMoveCost(pState, op), pState);
 		}
 		
 		void destroyEdge(Edge&) const {
 		}
 		
 		OperatorSet createOperatorSet(unsigned pState) const {
-			return OperatorSet(this->getAdjacentCells(pState));
+			return OperatorSet(mCellGraph.getAdjacentCells(pState));
 		}
 		
 		size_t hash(PackedState pPacked) const {
@@ -495,19 +493,19 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		Cost costHeuristic(unsigned pState) const {
 			Cost h, d;
-			this->getHeuristicValues(pState, mGoalState, h, d);
+			mCellGraph.getHeuristicValues(pState, mGoalState, h, d);
 			return h;
 		}
 		
 		Cost distanceHeuristic(unsigned pState) const {
 			Cost h, d;
-			this->getHeuristicValues(pState, mGoalState, h, d);
+			mCellGraph.getHeuristicValues(pState, mGoalState, h, d);
 			return d;
 		}
 		
 		std::pair<Cost, Cost> pairHeuristics(unsigned pState) const {
 			Cost h, d;
-			this->getHeuristicValues(pState, mGoalState, h, d);
+			mCellGraph.getHeuristicValues(pState, mGoalState, h, d);
 			return std::pair<Cost, Cost>(h, d);
 		}
 		
@@ -524,7 +522,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		//~ }
 		
 		void prettyPrint(State const& s, std::ostream& out) const {
-			out << "[" << s << ", " << s%this->getWidth() << ", " << s/this->getWidth() << "]";
+			out << "[" << s << ", " << s%mCellGraph.getWidth() << ", " << s/mCellGraph.getWidth() << "]";
 		}
 		
 		//~ void prettyPrint(Operator const& op, std::ostream &out) const {
@@ -532,42 +530,92 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		//~ }
 
 		private:
+		CellGraph_t const& mCellGraph;
 		const unsigned mGoalState;
 	};
 	
 	
-	template<unsigned Nways, bool Use_LifeCost, bool Use_Hr>
+	template<typename CellGraph_t>
 	class GridNav_StarAbtStack {
-		using BaseDomain_t = GridNav_BaseDomain<Nways, Use_LifeCost, Use_Hr>;
-		using StarAbtStack_t = StarAbtStack<BaseDomain_t>;
-		using Stack_t = GridNav_StarAbtStack<Nways, Use_LifeCost, Use_Hr>;
-		
+		using BaseDomain_t = GridNav_BaseDomain<CellGraph_t>;
+		using Stack_t = GridNav_StarAbtStack<CellGraph_t>;
+
 		public:
 		
+		static const unsigned Hard_Abstract_Limit = 10;
+		
 		template<unsigned L, typename = void>
-		struct Domain_t : public typename StarAbtBase_t::StarAbtDomain<L> {
-			Domain_t(Stack_t const& pStack) :
-				StarAbtBase_t(pStack.mStarAbtStack)
+		struct Domain : public starabt::StarAbtDomain<BaseDomain_t> {
+			Domain(Stack_t const& pStack) :
+				starabt::StarAbtDomain<BaseDomain_t>(pStack.mAbtEdges.at(L), pStack.abstractBaseState(pStack.mGoalState, L)),
+				mStack(pStack)
 			{}
+			
+			unsigned createStateFromParent(unsigned bs) {
+				if(L == 1)
+					return mStack.abstractBaseState(bs, 1);
+				return mStack.mAbtTrns[L-1][bs];
+			}
+			
+			Stack_t const& mStack;
 		};
 		
 		template<typename Ign>
-		struct Domain_t<0, Ign> : public BaseDomain_t {
-			Domain_t(Stack_t const& pStack) :
-				GridNav_BaseDomain<Nways, Use_LifeCost, Use_Hr>(pStack.mjConfig)
+		struct Domain<0, Ign> : public BaseDomain_t {
+			Domain(Stack_t const& pStack) :
+				BaseDomain_t(pStack.mCellGraph, pStack.mGoalState)
 			{}
 		};
 		
-		template<unsigned L>
-		using Domain = Domain_t<L>&;
+		unsigned abstractBaseState(unsigned bs, unsigned lvl) {
+			unsigned s = mBaseTrns[bs];
+			
+			for(unsigned i=0; i<lvl; i++)
+				s = mAbtTrns[i][s];
+			
+			return s;
+		}
+		
+		unsigned softAbstractLimit() {
+			return mAbtEdges.size()-1;
+		}
+		
+		unsigned getInitState() {
+			return mInitState;
+		}
 		
 		GridNav_StarAbtStack(Json const& jConfig) :
-			mjConfig(jConfig),
-			mBaseDomain(jConfig),
-			mAbtStack(mBaseDomain)
-		{}
+			mCellGraph(jConfig.at("height"), jConfig.at("width"), jConfig.at("map")),
+			mAbtEdges(1),
+			mAbtTrns(),
+			mBaseTrns(),
+			mInitState(jConfig.at("init")),
+			mGoalState(jConfig.at("goal"))
+		{
+			BaseDomain_t dom(mCellGraph);
+			starabt::createBaseMap(dom, mBaseTrns, mAbtEdges[0]);
+			
+			mAbtTrns.push_back(std::vector<unsigned>());
+			
+			while(true) {
+				std::vector<std::vector<starabt::GroupEdge<BaseDomain_t>> abtedges;
+				std::vector<unsigned> abttrns;
+				
+				bool isTrivial = starabt::createAbstractLevel(dom, 2, mAbtEdges.back(), abttrns, abtedges);
+				if(isTrivial)
+					break;
+				
+				mAbtEdges.push_back(abtedges);
+				mAbtTrns.push_back(abttrns);
+			}
+			
+			fast_assert(softAbstractLimit() <= Hard_Abstract_Limit);
+		}
 		
-		BaseDomain_t mBaseDomain;
-		StarAbtStack_t mAbtStack;
+		CellGraph_t mCellGraph;
+		std::vector<std::vector<std::vector<starabt::GroupEdge<BaseDomain_t>>>> mAbtEdges;
+		std::vector<std::vector<unsigned>> mAbtTrns;
+		std::map<unsigned, unsigned> mBaseTrns;
+		const unsigned mInitState, mGoalState;
 	};
 }}}

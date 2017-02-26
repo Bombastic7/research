@@ -23,19 +23,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		jConfig["goal"] = 1;
 		jConfig["radius"] = 2;
 		
-		GridNav_BaseDomain<4, false, false> dom(jConfig);
-		
-		for(auto it = dom.stateBegin(); it != dom.stateEnd(); ++it) {
-			std::cout << *it << "\n";;
-		}
-		
-		std::cout << "\n";
-		
 
 		
-		StarAbtStack<GridNav_BaseDomain<4, false, false>> abtStack(dom, 2);
+		GridNav_StarAbtStack<CellGraph<4, false, false>> abtStack(jConfig);
 		
-		algorithm::DebugWalker<StarAbtStack<GridNav_BaseDomain<4, false, false>>> dbgwalker(dom);
+		algorithm::DebugWalker<StarAbtStack<GridNav_BaseDomain<4, false, false>>> dbgwalker(abtStack);
 		dbgwalker.execute();
 	}
 

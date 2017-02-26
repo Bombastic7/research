@@ -15,6 +15,7 @@
 #include "util/debug.hpp"
 #include "util/math.hpp"
 #include "util/json.hpp"
+#include "domain/star_abt.hpp"
 
 #include <cstdio>
 
@@ -59,10 +60,10 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		public:
 		
-		class StateIterator {
+		class OpenCellIterator {
 			public:
 			
-			StateIterator& operator++() {
+			OpenCellIterator& operator++() {
 				if(mIdx == mInst.getSize())
 					return *this;
 				do {
@@ -72,11 +73,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				return *this;
 			}
 			
-			bool operator==(StateIterator const& o) {
+			bool operator==(OpenCellIterator const& o) {
 				return mIdx == o.mIdx;
 			}
 			
-			bool operator!=(StateIterator const& o) {
+			bool operator!=(OpenCellIterator const& o) {
 				return mIdx != o.mIdx;
 			}
 			
@@ -87,7 +88,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			private:
 			friend CellMap<void>;
 			
-			StateIterator(CellMap<void> const& pInst, bool pAtEnd) :
+			OpenCellIterator(CellMap<void> const& pInst, bool pAtEnd) :
 				mInst(pInst),
 				mIdx(0)
 			{
@@ -136,12 +137,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return mCells[i] == Cell_t::Open;
 		}
 		
-		StateIterator stateBegin() const {
-			return StateIterator(*this, false);
+		OpenCellIterator begin() const {
+			return OpenCellIterator(*this, false);
 		}
 		
-		StateIterator stateEnd() const {
-			return StateIterator(*this, true);
+		OpenCellIterator end() const {
+			return OpenCellIterator(*this, true);
 		}
 		
 		private:
@@ -433,7 +434,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				mParentOp(pParentOp)
 			{}
 			
-			unsigned state() {
+			unsigned& state() {
 				return mState;
 			}
 			
@@ -445,9 +446,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				return mParentOp;
 			}
 			
-			const unsigned mState;
+			unsigned mState;
 			const Cost mCost;
-			const unsigned mParentOp;
+			unsigned mParentOp;
 		};
 		
 		
@@ -528,6 +529,18 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		//~ void prettyPrint(Operator const& op, std::ostream &out) const {
 
 		//~ }
+		
+		
+		using StateIterator = typename CellGraph_t::OpenCellIterator;
+		
+		StateIterator stateBegin() const {
+			return mCellGraph.begin();
+		}
+		
+		StateIterator stateEnd() const {
+			return mCellGraph.end();
+		}
+		
 
 		private:
 		CellGraph_t const& mCellGraph;
@@ -551,7 +564,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				mStack(pStack)
 			{}
 			
-			unsigned createStateFromParent(unsigned bs) {
+			unsigned abstractParentState(unsigned bs) {
 				if(L == 1)
 					return mStack.abstractBaseState(bs, 1);
 				return mStack.mAbtTrns[L-1][bs];
@@ -567,8 +580,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			{}
 		};
 		
-		unsigned abstractBaseState(unsigned bs, unsigned lvl) {
-			unsigned s = mBaseTrns[bs];
+		unsigned abstractBaseState(unsigned bs, unsigned lvl) const {
+			unsigned s = mBaseTrns.at(bs);
 			
 			for(unsigned i=0; i<lvl; i++)
 				s = mAbtTrns[i][s];
@@ -576,11 +589,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return s;
 		}
 		
-		unsigned softAbstractLimit() {
+		unsigned softAbstractLimit() const {
 			return mAbtEdges.size()-1;
 		}
 		
-		unsigned getInitState() {
+		unsigned getInitState() const {
 			return mInitState;
 		}
 		
@@ -592,16 +605,16 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mInitState(jConfig.at("init")),
 			mGoalState(jConfig.at("goal"))
 		{
-			BaseDomain_t dom(mCellGraph);
+			BaseDomain_t dom(mCellGraph, mGoalState);
 			starabt::createBaseMap(dom, mBaseTrns, mAbtEdges[0]);
 			
 			mAbtTrns.push_back(std::vector<unsigned>());
 			
 			while(true) {
-				std::vector<std::vector<starabt::GroupEdge<BaseDomain_t>> abtedges;
+				std::vector<std::vector<starabt::GroupEdge<BaseDomain_t>>> abtedges;
 				std::vector<unsigned> abttrns;
 				
-				bool isTrivial = starabt::createAbstractLevel(dom, 2, mAbtEdges.back(), abttrns, abtedges);
+				bool isTrivial = starabt::createAbstractLevel(2, mAbtEdges.back(), abttrns, abtedges);
 				if(isTrivial)
 					break;
 				

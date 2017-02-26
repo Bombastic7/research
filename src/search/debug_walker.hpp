@@ -17,13 +17,13 @@ namespace mjon661 { namespace algorithm {
 		using Operator = typename Domain::Operator;
 		
 		
-		static void doPrint(Domain& dom, State& s) {
+		static void doPrintState(Domain& dom, State& s) {
 			
 			dom.prettyPrint(s, std::cout);
 			
 		}
 		
-		static void doPrint(Domain& dom, Operator op) {
+		static void doPrintOperator(Domain& dom, Operator op) {
 			dom.prettyPrint(op, std::cout);
 			
 		}
@@ -61,7 +61,7 @@ namespace mjon661 { namespace algorithm {
 			while(true) {
 				std::cout << "\nLEVEL " << std::to_string(L) << "\n\n";
 				
-				PrintStatesAndOps<DomStack, L>::doPrint(mDomain, s);
+				PrintStatesAndOps<DomStack, L>::doPrintState(mDomain, s);
 				
 				std::cout << "\n\n";
 				
@@ -77,7 +77,7 @@ namespace mjon661 { namespace algorithm {
 					Operator op = opSet[i];
 					
 					std::cout << i << ":\n";
-					PrintStatesAndOps<DomStack, L>::doPrint(mDomain, op);
+					PrintStatesAndOps<DomStack, L>::doPrintOperator(mDomain, op);
 					
 					{
 						Edge edge = mDomain.createEdge(s, opSet[i]);
@@ -115,7 +115,7 @@ namespace mjon661 { namespace algorithm {
 		}
 
 		void doAbstraction(State& pState) {
-			if(mDomStack.softAbtLimit() == L) {
+			if(mDomStack.softAbstractLimit() == L) {
 				std::cout << "Abstraction not available (not used).\n\n";
 				return;
 			}
@@ -124,13 +124,16 @@ namespace mjon661 { namespace algorithm {
 		
 		Domain mDomain;
 		DomStack& mDomStack;
-		DebugWalkerImpl<DomStack, L+1, L+1 <= DomStack::Hard_Abt_Limit> mNxtLevelAlg;
+		DebugWalkerImpl<DomStack, L+1, L+1 <= DomStack::Hard_Abstract_Limit> mNxtLevelAlg;
 	};
 
 
 	template<typename DomStack, unsigned L>
 	struct DebugWalkerImpl<DomStack, L, false> {
 		DebugWalkerImpl(DomStack&) {}
+		
+		template<typename BS>
+		void executeFromParentState(BS const& bs) {}
 	};
 
 
@@ -146,7 +149,7 @@ namespace mjon661 { namespace algorithm {
 		void execute() {
 			typename DomStack::template Domain<0> dom(mDomStack);
 			
-			auto s0 = dom.createState();
+			auto s0 = mDomStack.getInitState();
 			
 			mImpl.doWalk(s0);
 		}

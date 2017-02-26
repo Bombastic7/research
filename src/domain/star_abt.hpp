@@ -21,24 +21,43 @@ namespace mjon661 { namespace starabt {
 			return a.dst < b.dst;
 		}
 	};
-	
-	using BaseGroupTrns = std::map<BaseState, unsigned>;
-	using GroupTrns = std::vector<unsigned>;
-	
-	using GroupAdj = std::vector<GroupEdge>;
-	using LevelGroupAdj = std::vector<GroupAdj>;
 
 	static const unsigned Null_Group = (unsigned)-1;
 	
+	template<typename BaseDomain>
+	unsigned tryAssignGroupRec(	std::vector<std::vector<GroupEdge<BaseDomain>>> const& pEdges, 
+								std::vector<unsigned>& pTrns,
+								unsigned i, 
+								unsigned depth, 
+								unsigned pAbtRadius, 
+								unsigned curAbtGrp) {
+		if(pTrns[i] != Null_Group || depth > pAbtRadius)
+			return 0;
+		
+		pTrns[i] = curAbtGrp;
+		
+		unsigned ret = 1;
+		for(unsigned j=0; j<pEdges[i].size(); j++)
+			ret += tryAssignGroupRec(pEdges, pTrns, pEdges[i][j].dst, depth+1, pAbtRadius, curAbtGrp);
+		
+		return ret;
+	}
+	
+	struct HubPrioCmp {
+		bool operator()(std::pair<unsigned, unsigned> const& a, std::pair<unsigned, unsigned> const& b) const {
+			if(a.first != b.first)
+				return a.first > b.first;
+			return a.second < b.second;
+		}
+	};
 	
 	
 	template<typename BaseDomain>
-	void createBaseMap(	BaseDomain const& 								pDomain, 
-						std::map<typename BaseDomain::State, unsigned>& pStateMap,
-						std::vector<std::vector<GroupEdge>>&		 	pEdges)
+	void createBaseMap(	BaseDomain const& 									pDomain, 
+						std::map<typename BaseDomain::State, unsigned>& 	pStateMap,
+						std::vector<std::vector<GroupEdge<BaseDomain>>>&	pEdges)
 	{
 		using BaseState = typename BaseDomain::State;
-		using Cost = typename BaseDomain::Cost;
 		using OperatorSet = typename BaseDomain::OperatorSet;
 		using Edge = typename BaseDomain::Edge;
 		
@@ -61,7 +80,7 @@ namespace mjon661 { namespace starabt {
 			for(unsigned i=0; i<opset.size(); i++) {
 				Edge edge = pDomain.createEdge(s, opset[i]);
 				pEdges[pStateMap[s]].push_back(GroupEdge<BaseDomain>{.dst=pStateMap.at(edge.state()), .cost=edge.cost()});
-				mDomain.destroyEdge(edge);
+				pDomain.destroyEdge(edge);
 			}
 			
 			std::sort(pEdges[pStateMap[s]].begin(), pEdges[pStateMap[s]].end(), GroupEdge<BaseDomain>());
@@ -71,11 +90,13 @@ namespace mjon661 { namespace starabt {
 	
 	
 	template<typename BaseDomain>
-	void createAbstractLevel(	unsigned											pAbtRadius,
+	bool createAbstractLevel(	unsigned											pAbtRadius,
 								std::vector<std::vector<GroupEdge<BaseDomain>>>& 	pEdges,		//in, edges of level being abstracted.
 								std::vector<unsigned>& 								pTrns,		//out, maps this-level state to next level state.
 								std::vector<std::vector<GroupEdge<BaseDomain>>>& 	pAbtEdges)	//out, edges of next level.
 	{
+		using Cost = typename BaseDomain::Cost;
+		
 		pTrns.clear();
 		pAbtEdges.clear();
 		
@@ -83,7 +104,7 @@ namespace mjon661 { namespace starabt {
 
 		std::vector<std::pair<unsigned, unsigned>> hubprio;
 		
-		for(unsigned i=0; i<mLevelGroupAdj.back().size(); i++)
+		for(unsigned i=0; i<pEdges.size(); i++)
 			hubprio.push_back(std::pair<unsigned, unsigned>(pEdges[i].size(), i));
 		
 		std::sort(hubprio.begin(), hubprio.end(), HubPrioCmp());
@@ -92,7 +113,7 @@ namespace mjon661 { namespace starabt {
 		std::vector<unsigned> singletonGroups;
 		
 		for(unsigned i=0; i<hubprio.size(); i++) {
-			if(tryAssignGroupRec(hubprio[i].second, 0, curAbtGrp) == 1)
+			if(tryAssignGroupRec(pEdges, pTrns, hubprio[i].second, 0, pAbtRadius, curAbtGrp) == 1)
 				singletonGroups.push_back(hubprio[i].second);
 			curAbtGrp++;
 		}
@@ -106,7 +127,7 @@ namespace mjon661 { namespace starabt {
 		curAbtGrp = 0;
 		
 		for(unsigned i=0; i<pTrns.size(); i++) {
-			if(groupRelabel.count(pTrns[i] == 0)
+			if(groupRelabel.count(pTrns[i]) == 0)
 				groupRelabel[pTrns[i]] = curAbtGrp++;
 			pTrns[i] = groupRelabel.at(pTrns[i]);
 		}
@@ -136,7 +157,7 @@ namespace mjon661 { namespace starabt {
 
 		for(unsigned i=0; i<curAbtGrp; i++) {
 			for(auto it=abtEdgeMap[i].begin(); it != abtEdgeMap[i].end(); ++it) {
-				abtEdgeMap[i].push_back(GroupEdge<BaseDomain>{.dst=it->first, .cost=it->second});
+				pAbtEdges[i].push_back(GroupEdge<BaseDomain>{.dst=it->first, .cost=it->second});
 				isTrivial = false;
 			}
 		}
@@ -144,32 +165,7 @@ namespace mjon661 { namespace starabt {
 		return isTrivial;
 	}
 	
-	unsigned tryAssignGroupRec(	std::vector<std::vector<GroupEdge<BaseDomain>>> const& pEdges, 
-								std::vector<unsigned>& pTrns,
-								unsigned i, 
-								unsigned depth, 
-								unsigned pAbtRadius, 
-								unsigned curAbtGrp) {
-		if(pTrns[i] != Null_Group || depth > pAbtRadius)
-			return 0;
-		
-		pTrns[i] = curAbtGrp;
-		
-		unsigned ret = 1;
-		for(unsigned j=0; j<pEdges[i].size(); j++)
-			ret += tryAssignGroupRec(pEdges, pTrns, pEdges[i][j].dst, depth+1, pAbtRadius, curAbtGrp);
-		
-		return ret;
-	}
-	
-	struct HubPrioCmp {
-		bool operator()(std::pair<unsigned, unsigned> const& a, std::pair<unsigned, unsigned> const& b) const {
-			if(a.first != b.first)
-				return a.first > b.first;
-			return a.second < b.second;
-		}
-	};
-	
+
 	
 	template<typename BaseDomain>
 	struct StarAbtDomain {
@@ -204,7 +200,7 @@ namespace mjon661 { namespace starabt {
 				mParentOp(pParentOp)
 			{}
 			
-			unsigned state() {
+			unsigned& state() {
 				return mState;
 			}
 			
@@ -217,12 +213,12 @@ namespace mjon661 { namespace starabt {
 			}
 			
 			private:
-			const unsigned mState;
+			unsigned mState;
 			const Cost mCost;
 			const unsigned mParentOp;
 		};
 		
-		StarAbtDomain(std::vector<std::vector<GroupEdge<BaseDomain>> const& pEdges, unsigned pGoalState) :
+		StarAbtDomain(std::vector<std::vector<GroupEdge<BaseDomain>>> const& pEdges, unsigned pGoalState) :
 			mEdges(pEdges),
 			mGoalState(pGoalState)
 		{}
@@ -301,8 +297,8 @@ namespace mjon661 { namespace starabt {
 		
 		//~ const unsigned mGoalState;
 		
-		std::vector<std::vector<GroupEdge<BaseDomain>> const& mEdges;
-		const unsigned pGoalState
+		std::vector<std::vector<GroupEdge<BaseDomain>>> const& mEdges;
+		const unsigned mGoalState;
 	};
 		
 }}

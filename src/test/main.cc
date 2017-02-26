@@ -26,8 +26,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 		
 		GridNav_StarAbtStack<CellGraph<4, false, false>> abtStack(jConfig);
-		
-		algorithm::DebugWalker<StarAbtStack<GridNav_BaseDomain<4, false, false>>> dbgwalker(abtStack);
+
+		algorithm::DebugWalker<GridNav_StarAbtStack<CellGraph<4, false, false>>> dbgwalker(abtStack);
 		dbgwalker.execute();
 	}
 

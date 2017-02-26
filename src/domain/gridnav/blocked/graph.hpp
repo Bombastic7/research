@@ -534,4 +534,40 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		private:
 		const unsigned mGoalState;
 	};
+	
+	
+	template<unsigned Nways, bool Use_LifeCost, bool Use_Hr>
+	class GridNav_StarAbtStack {
+		using BaseDomain_t = GridNav_BaseDomain<Nways, Use_LifeCost, Use_Hr>;
+		using StarAbtStack_t = StarAbtStack<BaseDomain_t>;
+		using Stack_t = GridNav_StarAbtStack<Nways, Use_LifeCost, Use_Hr>;
+		
+		public:
+		
+		template<unsigned L, typename = void>
+		struct Domain_t : public typename StarAbtBase_t::StarAbtDomain<L> {
+			Domain_t(Stack_t const& pStack) :
+				StarAbtBase_t(pStack.mStarAbtStack)
+			{}
+		};
+		
+		template<typename Ign>
+		struct Domain_t<0, Ign> : public BaseDomain_t {
+			Domain_t(Stack_t const& pStack) :
+				GridNav_BaseDomain<Nways, Use_LifeCost, Use_Hr>(pStack.mjConfig)
+			{}
+		};
+		
+		template<unsigned L>
+		using Domain = Domain_t<L>&;
+		
+		GridNav_StarAbtStack(Json const& jConfig) :
+			mjConfig(jConfig),
+			mBaseDomain(jConfig),
+			mAbtStack(mBaseDomain)
+		{}
+		
+		BaseDomain_t mBaseDomain;
+		StarAbtStack_t mAbtStack;
+	};
 }}}

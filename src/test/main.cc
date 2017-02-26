@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <vector>
 #include "domain/gridnav/blocked/graph.hpp"
+#include "domain/star_abt.hpp"
 #include "search/debug_walker.hpp"
 
 #include "util/debug.hpp"
@@ -30,10 +31,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		std::cout << "\n";
 		
-		//algorithm::DebugWalker<GridNav_BaseDomain<4, false, false>> dbgwalker(dom);
-		//dbgwalker.execute();
+
 		
 		StarAbtStack<GridNav_BaseDomain<4, false, false>> abtStack(dom, 2);
+		
+		algorithm::DebugWalker<StarAbtStack<GridNav_BaseDomain<4, false, false>>> dbgwalker(dom);
+		dbgwalker.execute();
 	}
 
 }}}

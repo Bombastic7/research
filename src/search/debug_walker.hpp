@@ -33,7 +33,7 @@ namespace mjon661 { namespace algorithm {
 
 
 	template<typename DomStack, unsigned L, bool = true>
-	struct DebugWalkerImpl : public DebugWalkerImpl<DomStack, L+1, L+1 <= DomStack::Top_Abstract_Level> {
+	struct DebugWalkerImpl {
 		
 		using Domain = typename DomStack::template Domain<L>;
 		using State = typename Domain::State;
@@ -46,15 +46,16 @@ namespace mjon661 { namespace algorithm {
 		
 		
 		DebugWalkerImpl(DomStack& pStack) :
-			DebugWalkerImpl<DomStack, L+1, L+1 <= DomStack::Top_Abstract_Level>(pStack),
 			mDomain(pStack),
-			mDomStack(pStack)
-		{
-			
-			
-			
-		}
+			mDomStack(pStack),
+			mNxtLevelAlg(pStack)
+		{}
 		
+		template<typename BS>
+		void executeFromParentState(BS const& bs) {
+			State s0 = mDomain.abstractParentState(bs);
+			doWalk(s0);
+		}
 		
 		void doWalk(State& s) {
 			while(true) {
@@ -90,23 +91,17 @@ namespace mjon661 { namespace algorithm {
 				
 				
 				std::cout << "\nCOMMAND (e opn, a, p): ";
-				
 				std::string comnd;
-				
 				std::getline(std::cin, comnd);
-				
 
 				if(comnd == "p")
 					break;
 					
 				else if(comnd == "a") {
-					doAbstraction(s, Tag<(L < DomStack::Top_Abstract_Level)>{});
+					doAbstraction(s);
 					
 				}
 				else if(comnd[0] == 'e' && comnd.size() > 2) {
-					
-					
-					
 					unsigned opn = strtol(comnd.c_str() + 2, nullptr, 10);
 					if(opn < opSet.size()) {
 						
@@ -116,36 +111,20 @@ namespace mjon661 { namespace algorithm {
 						
 					}
 				}
-				
 			}
 		}
-		
 
-		void doAbstraction(State& baseState, Tag<true>) {
-			static_assert(L < DomStack::Top_Abstract_Level, "");
-			
-			if(L == mDomStack.lastUsedAbstractLevel()) {
+		void doAbstraction(State& pState) {
+			if(mDomStack.softAbtLimit() == L) {
 				std::cout << "Abstraction not available (not used).\n\n";
 				return;
 			}
-			
-			typename DomStack::template Abstractor<L> abtor(mDomStack);
-			
-			auto abtState = abtor(baseState);
-			
-			DebugWalkerImpl<DomStack, L+1, L+1 <= DomStack::Top_Abstract_Level>::doWalk(abtState);
+			mNxtLevelAlg.executeFromParentState(pState);
 		}
-		
-
-		void doAbstraction(State& baseState, Tag<false>) {
-			static_assert(L == DomStack::Top_Abstract_Level, "");
-			
-			std::cout << "Abstraction not available.\n\n";
-		}
-		
 		
 		Domain mDomain;
 		DomStack& mDomStack;
+		DebugWalkerImpl<DomStack, L+1, L+1 <= DomStack::Hard_Abt_Limit> mNxtLevelAlg;
 	};
 
 

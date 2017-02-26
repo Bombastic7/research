@@ -40,7 +40,7 @@ class Domain(object):
 
 
 	def drawCells(self):
-		for ln in [self.cells[s:s+self.width] for s in range(0, self.size, self.width)]:
+		for ln in [self.cellmap.cells[s:s+self.width] for s in range(0, self.size, self.width)]:
 			print ''.join([str(i) for i in ln])
 
 
@@ -104,7 +104,11 @@ class StarAbtDomain(object):
 
 		groupEdges = [[] for i in range(curgrp)]
 
-		for ((src, dst), cost) in groupEdgesDict.iteritems():
+		orderedEdgeKeys = [i for i in groupEdgesDict.iterkeys()]
+		orderedEdgeKeys.sort()
+		
+		for (src, dst) in orderedEdgeKeys:
+			cost = groupEdgesDict[(src, dst)]
 			groupEdges[src].append((dst, cost))
 
 		return groupEdges, trnsFromBaseGroup
@@ -272,9 +276,12 @@ class StarAbtDomainStack(object):
 			
 class CellMap:
 	#geninfo is (height, width, blockedprob)
-	def __init__(self, mapname = None, geninfo = None):
+	def __init__(self, mapname = None, geninfo = None, packedFile = True):
 		if mapname is not None:
-			self._loadFile(mapname)
+			if packedFile:
+				self._loadFile(mapname)
+			else:
+				self._loadRawFile(mapname, geninfo)
 		elif geninfo is not None:
 			self._genRandom(geninfo)
 		else:
@@ -303,7 +310,17 @@ class CellMap:
 		with open(mapname + ".pk2") as f:
 			self.height, self.width, self.blockedprob, self.cells = cPickle.load(f)
 
+	def _loadRawFile(self, mapname, geninfo):
+		self.height = geninfo[0]
+		self.width = geninfo[1]
+		self.blockedrpob = None
+			
+		with open(mapname) as f:
+			cellstr = f.read().split()
 	
+		self.cells = [int(cellstr[i]) for i in range(self.height*self.width)]
+		
+
 	def dump(self, mapname):
 		mapinfo = (self.height, self.width, self.blockedprob, self.cells)
 		with open(mapname + ".pk2", "w") as f:

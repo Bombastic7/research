@@ -67,7 +67,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					return *this;
 				do {
 					++mIdx;
-				} while(mIdx < mInst.getSize() && mInst.isOpen(mIdx));
+				} while(mIdx < mInst.getSize() && !mInst.isOpen(mIdx));
 				
 				return *this;
 			}
@@ -93,6 +93,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			{
 				if(pAtEnd)
 					mIdx = mInst.getSize();
+				else
+					while(mIdx < mInst.getSize() && !mInst.isOpen(mIdx))
+						++mIdx;
 			}
 			
 			CellMap<void> const& mInst;
@@ -558,7 +561,67 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mAbtRadius(pAbtRadius)
 		{
 			prepBaseGroups();
-			while(prepAbtGroups()) {}
+			
+			printBaseTrns(std::cout);
+			//printGroupEdges(0, std::cout);
+			
+			while(!prepAbtGroups()) {
+			}
+			
+			for(unsigned i=0; i<mLevelGroupTrns.size(); i++) {
+				printAbtTrns(i, std::cout);
+				
+				for(unsigned h=0; h<mDomain.getHeight(); h++) {
+					for(unsigned w=0; w<mDomain.getWidth(); w++) {
+						unsigned pos = h*mDomain.getWidth()+w;
+						if(mDomain.isOpen(pos)) {
+							std::cout << abstractBaseToLevel(pos, i) % 10;
+						}
+						else {
+							std::cout << " ";
+						}
+					}
+					std::cout << "\n";
+				}
+			}
+			for(unsigned i=0; i<mLevelGroupAdj.size(); i++) {
+				printGroupEdges(i, std::cout);
+			}
+		}
+		
+		unsigned abstractBaseToLevel(BaseState const& s, unsigned lvl) {
+			unsigned a = mBaseTrns.at(s);
+			
+			for(unsigned i=0; i<lvl; i++)
+				a = mLevelGroupTrns.at(i).at(a);
+			
+			return a;
+		}
+		
+		void printBaseTrns(std::ostream& out) {
+			out << "Base trns\n";
+			for(auto it = mDomain.stateBegin(); it != mDomain.stateEnd(); ++it) {
+				mDomain.prettyPrint(*it, out);
+				out << " " << mBaseTrns.at(*it) << "\n";
+			}
+		}
+		
+		void printAbtTrns(unsigned lvl, std::ostream& out) {
+			out << "Level " << lvl << " trns\n";
+			for(unsigned i=0; i<mLevelGroupTrns.at(lvl).size(); i++) {
+				out << i << " " << mLevelGroupTrns[lvl][i] << "\n";
+			}
+		}
+		
+		void printGroupEdges(unsigned lvl, std::ostream& out) {
+			out << "Level " << lvl << " edges\n";
+			for(unsigned i=0; i<mLevelGroupAdj.at(lvl).size(); i++) {
+				out << i << ": ";
+				for(unsigned j=0; j<mLevelGroupAdj[lvl][i].size(); j++) {
+					out << "(" << mLevelGroupAdj[lvl][i][j].dst << ", " << mLevelGroupAdj[lvl][i][j].cost << ") ";
+				}
+				out << "\n";
+			}
 		}
 
 		void prepBaseGroups() {
@@ -568,9 +631,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				slow_assert(mBaseTrns.count(*it) == 0);
 				mBaseTrns[*it] = curgrp++;
 			}
-			
+
 			mLevelGroupAdj.push_back(LevelGroupAdj(curgrp));
-			
 			for(auto it = mDomain.stateBegin(); it != mDomain.stateEnd(); ++it) {
 				OperatorSet opset = mDomain.createOperatorSet(*it);
 				
@@ -578,7 +640,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				
 				for(unsigned i=0; i<opset.size(); i++) {
 					Edge edge = mDomain.createEdge(*it, opset[i]);
-					grpadj.push_back(GroupEdge{.dst=mBaseTrns[edge.state()], .cost=edge.cost()});
+					grpadj.push_back(GroupEdge{.dst=mBaseTrns.at(edge.state()), .cost=edge.cost()});
 					mDomain.destroyEdge(edge);
 				}
 				
@@ -597,22 +659,28 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			std::sort(hubprio.begin(), hubprio.end(), HubPrioCmp());
 			
+			for(unsigned i=0; i<hubprio.size(); i++) {
+				std::cout << hubprio[i].first << " " << hubprio[i].second << "\n";
+			}
+			
 			unsigned curAbtGrp = 0;
 			std::vector<unsigned> singletonGroups;
 			
 			for(unsigned i=0; i<hubprio.size(); i++) {
-				if(tryAssignGroupRec(i, 0, curAbtGrp) == 1)
-					singletonGroups.push_back(i);
+				if(tryAssignGroupRec(hubprio[i].second, 0, curAbtGrp) == 1)
+					singletonGroups.push_back(hubprio[i].second);
 				curAbtGrp++;
 			}
 			
 			for(unsigned i=0; i<singletonGroups.size(); i++) {
+				for(unsigned j=0; j<mLevelGroupAdj.back()[singletonGroups[i]].size(); j++) {
+					if(!(std::find(singletonGroups.begin(), singletonGroups.end(), mLevelGroupAdj.back()[singletonGroups[i]][j].dst) == singletonGroups.end())) {
+						slow_assert(false);
+					}
+				}
 				
-				for(unsigned j=0; j<mLevelGroupAdj.back()[i].size(); i++)
-					slow_assert(std::find(singletonGroups.begin(), singletonGroups.end(), mLevelGroupAdj.back()[singletonGroups[i]][j].dst) == singletonGroups.end());
-			
-				if(mLevelGroupAdj.back()[i].size() > 0) {
-					slow_assert(mLevelGroupTrns.back()[mLevelGroupAdj.back()[i][0].dst] != Null_Group);
+				if(mLevelGroupAdj.back()[singletonGroups[i]].size() > 0) {
+					slow_assert(mLevelGroupTrns.back()[mLevelGroupAdj.back()[singletonGroups[i]][0].dst] != Null_Group);
 					mLevelGroupTrns.back()[singletonGroups[i]] = mLevelGroupTrns.back()[mLevelGroupAdj.back()[singletonGroups[i]][0].dst];
 				}
 			}
@@ -621,9 +689,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			curAbtGrp = 0;
 			
 			for(unsigned i=0; i<mLevelGroupTrns.back().size(); i++) {
-				if(groupRelabel.count(mLevelGroupTrns.back()[i] == 0))
+				if(groupRelabel.count(mLevelGroupTrns.back()[i]) == 0)
 					groupRelabel[mLevelGroupTrns.back()[i]] = curAbtGrp++;
-				mLevelGroupTrns.back()[i] = groupRelabel[mLevelGroupTrns.back()[i]];
+				mLevelGroupTrns.back()[i] = groupRelabel.at(mLevelGroupTrns.back()[i]);
 			}
 			
 			std::map<unsigned, std::map<unsigned, Cost>> abtgroupadj; //srcgrp -> dstgrp -> edgecost
@@ -638,7 +706,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 					
 					Cost edgecost = mLevelGroupAdj.back()[i][j].cost;
 					
-					if(abtgroupadj[srcgrp][dstgrp] > edgecost)
+					if(abtgroupadj[srcgrp].count(dstgrp) == 0)
+						abtgroupadj[srcgrp][dstgrp] = edgecost;
+					else if(abtgroupadj[srcgrp][dstgrp] > edgecost)
 						abtgroupadj[srcgrp][dstgrp] = edgecost;
 				}
 			}

@@ -115,7 +115,7 @@ namespace mjon661 { namespace algorithm {
 		}
 
 		void doAbstraction(State& pState) {
-			if(mDomStack.softAbstractLimit() == L) {
+			if(DomStack::Top_Abstract_Level == L) {
 				std::cout << "Abstraction not available (not used).\n\n";
 				return;
 			}
@@ -124,7 +124,7 @@ namespace mjon661 { namespace algorithm {
 		
 		Domain mDomain;
 		DomStack& mDomStack;
-		DebugWalkerImpl<DomStack, L+1, L+1 <= DomStack::Hard_Abstract_Limit> mNxtLevelAlg;
+		DebugWalkerImpl<DomStack, L+1, L+1 <= DomStack::Top_Abstract_Level> mNxtLevelAlg;
 	};
 
 

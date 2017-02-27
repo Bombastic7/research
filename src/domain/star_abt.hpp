@@ -65,7 +65,7 @@ namespace mjon661 { namespace starabt {
 		pEdges.clear();
 		
 		unsigned curgrp = 0;
-			
+
 		for(auto it = pDomain.stateBegin(); it != pDomain.stateEnd(); ++it) {
 			slow_assert(pStateMap.count(*it) == 0);
 			pStateMap[*it] = curgrp++;
@@ -76,7 +76,7 @@ namespace mjon661 { namespace starabt {
 		for(auto it = pDomain.stateBegin(); it != pDomain.stateEnd(); ++it) {
 			BaseState s = *it;
 			OperatorSet opset = pDomain.createOperatorSet(s);
-			
+
 			for(unsigned i=0; i<opset.size(); i++) {
 				Edge edge = pDomain.createEdge(s, opset[i]);
 				pEdges[pStateMap[s]].push_back(GroupEdge<BaseDomain>{.dst=pStateMap.at(edge.state()), .cost=edge.cost()});
@@ -99,7 +99,7 @@ namespace mjon661 { namespace starabt {
 		
 		pTrns.clear();
 		pAbtEdges.clear();
-		
+
 		pTrns.resize(pEdges.size(), Null_Group);
 
 		std::vector<std::pair<unsigned, unsigned>> hubprio;
@@ -134,6 +134,7 @@ namespace mjon661 { namespace starabt {
 		
 		std::map<unsigned, std::map<unsigned, Cost>> abtEdgeMap; //srcgrp -> dstgrp -> edgecost
 		
+
 		for(unsigned i=0; i<pEdges.size(); i++) {
 			for(unsigned j=0; j<pEdges[i].size(); j++) {
 				unsigned srcgrp = pTrns[i];
@@ -154,9 +155,11 @@ namespace mjon661 { namespace starabt {
 		bool isTrivial = true;
 		
 		pAbtEdges.resize(curAbtGrp);
-
 		for(unsigned i=0; i<curAbtGrp; i++) {
-			for(auto it=abtEdgeMap[i].begin(); it != abtEdgeMap[i].end(); ++it) {
+			if(abtEdgeMap.count(i) == 0)
+				continue;
+
+			for(auto it=abtEdgeMap.at(i).begin(); it != abtEdgeMap.at(i).end(); ++it) {
 				pAbtEdges[i].push_back(GroupEdge<BaseDomain>{.dst=it->first, .cost=it->second});
 				isTrivial = false;
 			}

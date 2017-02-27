@@ -66,10 +66,22 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			OpenCellIterator& operator++() {
 				if(mIdx == mInst.getSize())
 					return *this;
+				++mIdx;
+				while(true) {
+					bool v = mIdx < mInst.getSize();
+					if(!v)
+						break;
+					
+					bool o = mInst.isOpen(mIdx);
+					if(o)
+						break;
+					++mIdx;
+				}
+				/*
 				do {
 					++mIdx;
 				} while(mIdx < mInst.getSize() && !mInst.isOpen(mIdx));
-				
+				*/
 				return *this;
 			}
 			
@@ -92,6 +104,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				mInst(pInst),
 				mIdx(0)
 			{
+				slow_assert(pInst.mCells.size() == pInst.getSize());
 				if(pAtEnd)
 					mIdx = mInst.getSize();
 				else
@@ -124,7 +137,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 		}
 		
-		std::vector<Cell_t> const& cells() {
+		std::vector<Cell_t> const& cells() const {
 			return mCells;
 		}
 		
@@ -134,7 +147,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		bool isOpen(unsigned i) const {
 			slow_assert(i < mSize);
-			return mCells[i] == Cell_t::Open;
+			int test_cells[10];
+			for(unsigned j=0; j<10; j++) {
+				test_cells[j] = (int)(mCells.at(j));
+			}
+			while(test_cells == nullptr) {}
+			return cells()[i] == Cell_t::Open;
 		}
 		
 		OpenCellIterator begin() const {
@@ -452,7 +470,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		};
 		
 		
-		GridNav_BaseDomain(CellGraph_t pCellGraph, unsigned pGoalState) :
+		GridNav_BaseDomain(CellGraph_t const& pCellGraph, unsigned pGoalState) :
 			mCellGraph(pCellGraph),
 			mGoalState(pGoalState)
 		{}
@@ -543,19 +561,19 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 
 		private:
-		CellGraph_t const& mCellGraph;
+		CellGraph_t const& mCellGraph; //CellMap iterator uses *this, but in stateBegin *this is not a CellMap instance.
 		const unsigned mGoalState;
 	};
 	
 	
-	template<typename CellGraph_t>
+	template<typename CellGraph_t, unsigned Top_Abt>
 	class GridNav_StarAbtStack {
 		using BaseDomain_t = GridNav_BaseDomain<CellGraph_t>;
-		using Stack_t = GridNav_StarAbtStack<CellGraph_t>;
+		using Stack_t = GridNav_StarAbtStack<CellGraph_t, Top_Abt>;
 
 		public:
 		
-		static const unsigned Hard_Abstract_Limit = 10;
+		static const unsigned Top_Abstract_Level = Top_Abt;
 		
 		template<unsigned L, typename = void>
 		struct Domain : public starabt::StarAbtDomain<BaseDomain_t> {
@@ -567,6 +585,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			unsigned abstractParentState(unsigned bs) {
 				if(L == 1)
 					return mStack.abstractBaseState(bs, 1);
+				slow_assert(mStack.mAbtTrns.size() >= L);
 				return mStack.mAbtTrns[L-1][bs];
 			}
 			
@@ -584,13 +603,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			unsigned s = mBaseTrns.at(bs);
 			
 			for(unsigned i=0; i<lvl; i++)
-				s = mAbtTrns[i][s];
+				s = mAbtTrns.at(i)[s];
 			
 			return s;
-		}
-		
-		unsigned softAbstractLimit() const {
-			return mAbtEdges.size()-1;
 		}
 		
 		unsigned getInitState() const {
@@ -606,23 +621,61 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mGoalState(jConfig.at("goal"))
 		{
 			BaseDomain_t dom(mCellGraph, mGoalState);
+
 			starabt::createBaseMap(dom, mBaseTrns, mAbtEdges[0]);
 			
-			mAbtTrns.push_back(std::vector<unsigned>());
-			
-			while(true) {
+			for(unsigned lvl=0; lvl<=Top_Abstract_Level; lvl++) {
 				std::vector<std::vector<starabt::GroupEdge<BaseDomain_t>>> abtedges;
 				std::vector<unsigned> abttrns;
 				
-				bool isTrivial = starabt::createAbstractLevel(2, mAbtEdges.back(), abttrns, abtedges);
-				if(isTrivial)
-					break;
-				
+				/*bool isTrivial = */starabt::createAbstractLevel(2, mAbtEdges.back(), abttrns, abtedges);
+
 				mAbtEdges.push_back(abtedges);
 				mAbtTrns.push_back(abttrns);
 			}
+
+			/*
+			std::cout << mAbtEdges.at(0).size() <<  " " << mBaseTrns.size() << "\n";
 			
-			fast_assert(softAbstractLimit() <= Hard_Abstract_Limit);
+			for(unsigned lvl=0; lvl<mAbtTrns.size(); lvl++) {
+				std::cout << ":: " << lvl << " " << mAbtTrns.at(lvl).size() << "\n";
+
+				for(unsigned i=0; i<mAbtTrns.at(lvl).size(); i++) {
+					std::cout << i << ": " << mAbtTrns.at(lvl).at(i) << "\n";
+				}
+			}
+
+			for(unsigned h=0; h<mCellGraph.getHeight(); h++) {
+				for(unsigned w=0; w<mCellGraph.getWidth(); w++) {
+					if(mCellGraph.isOpen(h*mCellGraph.getWidth()+w))
+						std::cout << " ";
+					else
+						std::cout << "0";
+				}
+				std::cout << "\n";
+			}
+
+			for(unsigned lvl=0; lvl<=softAbstractLimit(); lvl++) {
+				for(unsigned h=0; h<mCellGraph.getHeight(); h++) {
+					for(unsigned w=0; w<mCellGraph.getWidth(); w++) {
+						if(!mCellGraph.isOpen(h*mCellGraph.getWidth()+w))
+							std::cout << " ";
+						else
+							std::cout << abstractBaseState(h*mCellGraph.getWidth()+w, lvl) % 10;
+					}
+					std::cout << "\n";
+				}
+				
+				for(unsigned i=0; i<mAbtEdges.at(lvl).size(); i++) {
+					std::cout << i << ": ";
+					for(unsigned j=0; j<mAbtEdges[lvl][i].size(); j++) {
+						std::cout << "(" << mAbtEdges[lvl][i][j].dst << ", " << mAbtEdges[lvl][i][j].cost << ") ";
+					}
+					std::cout << "\n";
+					
+				}
+			}
+			*/
 		}
 		
 		CellGraph_t mCellGraph;
@@ -630,5 +683,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		std::vector<std::vector<unsigned>> mAbtTrns;
 		std::map<unsigned, unsigned> mBaseTrns;
 		const unsigned mInitState, mGoalState;
+		
 	};
 }}}

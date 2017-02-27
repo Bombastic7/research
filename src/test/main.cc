@@ -11,6 +11,10 @@
 #include "util/debug.hpp"
 #include "util/json.hpp"
 
+#include "search/hastar/v2/hastar.hpp"
+
+#include "search/solution.hpp"
+
 namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	
@@ -19,16 +23,26 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		jConfig["map"] = "gridnav_20_map";
 		jConfig["width"] = 20;
 		jConfig["height"] = 20;
-		jConfig["init"] = 1;
-		jConfig["goal"] = 1;
+		jConfig["init"] = 9;
+		jConfig["goal"] = 380;
 		jConfig["radius"] = 2;
 		
 
 		
 		GridNav_StarAbtStack<CellGraph<4, false, false>, 3> abtStack(jConfig);
 
-		algorithm::DebugWalker<GridNav_StarAbtStack<CellGraph<4, false, false>, 3>> dbgwalker(abtStack);
-		dbgwalker.execute();
+		//algorithm::DebugWalker<GridNav_StarAbtStack<CellGraph<4, false, false>, 3>> dbgwalker(abtStack);
+		//dbgwalker.execute();
+		
+		auto s0 = abtStack.getInitState();
+		
+		algorithm::hastarv2::HAstar_StatsSimple<GridNav_StarAbtStack<CellGraph<4, false, false>, 3>> hastar_alg(abtStack, Json());
+		
+		Solution<GridNav_StarAbtStack<CellGraph<4, false, false>, 3>> sol;
+		
+		hastar_alg.execute(s0, sol);
+		
+		sol.printSolution(abtStack, std::cout);
 	}
 
 }}}

@@ -7,34 +7,36 @@
 
 
 namespace mjon661 {
-	template<typename Domain>
+	template<typename D>
 	struct Solution {
-		using Cost = typename Domain::Cost;
-		using State = typename Domain::State;
-		using Operator = typename Domain::Operator;
-		using OperatorSet = typename Domain::OperatorSet;
-		using Edge = typename Domain::Edge;
+		using BD = typename D::template Domain<0>;
+		using Cost = typename BD::Cost;
+		using State = typename BD::State;
+		using Operator = typename BD::Operator;
+		using OperatorSet = typename BD::OperatorSet;
+		using Edge = typename BD::Edge;
 		
 		
 		
-		void printSolution(Domain pDomain, std::ostream& out) {	
+		void printSolution(D const& pStack, std::ostream& out) {	
+			BD dom(pStack);
 			
 			for(unsigned i=0; i<states.size(); i++) {
 				out << "STATE " << i << ": \n";
-				pDomain.prettyPrint(states[i], out);
+				dom.prettyPrint(states[i], out);
 				
 				out << "\n";
 				
 				if(i < operators.size()) {
 					out << "OP " << i << ": \n";
-					pDomain.prettyPrint(operators[i], out);
+					dom.prettyPrint(operators[i], out);
 					out << "\n";
 				}
 			}
 		}
 		
-		template<typename D>
-		Cost pathCost(D& pDomStack) {
+		
+		Cost pathCost(D& pStack) {
 
 			if(states.size() == 0)
 				return 0;
@@ -43,7 +45,7 @@ namespace mjon661 {
 			
 			State s0 = states[0];
 			
-			Domain dom(pDomStack);
+			BD dom(pStack);
 
 			Cost pthcst = 0;
 			

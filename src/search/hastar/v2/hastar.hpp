@@ -27,14 +27,15 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		HAstar(DomStack& pStack, Json const& jConfig) :
 			mStatsManager(),
-			mAlgo(pStack, jConfig, mStatsManager)
+			mAlgo(pStack, jConfig, mStatsManager),
+			mStack(pStack)
 		{
 			
 		}
 		
 		
-		void execute(Solution<BaseDomain>& pSol) {
-			mAlgo.doSearch(pSol);
+		void execute(State const& s0, Solution<DomStack>& pSol) {
+			mAlgo.doSearch(s0, pSol);
 		}
 
 		Json report() {
@@ -51,6 +52,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 
 		StatsManager mStatsManager;
 		HAstar_Base<DomStack, Top_Abt_Level_Used, StatsManager> mAlgo;
+		DomStack const& mStack;
 		
 	};
 	

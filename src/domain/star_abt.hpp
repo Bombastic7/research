@@ -178,7 +178,8 @@ namespace mjon661 { namespace starabt {
 		using Cost = typename BaseDomain::Cost;
 		using Operator = unsigned;
 		
-
+		static const bool Is_Perfect_Hash = true;
+		
 		struct OperatorSet {
 			OperatorSet(std::vector<GroupEdge<BaseDomain>> const& pAdj) :
 				mAdj(pAdj)
@@ -231,19 +232,19 @@ namespace mjon661 { namespace starabt {
 			//~ return doAbstractParentState(bs, LevelTag<L>{});
 		//~ }
 		
-		unsigned packState(unsigned i) {
-			return i;
+		void packState(unsigned s, unsigned& p) const {
+			p = s;
 		}
 		
-		unsigned unpackState(unsigned i) {
-			return i;
+		void unpackState(unsigned& s, unsigned p) const {
+			s = p;
 		}
 		
-		OperatorSet createOperatorSet(unsigned pState) {
+		OperatorSet createOperatorSet(unsigned pState) const {
 			return OperatorSet(mEdges[pState]);
 		}
 		
-		Edge createEdge(unsigned pState, unsigned op) {
+		Edge createEdge(unsigned pState, unsigned op) const {
 			unsigned revop = Null_Group;
 			unsigned dst = mEdges[pState][op].dst;
 			
@@ -261,16 +262,12 @@ namespace mjon661 { namespace starabt {
 		}
 		
 		
-		unsigned getNoOp() {
+		unsigned getNoOp() const {
 			return (unsigned)-1;
 		}
 
-		size_t hash(PackedState pPacked) const {
+		size_t hash(PackedState const& pPacked) const {
 			return pPacked;
-		}
-		
-		bool isPerfectHash() const {
-			return true;
 		}
 
 		bool checkGoal(unsigned pState) const {

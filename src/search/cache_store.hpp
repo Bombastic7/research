@@ -41,7 +41,7 @@ namespace mjon661 { namespace algorithm {
 									PackedState, 
 									StoreOps,
 									StoreOps,
-									Domain::Hash_Range>;
+									Domain::Is_Perfect_Hash>;
 
 		using Pool_t = NodePool<CacheEntry, typename Store_t::Wrapped_t>;
 		

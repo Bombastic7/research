@@ -82,7 +82,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 										PackedState, 
 										ClosedOps,
 										ClosedOps,
-										Domain::Hash_Range>;
+										Domain::Is_Perfect_Hash>;
 									  
 		using NodePool_t = NodePool<Node, typename ClosedList_t::Wrapped_t>;
 		
@@ -94,8 +94,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
-			mNodePool			(),
-			mInitState			(mDomain.createState())
+			mNodePool			()
 		{}
 
 		
@@ -113,20 +112,20 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		}
 		
 		
-		void doSearch(Solution<Domain>& pSolution) {
+		void doSearch(State const& s0, Solution<D>& pSolution) {
 				
 			{
 				Node* n0 = mNodePool.construct();
 
 				n0->g = 		Cost(0);
-				n0->in_op = 	mDomain.noOp;
-				n0->parent_op = mDomain.noOp;
+				n0->in_op = 	mDomain.getNoOp();
+				n0->parent_op = mDomain.getNoOp();
 				n0->parent = 	nullptr;
 				
-				mAbtSearch.doSearch(mInitState, n0->f);
+				mAbtSearch.doSearch(s0, n0->f);
 				//n0->f = mAbtSearch.doSearch(mInitState);
 				
-				mDomain.packState(mInitState, n0->pkd);
+				mDomain.packState(s0, n0->pkd);
 
 				mOpenList.push(n0);
 				mClosedList.add(n0);
@@ -151,7 +150,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		
 		private:
 		
-		void prepareSolution(Solution<Domain>& sol, Node* pGoalNode) {
+		void prepareSolution(Solution<D>& sol, Node* pGoalNode) {
 			std::vector<Node*> reversePath;
 			
 			for(Node *n = pGoalNode; n; n = n->parent)
@@ -169,7 +168,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				if(i != reversePath.size()-1)
 					sol.operators.push_back(reversePath[i]->in_op);	
 				else
-					fast_assert(reversePath[i]->in_op == mDomain.noOp);
+					fast_assert(reversePath[i]->in_op == mDomain.getNoOp());
 			}
 		}
 		
@@ -252,7 +251,5 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 		OpenList_t 				mOpenList;
 		ClosedList_t 			mClosedList;
 		NodePool_t 				mNodePool;
-		
-		const State		 		mInitState;
 	};
 }}}

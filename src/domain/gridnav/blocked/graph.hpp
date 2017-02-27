@@ -430,6 +430,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		using Cost = typename CellGraph_t::Cost_t;
 		using Operator = unsigned;
 		
+		static const bool Is_Perfect_Hash = true;
 		
 		struct OperatorSet : public CellGraph_t::AdjacentCells {
 			OperatorSet(typename CellGraph_t::AdjacentCells const& o) :
@@ -475,11 +476,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mGoalState(pGoalState)
 		{}
 		
-		Operator getNoOp() {
+		Operator getNoOp() const {
 			return (unsigned)-1;
 		}
 		
-		State getGoalState() {
+		State getGoalState() const {
 			return mGoalState;
 		}
 
@@ -504,10 +505,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		size_t hash(PackedState pPacked) const {
 			return pPacked;
-		}
-		
-		bool isPerfectHash() const {
-			return true;
 		}
 		
 		Cost costHeuristic(unsigned pState) const {
@@ -568,10 +565,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	template<typename CellGraph_t, unsigned Top_Abt>
 	class GridNav_StarAbtStack {
-		using BaseDomain_t = GridNav_BaseDomain<CellGraph_t>;
-		using Stack_t = GridNav_StarAbtStack<CellGraph_t, Top_Abt>;
-
 		public:
+		using BaseDomain_t = GridNav_BaseDomain<CellGraph_t>;
+		using Stack_t = GridNav_StarAbtStack<CellGraph_t, Top_Abt>;		
 		
 		static const unsigned Top_Abstract_Level = Top_Abt;
 		
@@ -582,7 +578,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				mStack(pStack)
 			{}
 			
-			unsigned abstractParentState(unsigned bs) {
+			unsigned abstractParentState(unsigned bs) const {
 				if(L == 1)
 					return mStack.abstractBaseState(bs, 1);
 				slow_assert(mStack.mAbtTrns.size() >= L);

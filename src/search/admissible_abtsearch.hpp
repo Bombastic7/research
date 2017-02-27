@@ -34,8 +34,7 @@ namespace mjon661 { namespace algorithm {
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
 		using StatsAcc = typename StatsManager::template StatsAcc<L>;
-		
-		using BaseAbstractor = typename D::template Abstractor<L-1>;
+
 		using BaseState = typename D::template Domain<L-1>::State;
 
 
@@ -118,7 +117,7 @@ namespace mjon661 { namespace algorithm {
 										PackedState, 
 										ClosedOps,
 										ClosedOps,
-										Domain::Hash_Range>;
+										Domain::Is_Perfect_Hash>;
 									  
 		using NodePool_t = NodePool<Node, typename ClosedList_t::Wrapped_t>;
 		
@@ -127,7 +126,6 @@ namespace mjon661 { namespace algorithm {
 		AdmissibleAbtSearch(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
 			mStatsAcc			(pStats),
 			mAbtSearch			(pDomStack, jConfig, pStats),
-			mAbtor				(pDomStack),
 			mDomain				(pDomStack),
 			mDomStack			(pDomStack),
 			mOpenList			(OpenOps()),
@@ -161,11 +159,7 @@ namespace mjon661 { namespace algorithm {
 		
 		bool doSearch(BaseState const& pBaseState, PrimVal_t& out_h) {
 			{
-				if(mDomStack.lastUsedAbstractLevel() == L-1) {
-					out_h = 0;
-					return false;
-				}
-				State s0 = mAbtor(pBaseState);
+				State s0 = mDomain.abstractParentState(pBaseState);
 				PackedState pkd0;
 				
 				mDomain.packState(s0, pkd0);
@@ -197,8 +191,8 @@ namespace mjon661 { namespace algorithm {
 				n0->pkd =		pkd0;
 				n0->x() = 		Cost(0);
 				n0->y() = 		ent->h;
-				n0->in_op = 	mDomain.noOp;
-				n0->parent_op = mDomain.noOp;
+				n0->in_op = 	mDomain.getNoOp();
+				n0->parent_op = mDomain.getNoOp();
 				n0->parent = 	nullptr;
 
 				mOpenList.push(n0);
@@ -369,7 +363,6 @@ namespace mjon661 { namespace algorithm {
 
 		StatsAcc				mStatsAcc;
 		AbtSearch				mAbtSearch;
-		BaseAbstractor			mAbtor;
 		const Domain			mDomain;
 		D const&				mDomStack;
 		
@@ -389,22 +382,11 @@ namespace mjon661 { namespace algorithm {
 		using Cost = typename Domain::Cost;
 		using State = typename Domain::State;
 		
-		template<bool B, typename = void>
-		struct PVtype {
-			using type = Cost;
-		};
-		
-		template<typename Ign>
-		struct PVtype<false, Ign> {
-			using type = unsigned;
-		};
-		
-		using PrimVal_t = typename PVtype<Min_Cost>::type;
-		
-		
+
 		AdmissibleAbtSearch(D& pDomStack, Json const&, StatsManager& pStats) {}
 		
-		bool doSearch(State const&, PrimVal_t& out_h) {
+		template<typename PV>
+		bool doSearch(State const&, PV& out_h) {
 			out_h = 0;
 			return true;
 		}

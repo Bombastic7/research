@@ -56,6 +56,9 @@ namespace mjon661 {
 			size_t h = mHasher(e);
 			unsigned idx = static_cast<unsigned>(h);
 			
+			if(mTableSize <= idx)
+				resize(idx+1);
+			
 			slow_assert(idx < mTableSize, "%u %u", idx, mTableSize);
 			slow_assert(!mHashTable[idx]);
 			
@@ -84,8 +87,14 @@ namespace mjon661 {
 			mUsedIndices.clear();
 			mFill = 0;
 
+			glacial_assert(check_clear());
+		}
+		
+		bool check_clear() {
 			for(unsigned i=0; i<mTableSize; i++)
-				glacial_assert(!mHashTable[i]);
+				if(mHashTable[i])
+					return false;
+			return true;
 		}
 		
 		unsigned getMaxBucketLength() {
@@ -158,6 +167,23 @@ namespace mjon661 {
 	
 		private:
 		friend class iterator;
+		
+		void resize(unsigned pMinSize) {
+			unsigned newSz = mTableSize;
+			while(newSz < pMinSize) newSz *= 2;
+			
+			Wrapped_t** newTable = new Wrapped_t*[newSz];
+			std::fill(newTable, newTable+newSz, nullptr);
+			
+			for(unsigned i=0; i<mUsedIndices.size(); i++) {
+				unsigned idx = mUsedIndices[i];
+				newTable[idx] = mHashTable[idx];
+			}
+			
+			delete[] mHashTable;
+			mHashTable = newTable;
+			mTableSize = newSz;
+		}
 		
 		Wrapped_t** mHashTable;
 		FastVector<unsigned> mUsedIndices;

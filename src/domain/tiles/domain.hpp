@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "util/debug.hpp"
@@ -25,23 +26,17 @@
 namespace mjon661 { namespace tiles {
 
 	
-	template<unsigned H, unsigned W, bool Use_Weight, bool Use_H>
-	struct CompleteTilesBase {
+	template<unsigned H, unsigned W, bool Use_Weight>
+	struct CompleteTilesDomain_Manhat {
 
+		using Cost = cost_t;
+		using Operator = int;
 		
-		template<bool, typename = void>
-		struct StateImpl : public BoardStateV<H,W> {
-			using BoardStateV<H,W>::BoardStateV;
-			
-			cost_t get_h() const {return 0;} 
-			cost_t get_d() const {return 0;} 
-			void set_h(cost_t) {} 
-			void set_d(cost_t) {}
-		};
-		
-		template<typename Ign>
-		struct StateImpl<true, Ign> : public BoardStateV<H,W> {
-			using BoardStateV<H,W>::BoardStateV;
+		static const bool Is_Perfect_Hash = true;
+
+
+		struct State : public BoardState<H,W> {
+			using BoardState<H,W>::BoardState;
 			
 			cost_t get_h() const {return h;} 
 			cost_t get_d() const {return d;} 
@@ -50,28 +45,62 @@ namespace mjon661 { namespace tiles {
 			
 			cost_t h, d;
 		};
+
+		using PackedState = typename State::packed_t;
 		
+		struct OperatorSet {
+			OperatorSet(unsigned i) :
+				n(0),
+				mvs()
+			{
+				if(i >= W) mvs[n++] = i - W;
+				if(i < (H-1)*W) mvs[n++] = i + W;
+				if(i % W != 0) mvs[n++] = i-1;
+				if((i+1) % W != 0) mvs[n++] = i+1;
+			}
+			
+			unsigned size() {
+				return n;
+			}
+			
+			unsigned operator[](unsigned i) {
+				return mvs[i];
+			}
+			
+			private:
+			unsigned n;
+			std::array<unsigned, 4> mvs;
+		};
+		
+		struct Edge {
+			Edge(State& pState, Cost pCost, Operator pParentOp, Cost dh, Cost dd) :
+				mState(pState), mCost(pCost), mParentOp(pParentOp), mdh(dh), mdd(dd)
+			{}
+				
+			State& state() {
+				return mState;
+			}
+			
+			Cost cost() {
+				return mCost;
+			}
+			
+			Operator parentOp() {
+				return mParentOp;
+			}
+			
+			State& mState;
+			Cost mCost;
+			Operator mParentOp;
+			Cost mdh, mdd;
+		};
 		
 
-		
-		using state_t = StateImpl<Use_H>;
-
-		using packed_t = typename state_t::packed_t;
-		
-		static const size_t Max_Packed = state_t::Max_Packed;
-		
-		
-		CompleteTilesBase(BoardStateV<H,W> const& pInitState, BoardStateV<H,W> const& pGoalState) :
+		CompleteTilesDomain_Manhat(BoardState<H,W> const& pGoalState) :
 			mManhattan(pGoalState),
-			mInitState(pInitState),
 			mGoalState(pGoalState)
 		{
 			cost_t cst_h, cst_d;
-			
-			mManhattan.eval(mInitState, cst_h, cst_d);
-			mInitState.set_h(cst_h);
-			mInitState.set_d(cst_d);
-			
 			mManhattan.eval(mGoalState, cst_h, cst_d);
 			mGoalState.set_h(cst_h);
 			mGoalState.set_d(cst_d);
@@ -79,11 +108,16 @@ namespace mjon661 { namespace tiles {
 			fast_assert(cst_h == cst_d  && cst_d == 0);
 		}
 		
-		state_t doCreateState() const {
-			return mInitState;
+		
+		Operator getNoOp() {
+			return -1;
 		}
 		
-		void doUnpackState(state_t& pState, packed_t const& pkd) const {
+		void packState(State const& pState, PackedState& pkd) const {
+			pkd = pState.getPacked(pState);
+		}
+		
+		void unpackState(state_t& pState, PackedState const& pkd) const {
 			pState.fromPacked(pkd);
 			
 			cost_t cst_h, cst_d;
@@ -92,9 +126,28 @@ namespace mjon661 { namespace tiles {
 			pState.set_h(cst_h);
 			pState.set_d(cst_d);
 		}
+		
+		OperatorSet createOperatorSet(State const& s) {
+			return OperatorSet(s.getBlankPos());
+		}
+		
+		Edge createEdge(State& s, Operator op) {
+			Cost dh, dd;
+			mManhattan.increment(op, s.getBlankPos(), s[op], dh, dd);
+			
+			s.set_h(s.get_h() + dh);
+			s.set_d(s.get_d() + dd);
 
-		cost_t getMoveCost(state_t& pState, idx_t op) const {
-			return Use_Weight ? pState.getBlankPos() : 1;
+			Operator oldblank = s.getBlankPos();
+			s.moveBlank(op);
+			
+			return Edge(s, Use_Weight ? op : 1, oldblank, dh, dd);
+		}
+		
+		void destroyEdge(Edge& e) {
+			e.mState.set_h(pState.get_h() - e.mdh);
+			e.mState.set_d(pState.get_d() - e.mdd);
+			e.mState.moveBlank(e.mParentOp);
 		}
 		
 		void prettyPrint(state_t const& pState, std::ostream& out) const {
@@ -102,58 +155,178 @@ namespace mjon661 { namespace tiles {
 			out << "(h, d): (" << pState.get_h() << ", " << pState.get_d() << ")\n";
 		}
 		
-		size_t doHash(packed_t const& pkd) const {
+		size_t doHash(PackedState const& pkd) const {
 				return pkd;
 		}
 		
-		void performMove(state_t& pState, idx_t op) const {
-			if(Use_H) {
-				cost_t dh, dd;
-				mManhattan.increment(op, pState.getBlankPos(), pState[op], dh, dd);
-				
-				pState.set_h(pState.get_h() + dh);
-				pState.set_d(pState.get_d() + dd);
-			}
-			pState.moveBlank(op);
+		bool checkGoal(State const& pState) const {
+			return pState == mGoalState;
 		}
 
-		
-		cost_t getVal_h(state_t const& pState) const {
+		Cost costHeuristic(State const& pState) const {
 			return pState.get_h();
 		}
 		
-		cost_t getVal_d(state_t const& pState) const {
+		Cost distanceHeuristic(State const& pState) const {
 			return pState.get_d();
 		}
 		
-		bool doCheckGoal(state_t const& pState) const {
-			return pState == mGoalState;
+		std::pair<Cost, Cost> pairHeuristics(State const& pState) const {
+			return std::pair<Cost, Cost>(pState.get_h(), pState.get_d());
 		}
 		
 
 		private:
 		const Manhattan<H,W,Use_Weight> mManhattan;
-		state_t mInitState, mGoalState;
+		state_t mGoalState;
 	};
 	
 	
 	
 	
-	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight>
-	struct SubsetTilesBase {
+	template<unsigned H, unsigned W, bool Use_Weight>
+	struct CompleteTilesDomain_NoH {
 		
-		using state_t = BoardStateP<H, W, Sz>;
+		using Cost = cost_t;
+		using Operator = int;
+		
+		static const bool Is_Perfect_Hash = true;
 
-		using packed_t = typename state_t::packed_t;
-		
-		static const size_t Max_Packed = state_t::Max_Packed;
 
+		using State = BoardState<H,W>;
+		using PackedState = typename State::packed_t;
 		
-		SubsetTilesBase(BoardStateV<H,W> const& pGoalStateV, IndexMap<H*W, Sz> const& pMap) :
-			mGoalState(prepGoalState(pGoalStateV, pMap)),
-			mMap(pMap)
+		struct OperatorSet {
+			OperatorSet(unsigned i) :
+				n(0),
+				mvs()
+			{
+				if(i >= W) mvs[n++] = i - W;
+				if(i < (H-1)*W) mvs[n++] = i + W;
+				if(i % W != 0) mvs[n++] = i-1;
+				if((i+1) % W != 0) mvs[n++] = i+1;
+			}
+			
+			unsigned size() {
+				return n;
+			}
+			
+			unsigned operator[](unsigned i) {
+				return mvs[i];
+			}
+			
+			private:
+			unsigned n;
+			std::array<unsigned, 4> mvs;
+		};
+		
+		struct Edge {
+			Edge(State& pState, Cost pCost, Operator pParentOp) :
+				mState(pState), mCost(pCost), mParentOp(pParentOp)
+			{}
+				
+			State& state() {
+				return mState;
+			}
+			
+			Cost cost() {
+				return mCost;
+			}
+			
+			Operator parentOp() {
+				return mParentOp;
+			}
+			
+			State& mState;
+			Cost mCost;
+			Operator mParentOp;
+		};
+		
+
+		CompleteTilesDomain_NoH(BoardState<H,W> const& pGoalState) :
+			mGoalState(pGoalState)
 		{}
 		
+		
+		Operator getNoOp() {
+			return -1;
+		}
+		
+		void packState(State const& pState, PackedState& pkd) const {
+			pkd = pState.getPacked(pState);
+		}
+		
+		void unpackState(state_t& pState, PackedState const& pkd) const {
+			pState.fromPacked(pkd);
+		}
+		
+		OperatorSet createOperatorSet(State const& s) {
+			return OperatorSet(s.getBlankPos());
+		}
+		
+		Edge createEdge(State& s, Operator op) {
+			Operator oldblank = s.getBlankPos();
+			s.moveBlank(op);
+			
+			return Edge(s, Use_Weight ? op : 1, oldblank);
+		}
+		
+		void destroyEdge(Edge& e) {
+			e.mState.moveBlank(e.mParentOp);
+		}
+		
+		void prettyPrint(state_t const& pState, std::ostream& out) const {
+			pState.prettyPrint(out);
+		}
+		
+		size_t doHash(PackedState const& pkd) const {
+				return pkd;
+		}
+		
+		bool checkGoal(State const& pState) const {
+			return pState == mGoalState;
+		}
+
+		Cost costHeuristic(State const& pState) const {
+			return 0;
+		}
+		
+		Cost distanceHeuristic(State const& pState) const {
+			return 0;
+		}
+		
+		std::pair<Cost, Cost> pairHeuristics(State const& pState) const {
+			return std::pair<Cost, Cost>(0, 0);
+		}
+		
+
+		private:
+		state_t mGoalState;
+	};
+	
+	
+	
+	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight>
+	struct SubsetTilesBase {
+		using Cost = cost_t;
+		using Operator = int;
+		
+		using State = SubsetBoardState<H, W, Sz>;
+		using PackedState = typename State::packed_t;
+		
+		static const bool Is_Perfect_Hash = true;
+		
+		SubsetTilesBase(std::array<unsigned, H*W> const& pTilesDropLevel, BoardState<H,W> const& pBaseGoalState) :
+			mIdxMap(pTilesDropLevel),
+			mGoalState(prepGoalState(pBaseGoalState)
+		{}
+		
+		template<typename BS>
+		State abstractParentState(BS const& bs) {
+			State s;
+			
+			
+		}
 		state_t doCreateState() const {
 			gen_assert(false);
 			return state_t();

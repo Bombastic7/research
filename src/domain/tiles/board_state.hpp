@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <iostream>
 #include <vector>
@@ -15,7 +16,7 @@ namespace mjon661 { namespace tiles {
 	
 	//Stores tiles as array[position] = tile at that position.
 	template<int H, int W>
-	struct BoardStateV : public Permutation<H*W, H*W> {
+	struct BoardState : public Permutation<H*W, H*W> {
 		static_assert(H > 0 && W > 0, "");
 		
 		using base_t = Permutation<H*W, H*W>;
@@ -23,21 +24,17 @@ namespace mjon661 { namespace tiles {
 		using packed_t = typename base_t::Rank_t;
 		
 		static const size_t Max_Packed = base_t::maxRankTrunc();
+
+		BoardState() = default;
 		
-		
-		
-		BoardStateV() = default;
-		
-		BoardStateV(BoardStateV<H,W> const& o) = default;
-		
-		BoardStateV(std::array<tile_t, H*W> const& o) :
+		BoardState(std::array<tile_t, H*W> const& o) :
 			base_t(o)
 		{
 			initBlankPos();
 			slow_assert(base_t::valid());
 		}
 		
-		BoardStateV(std::vector<tile_t> const& pVec) :
+		BoardState(std::vector<tile_t> const& pVec) :
 			base_t(pVec.begin(), pVec.end())
 		{
 			initBlankPos();
@@ -94,109 +91,140 @@ namespace mjon661 { namespace tiles {
 		idx_t mBlankPos;
 	};
 	
-	
-	
-	
-	
-	
-	// Stores the positions of Sz tiles only, the other N-Sz are ignored.
-	// To get the positions of tile t, get t's index idx ([0, Sz-1]), then this[idx] = t's position.
-	// tile 0 (the blank) must always be included, and will always have array index 0.
-	//
-	// The mapping of indices to tiles is not stored here. To execute a move of the blank, only the index of 
-	//  the blank is needed.
-	//
-	// Stored as a k-permutation of N (where k == Sz).
-	template<int H, int W, int Sz>
-	struct BoardStateP : public Permutation<H*W, Sz> {
+	template<unsigned N, unsigned Sz>
+	struct IndexMap {
 		
-		using base_t = Permutation<H*W, Sz>;
-		using packed_t = typename base_t::Rank_t;
-		
-		static const size_t Max_Packed = base_t::maxRankTrunc();
-		static_assert(base_t::maxRankTrunc() == static_data::Factorial<H*W, Sz>::getValue()-1, "");
-		
-		BoardStateP() = default;
-		
-		BoardStateP(std::array<tile_t, Sz> const& pPosArray) :
-			base_t(pPosArray)
-		{}
-		
-		BoardStateP(BoardStateV<H, W> const& pV, IndexMap<H*W, Sz> const& pMap) {
-			int nmapped = 0;
+		static const unsigned Null_Idx = (unsigned)-1;
+
+		IndexMap(std::array<unsigned, N> const& pTileDropLevel, unsigned pLevel) {
+			std::fill(mIdxOfTile.begin(), mIdxOfTile.end(), Null_Idx);
 			
-			for(int i=0; i<H*W; i++) {
-				tile_t t = pV[i];
-				
-				if(pMap.isMapped(t)) {
-					(*this)[pMap.indexOf(t)] = (tile_t) i;
-					nmapped++;
+			unsigned pos = 0;
+			
+			for(unsigned t=1; t<N; t++) {
+				if(pTileDropLevel[t] >= pLevel) {
+					fast_assert(pos < Sz);
+					mTileAtIdx[pos] = i;
+					mIdxOfTile[i] = pos;
+					++pos;
 				}
 			}
 			
-			slow_assert(nmapped == Sz);
-		}
-
-
-		// If a tile has board position pPos,
-		// set out = array index where that tile's position is recorded and return true.
-		bool tryFindAt(idx_t pPos, idx_t& out) const {
+			fast_assert(pos == Sz);
 			
-			for(idx_t i=0; i<Sz; i++)
-				if((*this)[i] == pPos) {
-					out = i;
-					return true;
-				}
-			
-			return false;
+			//for(unsigned i=0; i<Sz; i++)
 		}
 		
-		void moveBlank(idx_t dest) {
-			idx_t idxOfCollide;
-			
-			if(tryFindAt(dest, idxOfCollide))
-				(*this)[idxOfCollide]  = (*this)[0];
-			
-			(*this)[0] = dest;
-			slow_assert(this->valid());
+		unsigned indexOf(tile_t t) {
+			slow_assert(t < N);
+			i = mIdxOfTile[t];
+			slow_assert(i != Null_Idx);
+			return i;
 		}
 		
-		packed_t getPacked() const {
-			return base_t::getRank();
+		tile_t tileAt(unsigned i) {
+			slow_assert(i < Sz);
+			return mTileAtIdx[i];
 		}
 		
-		void fromPacked(packed_t const& pkd) {
-			base_t::setRank(pkd);
+		bool isMapped(tile_t t) {
+			return mIdxOfTile[t] != Null_Idx;
 		}
 		
-		idx_t getBlankPos() const {
-			return (*this)[0];
-		}
+		private:
+		std::array<tile_t, Sz> mTileAtIdx;
+		std::array<unsigned, N> mIdxOfTile;
+	};
+	
+	
+	
+	template<unsigned H, unsigned W, unsigned Nkept>
+	struct SubsetBoardState : public BoardState<H, W> {
+		using packed_t = typename Permutation<H*W, Nkept>::Rank_t;
 		
-		void prettyPrint(IndexMap<H*W, Sz> const& pMap, std::ostream& out) const {
-			std::array<tile_t, H*W> board;
-			board.fill(-1);
-			
-			for(unsigned i=0; i<Sz; i++) {
-				tile_t t = pMap.tileAt(i);
-				idx_t pos = (*this)[i];
-				
-				board[pos] = t;// 
+		static const tile_t Null_Tile = (unsigned)-1;
+		
+		SubsetBoardState(BoardState const& bs, IndexMap<H*W, Nkept> const& pIdxMap) {
+			for(unsigned i=0; i<H*W; i++) {
+				tile_t t = bs[i];
+				if(pIdxMap.isMapped[t])
+					(*this)[i] = t;
+				else
+					(*this)[i] = Null_Tile;
 			}
+		}
+
+		
+		packed_t getPacked(IndexMap const& pIdxMap) const {
+			Permutation<H*W, Nkept> pkd;
 			
 			for(unsigned i=0; i<H*W; i++) {
-				tile_t t = board[i];
-				
-				if(t < 0)
-					out << ".\t";
-					
-				else
-					out << std::to_string(t) << "\t";
-				
-				if((i+1) % W == 0)
-					out << "\n";
+				if((*this)[i] != Null_Tile)
+					pkd[pIdxMap.indexOf((*this)[i])] = i;
 			}
 			
+			return pkd.getRank();
+		}
+		
+		void fromPacked(packed_t const& pkd, IndexMap const& pIdxMap) const {
+			std::fill(this->begin(), this->end(), Null_Tile);
+			
+			for(unsigned i=0; i<pIdxMap.size(); i++)
+				(*this)[pkd[i]] = pIdxMap.tileAt(i);
+		}
+		
+		void prettyPrint(std::ostream& out) const {
+			for(unsigned i=0; i<H; i++) {
+				for(unsigned j=0; j<W; j++) {
+					if((*this)[i*W + j] == Null_Tile)
+						out << ". ";
+					else
+						out << (*this)[i*W + j] << " ";
+				out << "\n";
+			}
+		}
+		
+		bool valid() {
+			unsigned n = 0;
+			bool foundBlank = false;
+			
+			for(unsigned i=0; i<H*W; i++) {
+				if((*this)[i] != Null_Tile)
+					++n;
+				else if((*this)[i] >= H*W)
+					return false;
+				if((*this)[i] == 0) {
+					if(foundBlank)
+						return false;
+					else
+						foundBlank = true;
+				}
+			}
+			
+			return n == Nkept && foundBlank;
+		}
+		
+		bool valid(IndexMap const& pIdxMap) {
+			unsigned n = 0;
+			bool foundBlank = false;
+			
+			for(unsigned i=0; i<H*W; i++) {
+				if((*this)[i] != Null_Tile)
+					++n;
+				else if((*this)[i] >= H*W)
+					return false;
+				else if(!pidxMap.isMapped((*this)[i])
+					return false;
+
+				if((*this)[i] == 0) {
+					if(foundBlank)
+						return false;
+					else
+						foundBlank = true;
+				}
+			}
+			
+			return n == Nkept && foundBlank;
 		}
 	};
 

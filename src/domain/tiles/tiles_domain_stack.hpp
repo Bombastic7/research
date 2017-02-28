@@ -10,7 +10,6 @@
 
 #include "domain/tiles/defs.hpp"
 #include "domain/tiles/domain.hpp"
-#include "domain/tiles/index_map.hpp"
 #include "domain/tiles/board_state.hpp"
 
 
@@ -24,90 +23,36 @@ namespace mjon661 { namespace tiles {
 		static_assert(Height > 1 && Width > 1, "");
 		
 		using domStack_t = TilesGeneric_DomainStack<Height, Width, Use_Weight, Use_H, Abt1Sz>;
-		
-		
+
 		static const unsigned Top_Abstract_Level = Abt1Sz;
 		
 		
-		static constexpr unsigned tilesPerLevel(unsigned L) {
+		static constexpr unsigned tilesAtLevel(unsigned L) {
 			return L == 0 ? Height*Width : Abt1Sz-L+1;
 		}
 		
-		
-		template<unsigned L>
-		struct Domain : TilesDomain<Height, Width, tilesPerLevel(L), Use_Weight, Use_H> {
-			
-			Domain(domStack_t& pStack) :
-				TilesDomain<Height, Width, tilesPerLevel(L), Use_Weight, Use_H>(
-						pStack.mInitState, pStack.mGoalState, pStack.getIndexMap<L>())
-				{}
-		};
-		
-		
 		template<unsigned L, typename = void>
-		struct Abstractor {
-			
-			static const unsigned Sz = tilesPerLevel(L);
-			
-			
-			Abstractor(domStack_t& pStack)
-			{
-				IndexMap<Height*Width, tilesPerLevel(L+1)> abtIndexMap = pStack.getIndexMap<L+1>();
-				IndexMap<Height*Width, tilesPerLevel(L)> selfIndexMap = pStack.getIndexMap<L>();
-				
-				mTrns = abtIndexMap.translateIndices(selfIndexMap);
-			
-			}
-			
-			
-			BoardStateP<Height, Width, Sz-1> operator()(BoardStateP<Height, Width, Sz> const& pState) {
-				BoardStateP<Height, Width, Sz-1> abtState;
-				
-				for(unsigned i=0; i<abtState.size(); i++)
-					abtState[i] = pState[mTrns[i]];
-					
-				return abtState;
-			}
-			
-			std::array<idx_t, tilesPerLevel(L+1)> mTrns;
-			
-			
+		struct Domain : public SubsetTilesDomain<Height, Width, tilesAtLevel(L), Use_Weight> {
+			Domain(domStack_t const& pStack) :
+				SubsetTilesDomain<Height, Width, tilesAtLevel(L), Use_Weight>(pStack.mAbtSpec, pStack.mGoalState)
+			{}
 		};
-		
 		
 		template<typename Ign>
-		struct Abstractor<0, Ign> {
-
-			Abstractor(domStack_t& pStack) :
-				mAbt1Map(pStack.getIndexMap<1>())
-			{}
-
-			BoardStateP<Height, Width, tilesPerLevel(1)> operator()(BoardStateV<Height, Width> const& pState) {				
-				
-				BoardStateP<Height, Width, tilesPerLevel(1)> abtState(pState, mAbt1Map);
-
-				return abtState;
-			}
+		struct Domain<0, Ign> : public CompleteTilesDomain<Height, Width, Use_Weight, Use_H> {
 			
-			IndexMap<Height*Width, tilesPerLevel(1)> mAbt1Map;
+			Domain(domStack_t const& pStack) :
+				CompleteTilesDomain<Height, Width, Use_Weight, Use_H>(pStack.mGoalState)
+			{}
 		};
 		
 		
-		
-		
-		template<unsigned L>
-		IndexMap<Height*Width, tilesPerLevel(L)> getIndexMap() {
-			
-			if(L == 0)
-				return IndexMap<Height*Width, tilesPerLevel(L)>();
-			
-			return IndexMap<Height*Width, tilesPerLevel(L)>(mAbt1Kept.begin(), mAbt1Kept.begin() + tilesPerLevel(L));
+		BoardState<Height, Width> getInitState() const {
+			return mInitState;
 		}
 		
-		
-		
 		TilesGeneric_DomainStack(Json const& jConfig) :
-			mAbt1Kept{},
+			mAbtSpec(jConfig.at("kept").get<std::vector<unsigned>>()),
 			mInitState(jConfig.at("init").get<std::vector<tile_t>>()),
 			mGoalState(jConfig.at("goal").get<std::vector<tile_t>>())
 		{
@@ -116,24 +61,10 @@ namespace mjon661 { namespace tiles {
 			
 			if(!mGoalState.valid())
 				throw ConfigException("Bad goal");
-				
-			if(jConfig.count("kept")) {
-				std::vector<tile_t> v = jConfig.at("kept");
-				
-				if(!mathutil::contains(v, 0) || !mathutil::withinInclusive(v, 0u, Height*Width-1) || !mathutil::uniqueElements(v) || v.size() < Abt1Sz)
-					throw ConfigException("Bad kept tiles");
-				
-				for(unsigned i=0; i<Abt1Sz; i++)
-					mAbt1Kept[i] = v[i];
-			}
-			else
-				for(unsigned i=0; i<Abt1Sz; i++)
-					mAbt1Kept[i] = i;
 		}
 		
-		std::array<tile_t, Abt1Sz> mAbt1Kept;
-		BoardStateV<Height, Width> mInitState, mGoalState;
-		
+		TilesAbtSpec<Height*Width> mAbtSpec;
+		BoardState<Height, Width> mInitState, mGoalState;
 	};
 
 }}

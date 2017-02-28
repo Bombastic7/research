@@ -125,20 +125,46 @@ def genRandInitState(goal, width):
 	while getParity(s0, width) != gpar:
 		random.shuffle(s0)
 	return s0
+	
+
+class DomainStack:
+	def __init__(self, basedom):
+		self.doms = [basedom]
+		
+		while True:
+			abtdom = self.doms[-1].spawnAbtDomain()
+			if abtdom is None:
+				break
+			self.doms.append(abtdom)
+		
+	def getDomain(self, i):
+		return self.doms[i]
+	
+	def getTopLevel(self):
+		return len(self.doms)-1
+
 
 
 def rand_3_3():
 	s0 = genRandInitState(range(9), 3)
-	return Domain(0, 3, 3, tuple(s0), tuple(range(9)), (10, 5, 4, 3, 2, 1, 1, 1, 1))
+	dom = Domain(0, 3, 3, tuple(s0), tuple(range(9)), (10, 5, 4, 3, 2, 1, 1, 1, 1))
+	return DomainStack(dom)
 
 
 def rand_3_4():
 	s0 = genRandInitState(range(12), 4)
-	return Domain(0, 3, 4, tuple(s0), tuple(range(12)), (10, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1))
-
+	dom = Domain(0, 3, 4, tuple(s0), tuple(range(12)), (10, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1))
+	return DomainStack(dom)
+	
 
 def rand_4_4():
 	s0 = genRandInitState(range(16), 4)
-	return Domain(0, 4, 4, tuple(s0), tuple(range(16)), (10, 8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1))
+	dom = Domain(0, 4, 4, tuple(s0), tuple(range(16)), (10, 8, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1))
+	return DomainStack(dom)
 
+
+def inst_3_3_A():
+	s0 = [4, 3, 2, 1, 8, 0, 6, 5, 7]
+	dom = Domain(0, 3, 3, tuple(s0), tuple(range(9)), (10, 5, 4, 3, 2, 1, 1, 1, 1))
+	return DomainStack(dom)
 

@@ -18,7 +18,7 @@ namespace mjon661 { namespace tiles {
 		
 		static const int Board_Size = H*W;
 		
-		Manhattan(BoardStateV<H, W> const& pGoalState) :
+		Manhattan(BoardState<H, W> const& pGoalState) :
 			mGoalState(pGoalState),
 			mMoveLookup()
 		{
@@ -72,7 +72,7 @@ namespace mjon661 { namespace tiles {
 		}
 		
 		//MD for state
-		void eval(BoardStateV<H, W> const& pBoard, int& out_h, int& out_d) const {
+		void eval(BoardState<H, W> const& pBoard, int& out_h, int& out_d) const {
 			
 			out_h = out_d = 0;
 			
@@ -113,7 +113,7 @@ namespace mjon661 { namespace tiles {
 		
 		std::array<std::array<cost_t, Board_Size>, Board_Size> mMinCost, mMinDistance;
 		std::array<std::array<std::array<int, Board_Size>, Board_Size>, Board_Size> mCostInc, mDistInc;
-		const BoardStateV<H, W> mGoalState;
+		const BoardState<H, W> mGoalState;
 		const MoveLookup<H, W> mMoveLookup;
 	};
 }}

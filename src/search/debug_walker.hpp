@@ -45,7 +45,7 @@ namespace mjon661 { namespace algorithm {
 		struct Tag {};
 		
 		
-		DebugWalkerImpl(DomStack& pStack) :
+		DebugWalkerImpl(DomStack const& pStack) :
 			mDomain(pStack),
 			mDomStack(pStack),
 			mNxtLevelAlg(pStack)
@@ -123,14 +123,14 @@ namespace mjon661 { namespace algorithm {
 		}
 		
 		Domain mDomain;
-		DomStack& mDomStack;
+		DomStack const& mDomStack;
 		DebugWalkerImpl<DomStack, L+1, L+1 <= DomStack::Top_Abstract_Level> mNxtLevelAlg;
 	};
 
 
 	template<typename DomStack, unsigned L>
 	struct DebugWalkerImpl<DomStack, L, false> {
-		DebugWalkerImpl(DomStack&) {}
+		DebugWalkerImpl(DomStack const&) {}
 		
 		template<typename BS>
 		void executeFromParentState(BS const& bs) {}
@@ -141,7 +141,7 @@ namespace mjon661 { namespace algorithm {
 	template<typename DomStack>
 	struct DebugWalker {
 		
-		DebugWalker(DomStack& pDomStack) :
+		DebugWalker(DomStack const& pDomStack) :
 			mImpl(pDomStack),
 			mDomStack(pDomStack)
 		{}
@@ -149,14 +149,14 @@ namespace mjon661 { namespace algorithm {
 		void execute() {
 			typename DomStack::template Domain<0> dom(mDomStack);
 			
-			auto s0 = mDomStack.getInitState();
+			typename DomStack::template Domain<0>::State s0 = mDomStack.getInitState();
 			
 			mImpl.doWalk(s0);
 		}
 		
 		
 		DebugWalkerImpl<DomStack, 0> mImpl;
-		DomStack& mDomStack;
+		DomStack const& mDomStack;
 	
 	};
 }}

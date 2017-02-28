@@ -82,7 +82,7 @@ namespace mjon661 { namespace tiles {
 	
 
 	template<int H, int W>
-	bool getParity(BoardStateV<H,W> const& pBoard) {
+	bool getParity(BoardState<H,W> const& pBoard) {
 		
 		int nInv = permInversions_ignoreZero(pBoard);
 		
@@ -95,7 +95,7 @@ namespace mjon661 { namespace tiles {
 	}
 
 	template<int H, int W>
-	bool isSolvable(BoardStateV<H,W> const& pInitBoard, BoardStateV<H,W> const& pGoalBoard) {
+	bool isSolvable(BoardState<H,W> const& pInitBoard, BoardState<H,W> const& pGoalBoard) {
 	
 		return getParity<H,W>(pInitBoard) == getParity<H,W>(pGoalBoard);
 
@@ -104,14 +104,14 @@ namespace mjon661 { namespace tiles {
 	
 	template<int H, int W>
 	struct ProblemGenerator {
-		ProblemGenerator(BoardStateV<H,W> const& pGoalBoard) :
+		ProblemGenerator(BoardState<H,W> const& pGoalBoard) :
 			mGoalBoard(pGoalBoard)
 		{
 			std::random_device rd;
 			mRandGen.seed(rd());
 		}
 		
-		BoardStateV<H,W> operator()() {
+		BoardState<H,W> operator()() {
 			do {
 				std::shuffle(mInitBoard.begin(), mInitBoard.end(), mRandGen);
 			} while(!isSolvable<H,W>(mInitBoard, mGoalBoard));
@@ -121,8 +121,8 @@ namespace mjon661 { namespace tiles {
 		
 		private:
 		std::mt19937 mRandGen;
-		BoardStateV<H,W> mInitBoard;
-		BoardStateV<H,W> const& mGoalBoard;
+		BoardState<H,W> mInitBoard;
+		BoardState<H,W> const& mGoalBoard;
 	};
 
 }}

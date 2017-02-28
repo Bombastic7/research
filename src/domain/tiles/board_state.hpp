@@ -91,63 +91,98 @@ namespace mjon661 { namespace tiles {
 		idx_t mBlankPos;
 	};
 	
-	template<unsigned N, unsigned Sz>
-	struct IndexMap {
+	template<unsigned N>
+	struct TilesAbtSpec {
 		
 		static const unsigned Null_Idx = (unsigned)-1;
+		static const tile_t Null_Tile = (unsigned)-1;
 
-		IndexMap(std::array<unsigned, N> const& pTileDropLevel, unsigned pLevel) {
-			std::fill(mIdxOfTile.begin(), mIdxOfTile.end(), Null_Idx);
+		template<typename V>
+		TilesAbtSpec(V const& pSpec)
+		{
+			fast_assert(pSpec.size() == N-1);
 			
-			unsigned pos = 0;
+			for(unsigned i=0; i<N-1; i++)
+				mAbtSpec[i] = pSpec[i];
 			
-			for(unsigned t=1; t<N; t++) {
-				if(pTileDropLevel[t] >= pLevel) {
-					fast_assert(pos < Sz);
-					mTileAtIdx[pos] = i;
-					mIdxOfTile[i] = pos;
-					++pos;
-				}
+			std::vector<unsigned> checkVec(pSpec.begin(), pSpec.end());
+			std::sort(checkVec.begin(), checkVec.end());
+			
+			for(unsigned i=0; i<N-1; i++) {
+				if(i != 0)
+					fast_assert(mAbtSpec[i] != 0 && (mAbtSpec[i] == mAbtSpec[i-1] || mAbtSpec[i] == mAbtSpec[i-1]+1));
 			}
 			
-			fast_assert(pos == Sz);
+			mTopLevel = checkVec.back();
 			
-			//for(unsigned i=0; i<Sz; i++)
+			unsigned nullIdx = Null_Idx;
+			tile_t nullTile = Null_Tile;
+			
+			std::fill(mIdxOfTile.begin(), mIdxOfTile.end(), nullIdx);
+			std::fill(mTileAtIdx.begin(), mTileAtIdx.end(), nullTile);
+			mIdxOfTile[0] = 0;
+			mTileAtIdx[0] = 0;
+			unsigned pos = 1;
+			
+			for(unsigned lvl=mTopLevel; lvl>=1; lvl--) {
+				for(unsigned i=0; i<N-1; i++) {
+					if(mAbtSpec[i] == lvl) {
+						mIdxOfTile[i+1] = pos;
+						mTileAtIdx[pos] = i+1;
+						++pos;
+					}
+				}
+			}
 		}
 		
-		unsigned indexOf(tile_t t) {
-			slow_assert(t < N);
-			i = mIdxOfTile[t];
-			slow_assert(i != Null_Idx);
-			return i;
+		unsigned tilesKeptAtLevel(unsigned pLevel) const {
+			unsigned n=0;
+			for(unsigned i=0; i<N-1; i++)
+				if(mAbtSpec[i] > pLevel)
+					++n;
+			return n;
 		}
 		
-		tile_t tileAt(unsigned i) {
-			slow_assert(i < Sz);
-			return mTileAtIdx[i];
+		unsigned idxOfTile(tile_t t) const {
+			slow_assert((unsigned)t < N);
+			return mIdxOfTile[t];
 		}
 		
-		bool isMapped(tile_t t) {
-			return mIdxOfTile[t] != Null_Idx;
+		tile_t tileAtIdx(unsigned i) const {
+			slow_assert(i < N);
+			tile_t t = mTileAtIdx[i];
+			slow_assert(t != Null_Tile);
+			return t;
 		}
 		
 		private:
-		std::array<tile_t, Sz> mTileAtIdx;
+		std::array<unsigned, N-1> mAbtSpec;
 		std::array<unsigned, N> mIdxOfTile;
+		std::array<tile_t, N> mTileAtIdx;
+		unsigned mTopLevel;
+
+		
+	
+		
 	};
 	
-	
-	
+
 	template<unsigned H, unsigned W, unsigned Nkept>
 	struct SubsetBoardState : public BoardState<H, W> {
 		using packed_t = typename Permutation<H*W, Nkept>::Rank_t;
 		
+		static const unsigned Null_Idx = (unsigned)-1;
 		static const tile_t Null_Tile = (unsigned)-1;
 		
-		SubsetBoardState(BoardState const& bs, IndexMap<H*W, Nkept> const& pIdxMap) {
+		SubsetBoardState() = default;
+		
+		template<typename BS>
+		SubsetBoardState(BS const& bs, TilesAbtSpec<H*W> const& pAbtSpec) {
 			for(unsigned i=0; i<H*W; i++) {
 				tile_t t = bs[i];
-				if(pIdxMap.isMapped[t])
+				unsigned idx = pAbtSpec.idxOfTile(t);
+				
+				if(idx < Nkept)
 					(*this)[i] = t;
 				else
 					(*this)[i] = Null_Tile;
@@ -155,22 +190,26 @@ namespace mjon661 { namespace tiles {
 		}
 
 		
-		packed_t getPacked(IndexMap const& pIdxMap) const {
+		packed_t getPacked(TilesAbtSpec<H*W> const& pAbtSpec) const {
 			Permutation<H*W, Nkept> pkd;
 			
 			for(unsigned i=0; i<H*W; i++) {
 				if((*this)[i] != Null_Tile)
-					pkd[pIdxMap.indexOf((*this)[i])] = i;
+					pkd[pAbtSpec.idxOfTile((*this)[i])] = i;
 			}
 			
 			return pkd.getRank();
 		}
 		
-		void fromPacked(packed_t const& pkd, IndexMap const& pIdxMap) const {
-			std::fill(this->begin(), this->end(), Null_Tile);
+		void fromPacked(packed_t const& r, TilesAbtSpec<H*W> const& pAbtSpec) {
+			tile_t nullTile = Null_Tile;
+			std::fill(this->begin(), this->end(), nullTile);
 			
-			for(unsigned i=0; i<pIdxMap.size(); i++)
-				(*this)[pkd[i]] = pIdxMap.tileAt(i);
+			Permutation<H*W, Nkept> pkd;
+			pkd.setRank(r);
+			
+			for(unsigned i=0; i<Nkept; i++)
+				(*this)[pkd[i]] = pAbtSpec.tileAtIdx(i);
 		}
 		
 		void prettyPrint(std::ostream& out) const {
@@ -180,11 +219,12 @@ namespace mjon661 { namespace tiles {
 						out << ". ";
 					else
 						out << (*this)[i*W + j] << " ";
+					}
 				out << "\n";
 			}
 		}
 		
-		bool valid() {
+		bool valid() const {
 			unsigned n = 0;
 			bool foundBlank = false;
 			
@@ -204,27 +244,16 @@ namespace mjon661 { namespace tiles {
 			return n == Nkept && foundBlank;
 		}
 		
-		bool valid(IndexMap const& pIdxMap) {
-			unsigned n = 0;
-			bool foundBlank = false;
-			
-			for(unsigned i=0; i<H*W; i++) {
-				if((*this)[i] != Null_Tile)
-					++n;
-				else if((*this)[i] >= H*W)
-					return false;
-				else if(!pidxMap.isMapped((*this)[i])
-					return false;
+		bool valid(TilesAbtSpec<H*W> const& pAbtSpec) const {
+			if(!valid())
+				return false;
 
-				if((*this)[i] == 0) {
-					if(foundBlank)
-						return false;
-					else
-						foundBlank = true;
-				}
+			for(unsigned i=0; i<H*W; i++) {
+				if((*this)[i] != Null_Tile && pAbtSpec.idxOfTile((*this)[i]) >= Nkept)
+					return false;
 			}
 			
-			return n == Nkept && foundBlank;
+			return true;
 		}
 	};
 

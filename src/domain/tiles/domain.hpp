@@ -30,13 +30,17 @@ namespace mjon661 { namespace tiles {
 	struct CompleteTilesDomain_Manhat {
 
 		using Cost = cost_t;
-		using Operator = int;
+		using Operator = unsigned;
 		
 		static const bool Is_Perfect_Hash = true;
 
 
 		struct State : public BoardState<H,W> {
-			using BoardState<H,W>::BoardState;
+			State() = default;
+			
+			State(BoardState<H,W> const& o) :
+				BoardState<H,W>(o)
+			{}
 			
 			cost_t get_h() const {return h;} 
 			cost_t get_d() const {return d;} 
@@ -109,15 +113,15 @@ namespace mjon661 { namespace tiles {
 		}
 		
 		
-		Operator getNoOp() {
+		Operator getNoOp() const {
 			return -1;
 		}
 		
 		void packState(State const& pState, PackedState& pkd) const {
-			pkd = pState.getPacked(pState);
+			pkd = pState.getPacked();
 		}
 		
-		void unpackState(state_t& pState, PackedState const& pkd) const {
+		void unpackState(State& pState, PackedState const& pkd) const {
 			pState.fromPacked(pkd);
 			
 			cost_t cst_h, cst_d;
@@ -127,11 +131,11 @@ namespace mjon661 { namespace tiles {
 			pState.set_d(cst_d);
 		}
 		
-		OperatorSet createOperatorSet(State const& s) {
+		OperatorSet createOperatorSet(State const& s) const {
 			return OperatorSet(s.getBlankPos());
 		}
 		
-		Edge createEdge(State& s, Operator op) {
+		Edge createEdge(State& s, Operator op) const {
 			Cost dh, dd;
 			mManhattan.increment(op, s.getBlankPos(), s[op], dh, dd);
 			
@@ -144,18 +148,22 @@ namespace mjon661 { namespace tiles {
 			return Edge(s, Use_Weight ? op : 1, oldblank, dh, dd);
 		}
 		
-		void destroyEdge(Edge& e) {
-			e.mState.set_h(pState.get_h() - e.mdh);
-			e.mState.set_d(pState.get_d() - e.mdd);
+		void destroyEdge(Edge& e) const {
+			e.mState.set_h(e.mState.get_h() - e.mdh);
+			e.mState.set_d(e.mState.get_d() - e.mdd);
 			e.mState.moveBlank(e.mParentOp);
 		}
 		
-		void prettyPrint(state_t const& pState, std::ostream& out) const {
+		void prettyPrint(State const& pState, std::ostream& out) const {
 			pState.prettyPrint(out);
 			out << "(h, d): (" << pState.get_h() << ", " << pState.get_d() << ")\n";
 		}
 		
-		size_t doHash(PackedState const& pkd) const {
+		void prettyPrint(Operator op, std::ostream& out) const {
+			out << op;
+		}
+		
+		size_t hash(PackedState const& pkd) const {
 				return pkd;
 		}
 		
@@ -178,7 +186,7 @@ namespace mjon661 { namespace tiles {
 
 		private:
 		const Manhattan<H,W,Use_Weight> mManhattan;
-		state_t mGoalState;
+		State mGoalState;
 	};
 	
 	
@@ -188,7 +196,7 @@ namespace mjon661 { namespace tiles {
 	struct CompleteTilesDomain_NoH {
 		
 		using Cost = cost_t;
-		using Operator = int;
+		using Operator = unsigned;
 		
 		static const bool Is_Perfect_Hash = true;
 
@@ -248,15 +256,15 @@ namespace mjon661 { namespace tiles {
 		{}
 		
 		
-		Operator getNoOp() {
+		Operator getNoOp() const {
 			return -1;
 		}
 		
 		void packState(State const& pState, PackedState& pkd) const {
-			pkd = pState.getPacked(pState);
+			pkd = pState.getPacked();
 		}
 		
-		void unpackState(state_t& pState, PackedState const& pkd) const {
+		void unpackState(State& pState, PackedState const& pkd) const {
 			pState.fromPacked(pkd);
 		}
 		
@@ -264,22 +272,22 @@ namespace mjon661 { namespace tiles {
 			return OperatorSet(s.getBlankPos());
 		}
 		
-		Edge createEdge(State& s, Operator op) {
+		Edge createEdge(State& s, Operator op) const {
 			Operator oldblank = s.getBlankPos();
 			s.moveBlank(op);
 			
-			return Edge(s, Use_Weight ? op : 1, oldblank);
+			return Edge(s, Use_Weight ? oldblank : 1, oldblank);
 		}
 		
-		void destroyEdge(Edge& e) {
+		void destroyEdge(Edge& e) const {
 			e.mState.moveBlank(e.mParentOp);
 		}
 		
-		void prettyPrint(state_t const& pState, std::ostream& out) const {
+		void prettyPrint(State const& pState, std::ostream& out) const {
 			pState.prettyPrint(out);
 		}
 		
-		size_t doHash(PackedState const& pkd) const {
+		size_t hash(PackedState const& pkd) const {
 				return pkd;
 		}
 		
@@ -299,164 +307,67 @@ namespace mjon661 { namespace tiles {
 			return std::pair<Cost, Cost>(0, 0);
 		}
 		
-
+		void prettyPrint(Operator op, std::ostream& out) const {
+			out << op;
+		}
 		private:
-		state_t mGoalState;
+		State mGoalState;
+	};
+	
+	
+	template<unsigned H, unsigned W, bool Use_Weight, bool Use_H>
+	struct CompleteTilesDomain;
+	
+	template<unsigned H, unsigned W, bool Use_Weight>
+	struct CompleteTilesDomain<H, W, Use_Weight, true> : public CompleteTilesDomain_Manhat<H, W, Use_Weight> {
+		using CompleteTilesDomain_Manhat<H, W, Use_Weight>::CompleteTilesDomain_Manhat;
+	};
+	
+	template<unsigned H, unsigned W, bool Use_Weight>
+	struct CompleteTilesDomain<H, W, Use_Weight, false> : public CompleteTilesDomain_NoH<H, W, Use_Weight> {
+		using CompleteTilesDomain_NoH<H, W, Use_Weight>::CompleteTilesDomain_NoH;
 	};
 	
 	
 	
 	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight>
-	struct SubsetTilesBase {
+	struct SubsetTilesDomain {
 		using Cost = cost_t;
-		using Operator = int;
+		using Operator = unsigned;
 		
 		using State = SubsetBoardState<H, W, Sz>;
 		using PackedState = typename State::packed_t;
 		
 		static const bool Is_Perfect_Hash = true;
 		
-		SubsetTilesBase(std::array<unsigned, H*W> const& pTilesDropLevel, BoardState<H,W> const& pBaseGoalState) :
-			mIdxMap(pTilesDropLevel),
-			mGoalState(prepGoalState(pBaseGoalState)
-		{}
-		
-		template<typename BS>
-		State abstractParentState(BS const& bs) {
-			State s;
-			
-			
-		}
-		state_t doCreateState() const {
-			gen_assert(false);
-			return state_t();
-		}
-		
-		void doUnpackState(state_t& pState, packed_t const& pkd) const {
-			pState.fromPacked(pkd);
-		}
-
-		cost_t getMoveCost(state_t& pState, idx_t op) const {
-			
-			return Use_Weight ? pState.getBlankPos() : 1;
-		}
-		
-		void prettyPrint(state_t const& pState, std::ostream& out) const {
-			pState.prettyPrint(mMap, out);
-		}
-		
-		size_t doHash(packed_t const& pkd) const {
-				return pkd;
-		}
-		
-		void performMove(state_t& pState, idx_t op) const {
-			pState.moveBlank(op);
-		}
-
-		
-		cost_t getVal_h(state_t const& pState, idx_t op) const {
-			return 0;
-		}
-		
-		cost_t getVal_d(state_t const& pState, idx_t op) const {			
-			return 0;
-		}
-		
-		bool doCheckGoal(state_t const& pState) const {
-			return pState == mGoalState;
-		}
-		
-		
-		private:
-
-		state_t prepGoalState(BoardStateV<H,W> const& pGoalStateV, IndexMap<H*W, Sz> const& pMap) {
-			
-			BoardStateP<H,W,Sz> goalState;
-			
-			for(unsigned i=0; i<Sz; i++)
-				goalState[i] = pGoalStateV.find(pMap.tileAt(i));
-			
-			return goalState;
-		}
-
-
-		const state_t mGoalState;
-		const IndexMap<H*W, Sz> mMap;
-	};
-	
-	
-	
-
-	
-	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight, bool Use_H, bool Is_Subset>
-	struct TilesDomainBase : public CompleteTilesBase<H, W, Use_Weight, Use_H> {
-	
-		TilesDomainBase(BoardStateV<H,W> const& pInitState, 
-						BoardStateV<H,W> const& pGoalState,
-						IndexMap<H*W, Sz> const& pMap) :
-		
-			CompleteTilesBase<H, W, Use_Weight, Use_H>(pInitState, pGoalState)
-		{}
-	
-	};
-	
-	
-	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight, bool Use_H>
-	struct TilesDomainBase<H, W, Sz, Use_Weight, Use_H, true> : public SubsetTilesBase<H, W, Sz, Use_Weight> {
-
-		TilesDomainBase(BoardStateV<H,W> const& pInitState, 
-						BoardStateV<H,W> const& pGoalState,
-						IndexMap<H*W, Sz> const& pMap) :
-						
-			SubsetTilesBase<H, W, Sz, Use_Weight>(pGoalState, pMap)
-		{}
-	
-	};
-	
-
-
-
-
-
-
-	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight, bool Use_H>
-	class TilesDomain : public TilesDomainBase<H, W, Sz, Use_Weight, Use_H, (Sz < H*W)> {
-		
-		public:
-
-		using base_t = TilesDomainBase<H, W, Sz, Use_Weight, Use_H, (Sz < H*W)>;
-
-		using State = typename base_t::state_t;
-		using PackedState = typename base_t::packed_t;
-		using Operator = idx_t;
-		using Cost = cost_t;
-
-		
-		static const size_t Hash_Range = base_t::Max_Packed+1;
-		static const unsigned Board_Size = H*W;
-		
-
+				
 		struct OperatorSet {
-
-			public:
-			OperatorSet(std::array<tile_t, 5> const& pMoves) :
-				mMoves(pMoves)
-			{}
-		
-			unsigned size() const {
-				return mMoves[0];
+			OperatorSet(unsigned i) :
+				n(0),
+				mvs()
+			{
+				if(i >= W) mvs[n++] = i - W;
+				if(i < (H-1)*W) mvs[n++] = i + W;
+				if(i % W != 0) mvs[n++] = i-1;
+				if((i+1) % W != 0) mvs[n++] = i+1;
 			}
-		
-			idx_t operator[](unsigned i) const {
-				return mMoves[i+1];
+			
+			unsigned size() {
+				return n;
 			}
-		
+			
+			unsigned operator[](unsigned i) {
+				return mvs[i];
+			}
+			
 			private:
-			std::array<tile_t, 5> const& mMoves;
+			unsigned n;
+			std::array<unsigned, 4> mvs;
 		};
-	
+		
+		
 		struct Edge {
-			Edge(State& pState, Cost pCost, idx_t pParentOp) :
+			Edge(State& pState, Cost pCost, Operator pParentOp) :
 				mState(pState), mCost(pCost), mParentOp(pParentOp)
 			{}
 				
@@ -464,104 +375,77 @@ namespace mjon661 { namespace tiles {
 				return mState;
 			}
 			
-			cost_t cost() {
+			Cost cost() {
 				return mCost;
 			}
 			
-			idx_t parentOp() {
+			Operator parentOp() {
 				return mParentOp;
 			}
 			
 			State& mState;
-			cost_t mCost;
-			idx_t mParentOp;
-
+			Cost mCost;
+			Operator mParentOp;
 		};
 		
 		
-
-		const idx_t noOp;
-		
-		TilesDomain(BoardStateV<H,W> const& pInitState, 
-					BoardStateV<H,W> const& pGoalState,
-					IndexMap<H*W, Sz> const& pMap) :
-			
-			base_t		(pInitState, pGoalState, pMap),
-			noOp		(-1),
-			mOpLookup	()
+		SubsetTilesDomain(TilesAbtSpec<H*W> const& pAbtSpec, BoardState<H,W> const& pBaseGoalState) :
+			mAbtSpec(pAbtSpec),
+			mGoalState(pBaseGoalState, mAbtSpec)
 		{}
 		
-		
-		State createState() const {
-			return base_t::doCreateState();
+		template<typename BS>
+		State abstractParentState(BS const& bs) const {
+			return State(bs, mAbtSpec);
 		}
 		
-		void packState(State const& pState, PackedState& pPacked) const {
-			pPacked = pState.getPacked();
+		Operator getNoOp() const {
+			return -1;
+		}
+
+		void unpackState(State& pState, PackedState const& pkd) const {
+			pState.fromPacked(pkd, mAbtSpec);
+		}
+
+		void packState(State const& pState, PackedState& pkd) const {
+			pkd = pState.getPacked(mAbtSpec);
 		}
 		
-		void unpackState(State& pState, PackedState const& pPacked) const {
-			base_t::doUnpackState(pState, pPacked);
+		void prettyPrint(State const& pState, std::ostream& out) const {
+			pState.prettyPrint(out);
 		}
 		
-		Edge createEdge(State& pState, idx_t op) const {
-			idx_t parentOp = pState.getBlankPos();
-			cost_t edgeCost = base_t::getMoveCost(pState, op);
-			
-			slow_assert(pState.getBlankPos() != op);
-			slow_assert(edgeCost >= 0 && (unsigned)edgeCost < Board_Size, "%d", edgeCost);
-			
-			
-			base_t::performMove(pState, op);
-			
-			return Edge(pState, edgeCost, parentOp);
+		void prettyPrint(Operator op, std::ostream& out) const {
+			out << op;
 		}
 		
-		void destroyEdge(Edge& pEdge) const {
-			base_t::performMove(pEdge.state(), pEdge.parentOp());
+		size_t hash(PackedState const& pkd) const {
+				return pkd;
 		}
 		
 		OperatorSet createOperatorSet(State const& pState) const {
-			return OperatorSet(mOpLookup.get(pState.getBlankPos()));
+			return OperatorSet(pState.getBlankPos());
 		}
 		
-		size_t hash(PackedState pPacked) const {
-			return base_t::doHash(pPacked);
+		Edge createEdge(State& pState, Operator pOp) const {
+			Operator oldblank = pState.getBlankPos();
+			pState.moveBlank(pOp);
+			return Edge(pState, Use_Weight ? oldblank : 1, oldblank);
 		}
 		
-		Cost heuristicValue(State const& pState) const {
-			return base_t::getVal_h(pState);
-		}
-		
-		Cost distanceValue(State const& pState) const {
-			return base_t::getVal_d(pState);
+		void destroyEdge(Edge& e) const {
+			e.mState.moveBlank(e.mParentOp);
 		}
 		
 		bool checkGoal(State const& pState) const {
-			return base_t::doCheckGoal(pState);
-		}
-
-		bool compare(State const& a, State const& b) const {
-			return a == b;
+			return pState == mGoalState;
 		}
 		
-		bool compare(PackedState const& a, PackedState const& b) const {
-			return a == b;
-		}
-		
-		void prettyPrint(State const& s, std::ostream& out) const {
-			base_t::prettyPrint(s, out);
-		}
-		
-		void prettyPrint(Operator const& op, std::ostream &out) const {
-			out << op << "\n";
-		}
-
 		
 		private:
-		
-		const MoveLookup<H,W> mOpLookup;
 
+		TilesAbtSpec<H*W> const& mAbtSpec;
+		const State mGoalState;
 	};
 
 }}

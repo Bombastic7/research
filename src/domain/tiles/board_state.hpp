@@ -110,7 +110,7 @@ namespace mjon661 { namespace tiles {
 			
 			for(unsigned i=0; i<N-1; i++) {
 				if(i != 0)
-					fast_assert(mAbtSpec[i] != 0 && (mAbtSpec[i] == mAbtSpec[i-1] || mAbtSpec[i] == mAbtSpec[i-1]+1));
+					fast_assert(checkVec[i] != 0 && (checkVec[i] == checkVec[i-1] || checkVec[i] == checkVec[i-1]+1));
 			}
 			
 			mTopLevel = checkVec.back();
@@ -178,14 +178,24 @@ namespace mjon661 { namespace tiles {
 		
 		template<typename BS>
 		SubsetBoardState(BS const& bs, TilesAbtSpec<H*W> const& pAbtSpec) {
+			tile_t nullTile = Null_Tile;
+			std::fill(this->begin(), this->end(), nullTile);
+			
 			for(unsigned i=0; i<H*W; i++) {
 				tile_t t = bs[i];
+				
+				if(t == Null_Tile)
+					continue;
+
 				unsigned idx = pAbtSpec.idxOfTile(t);
 				
 				if(idx < Nkept)
 					(*this)[i] = t;
 				else
 					(*this)[i] = Null_Tile;
+				
+				if(t == 0)
+					this->mBlankPos = i;
 			}
 		}
 
@@ -210,6 +220,8 @@ namespace mjon661 { namespace tiles {
 			
 			for(unsigned i=0; i<Nkept; i++)
 				(*this)[pkd[i]] = pAbtSpec.tileAtIdx(i);
+			
+			this->initBlankPos();
 		}
 		
 		void prettyPrint(std::ostream& out) const {

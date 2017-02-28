@@ -93,22 +93,22 @@ namespace mjon661 { namespace tiles {
 	void run() {
 		Json jConfig;
 		jConfig["init"] = std::vector<unsigned>{4, 3, 2, 1, 8, 0, 6, 5, 7};
-		jConfig["init"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8};
+		jConfig["goal"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8};
 		jConfig["kept"] = std::vector<unsigned>{5, 4, 3, 2, 1, 1, 1, 1};
 		
 		
 		
-		TilesGeneric_DomainStack<3,3, true, true, 5> domStack(jConfig);
+		TilesGeneric_DomainStack<3,3, false, true, 5> domStack(jConfig);
 
 		auto s0 = domStack.getInitState();
 		
-		algorithm::DebugWalker<TilesGeneric_DomainStack<3,3, true, true, 5>> dbgwalker(domStack);
+		algorithm::DebugWalker<TilesGeneric_DomainStack<3,3, false, true, 5>> dbgwalker(domStack);
 		dbgwalker.execute();
 
 
-		algorithm::hastarv2::HAstar_StatsSimple<TilesGeneric_DomainStack<3,3, true, true, 5>> hastar_alg(domStack, Json());
+		algorithm::hastarv2::HAstar_StatsSimple<TilesGeneric_DomainStack<3,3, false, true, 5>> hastar_alg(domStack, Json());
 		
-		Solution<TilesGeneric_DomainStack<3,3, true, true, 5>> sol;
+		Solution<TilesGeneric_DomainStack<3,3, false, true, 5>> sol;
 		
 		hastar_alg.execute(s0, sol);
 		

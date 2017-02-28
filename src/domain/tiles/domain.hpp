@@ -145,7 +145,7 @@ namespace mjon661 { namespace tiles {
 			Operator oldblank = s.getBlankPos();
 			s.moveBlank(op);
 			
-			return Edge(s, Use_Weight ? op : 1, oldblank, dh, dd);
+			return Edge(s, Use_Weight ? oldblank : 1, oldblank, dh, dd);
 		}
 		
 		void destroyEdge(Edge& e) const {

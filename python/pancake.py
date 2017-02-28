@@ -12,7 +12,7 @@ dropcakes = (lvl c0 is dropped, lvl c1 is, lvl c2 is)
 
 class Domain:
 	def __init__(self, lvl, goal, dropcakes):
-		assert(len(s0) == len(goal) == len(dropcakes))
+		assert(len(goal) == len(dropcakes))
 		self.lvl = lvl
 		self.dropcakes = tuple(dropcakes)
 		self.goal = tuple(goal)
@@ -99,4 +99,4 @@ class DomainStack:
 
 
 def inst_8():
-	return DomainStack(8, [1,1,1,2,2,3,3,4])
+	return DomainStack(8, [3,3,3,2,2,1,1,1])

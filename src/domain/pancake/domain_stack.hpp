@@ -36,10 +36,8 @@ namespace mjon661 { namespace pancake {
 		template<unsigned L, typename = void>
 		struct Domain : public Domain_NoH_Relaxed<N, cakesPerLevel(L), Use_Weight> {
 			Domain(domStack_t const& pStack) :
-				Domain_NoH_Relaxed<N, cakesPerLevel(L), Use_Weight>(
-					pStack.mAbt1Kept.begin(), 
-					pStack.mAbt1Kept.begin() + cakesPerLevel(L))
-				{}
+				Domain_NoH_Relaxed<N, cakesPerLevel(L), Use_Weight>(pStack.mCakeDropLevel, L)
+			{}
 		};
 		 
 		 
@@ -51,38 +49,32 @@ namespace mjon661 { namespace pancake {
 				Pancake_Domain<N, Use_H, Use_Weight>(pStack.mInitState)
 			{}
 		};
+		
+		std::array<cake_t, N> prepCakeDropLevel(Json const& jConfig) {
+			std::array<cake_t, N> retArray;
 
-
-		std::array<cake_t, Abt1Sz> prepL1Kept(Json const& jConfig) {
-			std::array<cake_t, Abt1Sz> retArray;
-
-			if(jConfig.count("kept")) {
-				std::vector<cake_t> v = jConfig.at("kept");
-
-				if(v.size() != (unsigned)Abt1Sz || !mathutil::withinInclusive(v, 0u, N-1) || !mathutil::uniqueElements(v))
-					throw ConfigException("Bad kept cakes");
-
-				for(unsigned i=0; i<Abt1Sz; i++)
-					retArray[i] = v[i];
-			} else
-				for(unsigned i=0; i<Abt1Sz; i++)
-					retArray[i] = i;
+			std::vector<cake_t> v = jConfig.at("kept");
+			if(v.size() != N)
+				throw ConfigException("Bad kept cakes");
+	
+			for(unsigned i=0; i<N; i++)
+				retArray[i] = v[i];
 
 			return retArray;
 		}
 
-		PancakeStack<N> getInitState() {
+		typename Domain<0>::State getInitState() {
 			return mInitState;
 		}
 
 
 		Pancake_DomainStack_IgnoreAbt(Json const& jConfig) :
-			mAbt1Kept(prepL1Kept(jConfig)),
+			mCakeDropLevel(prepCakeDropLevel(jConfig)),
 			mInitState(jConfig.at("init").get<std::vector<cake_t>>())
 		{}
 
 
-		const std::array<cake_t, Abt1Sz> mAbt1Kept;
+		const std::array<cake_t, N> mCakeDropLevel;
 		const PancakeStack<N> mInitState;
 
 	};

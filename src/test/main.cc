@@ -4,7 +4,7 @@
 #include <iostream>
 #include <cstdio>
 #include <vector>
-#include "domain/gridnav/blocked/graph.hpp"
+//#include "domain/gridnav/blocked/graph.hpp"
 #include "domain/pancake/fwd.hpp"
 #include "domain/star_abt.hpp"
 #include "search/debug_walker.hpp"
@@ -15,7 +15,7 @@
 #include "search/hastar/v2/hastar.hpp"
 
 #include "search/solution.hpp"
-
+/*
 namespace mjon661 { namespace gridnav { namespace blocked {
 	
 	
@@ -50,14 +50,16 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	}
 
 }}}
-
+*/
 namespace mjon661 { namespace pancake {
 	
 	
 	void run() {
 		Json jConfig;
-		jConfig["init"] = std::vector<unsigned>{0,1,2,3,4,5,6,7};
-
+		jConfig["init"] = std::vector<unsigned>{0, 4, 1, 2, 6, 3, 7, 5};
+		jConfig["kept"] = std::vector<unsigned>{3, 3, 3, 2, 2, 1, 1, 1};
+		
+		
 		
 		Pancake_DomainStack_IgnoreAbt<8, 5, 2, true, false> domStack(jConfig);
 
@@ -65,8 +67,8 @@ namespace mjon661 { namespace pancake {
 		
 		algorithm::DebugWalker<Pancake_DomainStack_IgnoreAbt<8, 5, 2, true, false>> dbgwalker(domStack);
 		dbgwalker.execute();
-		
-		return;
+
+
 		algorithm::hastarv2::HAstar_StatsSimple<Pancake_DomainStack_IgnoreAbt<8, 5, 2, true, false>> hastar_alg(domStack, Json());
 		
 		Solution<Pancake_DomainStack_IgnoreAbt<8, 5, 2, true, false>> sol;

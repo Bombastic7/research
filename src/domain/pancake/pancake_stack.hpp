@@ -174,29 +174,10 @@ namespace mjon661 { namespace pancake {
 		}
 		
 		bool isSorted() const {
-			
-			Permutation<N, Sz> cakePerm;
-			
-			for(int i=0, j=0; i<N; i++) {
-				
-				cake_t c = mAllCakes[i];
-				
-				if(c == Null_Cake)
-					continue;
-				
-				cakePerm[j++] = c;
-				
-				if(j == Sz)
-					break;
-			}
-			
-
-			slow_assert(cakePerm.valid());
-			
-			for(unsigned i=0; i<Sz-1; i++)
-				if(cakePerm[i] > cakePerm[i+1])
+			for(unsigned i=0; i<N; i++)
+				if(mAllCakes[i] != Null_Cake && mAllCakes[i] != (int)i)
 					return false;
-			
+
 			return true;
 		}
 		

@@ -35,7 +35,7 @@ namespace mjon661 { namespace pancake {
 		
 		static const unsigned Npancakes = N;
 		
-		static const bool Is_Perfect_Hash = true;
+		static const bool Is_Perfect_Hash = false;
 		
 
 		
@@ -314,7 +314,7 @@ namespace mjon661 { namespace pancake {
 		
 		static const unsigned Npancakes = N, NKeptPancakes = Sz;
 		
-		static const bool Is_Perfect_Hash = true;
+		static const bool Is_Perfect_Hash = false;
 		
 
 		
@@ -350,9 +350,9 @@ namespace mjon661 { namespace pancake {
 			Operator mParentOp;
 		};
 		
-		template<typename InputIt>
-		Domain_NoH_Relaxed(InputIt first, InputIt last) :
-			mAbtor(first, last)
+
+		Domain_NoH_Relaxed(std::array<cake_t, N> const& pCakeDropLevel, unsigned pLevel) :
+			mAbtor(pCakeDropLevel, pLevel)
 		{}
 
 		int getNoOp() const {

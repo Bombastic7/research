@@ -72,7 +72,9 @@ namespace mjon661 {
 			size_t h = mHasher(k);
 			
 			unsigned idx = static_cast<unsigned>(h);
-			slow_assert(idx < mTableSize, "%u %u", idx, mTableSize);
+			if(idx >= mTableSize)
+				return nullptr;
+			//slow_assert(idx < mTableSize, "%u %u", idx, mTableSize);
 
 			return mHashTable[idx];
 		}

@@ -17,23 +17,16 @@ namespace mjon661 { namespace pancake {
 	template<int N, int AbtSz>
 	struct IgnoreCakesAbt {
 
-		template<typename InputIt>
-		IgnoreCakesAbt(InputIt first, InputIt last) :
+		IgnoreCakesAbt(std::array<cake_t, N> const& pCakeDropLevel, unsigned pLevel) :
 			mKeptCakesTable{}
 		{
 			
-			for(unsigned i=0; i<AbtSz; ++first, i++) {
+			for(unsigned i=0; i<N; i++) {
+				if(pCakeDropLevel[i] <= (int)pLevel)
+					continue;
 				
-				fast_assert(first != last);
-				
-				cake_t c = *first;
-				
-				fast_assert(c >= 0 && (unsigned)c < N);
-				
-				mKeptCakesTable[c] = true;
+				mKeptCakesTable[i] = true;
 			}
-			
-			fast_assert(first == last);
 		}
 		
 		template<int BaseSz>

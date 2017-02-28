@@ -44,7 +44,7 @@ class HAstar:
 			self.hcaches[0] = None
 
 	def execute(self, s0, solPath = True, lvl = 0):
-		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0} for i in range(len(self.hcaches))]
+		self.stats = [{"expd":0, "gend":0, "dups":0, "reopnd":0, "nsearches":0} for i in range(len(self.hcaches))]
 		r = self._doSearch(s0, solPath, lvl)
 		assert((not self.cacheBaseLevel and lvl == 0) or self.hcaches[lvl][s0].exact)
 		if solPath:
@@ -67,6 +67,8 @@ class HAstar:
 
 	
 	def _doSearch(self, s0, solPath, lvl):
+		self.stats[lvl]["nsearches"] += 1
+
 		bestExactNode = None
 		dom = self.domstack.getDomain(lvl)
 		cache = self.hcaches[lvl]
@@ -111,7 +113,7 @@ class HAstar:
 
 
 			self.stats[lvl]["expd"] += 1
-			
+
 			assert(cache is None or cache[n.s].prim is not None)
 			
 			def heval(s):
@@ -122,14 +124,15 @@ class HAstar:
 					cache[s].prim = self._heval(s, lvl)
 				return cache[s].prim
 			
-			if self.useUnitCost:
-				childnodes = [Node(c, n.w+edgecost, n.x+1, n.x + 1 + heval(c), n) for (c, edgecost) in dom.expand(n.s)]
-			else:
-				childnodes = [Node(c, n.w+1, n.x+edgecost, n.x+edgecost + heval(c), n) for (c, edgecost) in dom.expand(n.s)]
 
-			for cn in childnodes:
-				if n.parent is not None and cn == n.parent:
+			for (c, edgecost) in dom.expand(n.s):
+				if n.parent is not None and c == n.parent.s:
 					continue
+				
+				if self.useUnitCost:
+					cn = Node(c, n.w+edgecost, n.x+1, n.x + 1 + heval(c), n)
+				else:
+					cn = Node(c, n.w+1, n.x+edgecost, n.x+edgecost + heval(c), n) 
 
 				self.stats[lvl]["gend"] += 1
 				cn.isopen = True
@@ -182,8 +185,9 @@ class HAstar:
 					cache[m.s].sec = goalNode.w - m.w
 				m = m.parent
 
-		assert(cache[goalNode.s].exact)
-		assert(cache[s0].exact)
+		if cache is not None:
+			assert(cache[goalNode.s].exact)
+			assert(cache[s0].exact)
 		
 		if solPath:
 			return goalNode

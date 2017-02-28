@@ -83,7 +83,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				j["expd"] = mTotalExpd;
 				j["gend"] = mTotalGend;
 
-
+				fast_assert(mManager.mReport.count(std::string("Level ") + std::to_string(L)) == 0);
 				mManager.mReport[std::string("Level ") + std::to_string(L)] = j;
 				mManager.mAllExpd += mTotalExpd;
 				mManager.mAllGend += mTotalGend;

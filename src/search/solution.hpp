@@ -36,7 +36,7 @@ namespace mjon661 {
 		}
 		
 		
-		Cost pathCost(D& pStack) {
+		Cost pathCost(D const& pStack) {
 
 			if(states.size() == 0)
 				return 0;

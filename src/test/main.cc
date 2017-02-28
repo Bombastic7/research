@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <vector>
 #include "domain/gridnav/blocked/graph.hpp"
+#include "domain/pancake/fwd.hpp"
 #include "domain/star_abt.hpp"
 #include "search/debug_walker.hpp"
 
@@ -23,8 +24,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		jConfig["map"] = "gridnav_20_map";
 		jConfig["width"] = 20;
 		jConfig["height"] = 20;
-		jConfig["init"] = 9;
-		jConfig["goal"] = 380;
+		jConfig["init"] = 1;
+		jConfig["goal"] = 305;
 		jConfig["radius"] = 2;
 		
 
@@ -43,11 +44,43 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		hastar_alg.execute(s0, sol);
 		
 		sol.printSolution(abtStack, std::cout);
+		
+		Json jStats = hastar_alg.report();
+		std::cout << jStats.dump(4) << "\n";
 	}
 
 }}}
 
+namespace mjon661 { namespace pancake {
+	
+	
+	void run() {
+		Json jConfig;
+		jConfig["init"] = std::vector<unsigned>{0,1,2,3,4,5,6,7};
+
+		
+		Pancake_DomainStack_IgnoreAbt<8, 5, 2, true, false> domStack(jConfig);
+
+		auto s0 = domStack.getInitState();
+		
+		algorithm::hastarv2::HAstar_StatsSimple<Pancake_DomainStack_IgnoreAbt<8, 5, 2, true, false>> hastar_alg(domStack, Json());
+		
+		Solution<Pancake_DomainStack_IgnoreAbt<8, 5, 2, true, false>> sol;
+		
+		hastar_alg.execute(s0, sol);
+		
+		sol.printSolution(domStack, std::cout);
+		std::cout << "Path cost: " << sol.pathCost(domStack) << "\n";
+		Json jStats = hastar_alg.report();
+		
+		std::cout << jStats.dump(4) << "\n";
+	}
+
+}}
+
+
 
 int main(int argc, const char* argv[]) {
-	mjon661::gridnav::blocked::run();
+	//mjon661::gridnav::blocked::run();
+	mjon661::pancake::run();
 }

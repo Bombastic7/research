@@ -131,7 +131,7 @@ namespace mjon661 { namespace algorithm { namespace hastarv2 {
 				mClosedList.add(n0);
 			}
 			
-			while(true) {				
+			while(true) {
 				Node* n = mOpenList.pop();
 					
 				State s;

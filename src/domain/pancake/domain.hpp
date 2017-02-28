@@ -14,6 +14,7 @@
 #include "domain/pancake/defs.hpp"
 #include "domain/pancake/pancake_stack.hpp"
 
+#include "domain/pancake/abstractor.hpp"
 
 namespace mjon661 { namespace pancake {
 	
@@ -34,7 +35,7 @@ namespace mjon661 { namespace pancake {
 		
 		static const unsigned Npancakes = N;
 		
-		static const size_t Hash_Range = State::Hash_Range;
+		static const bool Is_Perfect_Hash = true;
 		
 
 		
@@ -74,15 +75,17 @@ namespace mjon661 { namespace pancake {
 		
 		
 		Domain_NoH() :
-			noOp(0),
 			mHasInitState(false)
 		{}
 		
 		Domain_NoH(PancakeStack<N> const& pInit) :
-			noOp(0),
 			mHasInitState(true),
 			mInitState(pInit)
 		{}
+		
+		int getNoOp() const {
+			return -1;
+		}
 		
 		State createState() const {
 			fast_assert(mHasInitState);
@@ -145,8 +148,6 @@ namespace mjon661 { namespace pancake {
 		void prettyPrint(Operator const& op, std::ostream &out) const {
 			out << op << "\n";
 		}
-
-		const Operator noOp;
 		
 		private:
 
@@ -313,7 +314,7 @@ namespace mjon661 { namespace pancake {
 		
 		static const unsigned Npancakes = N, NKeptPancakes = Sz;
 		
-		static const size_t Hash_Range = State::Hash_Range;
+		static const bool Is_Perfect_Hash = true;
 		
 
 		
@@ -349,11 +350,19 @@ namespace mjon661 { namespace pancake {
 			Operator mParentOp;
 		};
 		
-		
-		Domain_NoH_Relaxed() :
-			noOp(0)
+		template<typename InputIt>
+		Domain_NoH_Relaxed(InputIt first, InputIt last) :
+			mAbtor(first, last)
 		{}
 
+		int getNoOp() const {
+			return -1;
+		}
+		
+		template<typename BS>
+		State abstractParentState(BS const& bs) const {
+			return mAbtor(bs);
+		}
 			
 		void packState(State const& pState, PackedState& pPacked) const {
 			pPacked = pState.getPacked();
@@ -412,6 +421,6 @@ namespace mjon661 { namespace pancake {
 			out << op << "\n";
 		}
 
-		const Operator noOp;
+		const IgnoreCakesAbt<N, Sz> mAbtor;
 	};
 }}

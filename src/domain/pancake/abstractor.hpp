@@ -37,7 +37,7 @@ namespace mjon661 { namespace pancake {
 		}
 		
 		template<int BaseSz>
-		PartialPancakeStack<N, AbtSz> operator()(PartialPancakeStack<N, BaseSz> const& pBaseState) {
+		PartialPancakeStack<N, AbtSz> operator()(PartialPancakeStack<N, BaseSz> const& pBaseState) const {
 			
 			PartialPancakeStack<N, AbtSz> s;
 			
@@ -46,7 +46,7 @@ namespace mjon661 { namespace pancake {
 			return s;
 		}
 		
-		PartialPancakeStack<N, AbtSz> operator()(PancakeStack<N> const& pBaseState) {
+		PartialPancakeStack<N, AbtSz> operator()(PancakeStack<N> const& pBaseState) const {
 			
 			PartialPancakeStack<N, AbtSz> s;
 			

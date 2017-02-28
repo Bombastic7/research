@@ -596,6 +596,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		};
 		
 		unsigned abstractBaseState(unsigned bs, unsigned lvl) const {
+			slow_assert(mCellGraph.isOpen(bs));
 			unsigned s = mBaseTrns.at(bs);
 			
 			for(unsigned i=0; i<lvl; i++)
@@ -629,6 +630,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				mAbtEdges.push_back(abtedges);
 				mAbtTrns.push_back(abttrns);
 			}
+			
 
 			/*
 			std::cout << mAbtEdges.at(0).size() <<  " " << mBaseTrns.size() << "\n";

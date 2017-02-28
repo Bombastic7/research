@@ -11,10 +11,9 @@ dropcakes = (lvl c0 is dropped, lvl c1 is, lvl c2 is)
 
 
 class Domain:
-	def __init__(self, lvl, s0, goal, dropcakes):
+	def __init__(self, lvl, goal, dropcakes):
 		assert(len(s0) == len(goal) == len(dropcakes))
 		self.lvl = lvl
-		self.s0 = tuple(s0)
 		self.dropcakes = tuple(dropcakes)
 		self.goal = tuple(goal)
 		self.randShuffled = range(len(goal))
@@ -68,9 +67,9 @@ class Domain:
 			if self.dropcakes[i] <= self.lvl+1:
 				tilesRemaining -= 1
 		
-		if tilesRemaining == 0:
+		if tilesRemaining <= 1:
 			return None
-		return Domain(self.lvl+1, self.s0, self.goal, self.dropcakes)
+		return Domain(self.lvl+1, self.goal, self.dropcakes)
 	
 
 	def abstractState(self, bs):
@@ -80,3 +79,24 @@ class Domain:
 				s[i] = None
 		
 		return tuple(s)
+
+
+class DomainStack:
+	def __init__(self, Sz, dropcakes):
+		self.doms = [Domain(0, range(Sz), dropcakes)]
+		
+		while True:
+			abtdom = self.doms[-1].spawnAbtDomain()
+			if abtdom is None:
+				break
+			self.doms.append(abtdom)
+	
+	def getDomain(self, lvl):
+		return self.doms[lvl]
+	
+	def getTopLevel(self):
+		return len(self.doms)-1
+
+
+def inst_8():
+	return DomainStack(8, [1,1,1,2,2,3,3,4])

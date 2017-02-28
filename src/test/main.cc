@@ -63,6 +63,10 @@ namespace mjon661 { namespace pancake {
 
 		auto s0 = domStack.getInitState();
 		
+		algorithm::DebugWalker<Pancake_DomainStack_IgnoreAbt<8, 5, 2, true, false>> dbgwalker(domStack);
+		dbgwalker.execute();
+		
+		return;
 		algorithm::hastarv2::HAstar_StatsSimple<Pancake_DomainStack_IgnoreAbt<8, 5, 2, true, false>> hastar_alg(domStack, Json());
 		
 		Solution<Pancake_DomainStack_IgnoreAbt<8, 5, 2, true, false>> sol;

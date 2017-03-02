@@ -18,6 +18,7 @@
 #include "search/solution.hpp"
 
 #include "domain/test_graph.hpp"
+#include "search/ugsa/v6/abt_search.hpp"
 
 /*
 namespace mjon661 { namespace gridnav { namespace blocked {
@@ -125,33 +126,53 @@ namespace mjon661 { namespace tiles {
 }}
 */
 
+namespace mjon661 { namespace testgraph {
+	
+	
+	void run() {
+		using DomStack_t = GridTestGraphStack<5>;
+		
+		DomStack_t domStack;
+		
+		using HAalg_t = algorithm::hastarv2::HAstar_StatsSimple<DomStack_t>;
+		
+		HAalg_t hastar_alg(domStack, Json());
 
+
+		Solution<DomStack_t> sol;
+		
+		hastar_alg.execute(domStack.getInitState(), sol);
+		
+		sol.printSolution(domStack, std::cout);
+		std::cout << "Path cost: " << sol.pathCost(domStack) << "\n";
+		Json jStats = hastar_alg.report();
+		
+		std::cout << jStats.dump(4) << "\n";
+		
+		
+		using UGSAv6AbtAlg_t = algorithm::ugsav6::UGSAv6_Abt<DomStack_t, 0, 0>;
+		
+		Json jConfig;
+		jConfig["wf"] = 1;
+		jConfig["wt"] = 1;
+		UGSAv6AbtAlg_t ugsaAlg(domStack, jConfig);
+		
+		ugsaAlg.resetParams(1, 1.2);
+		
+		unsigned remcost;
+		algorithm::ugsav6::Util_t remdist;
+		ugsaAlg.computeRemainingEffort(0, remcost, remdist);
+		
+		ugsaAlg.dumpExactCache(std::cout);
+		
+		std::cout << "\n\n" << remcost << " " << remdist << "\n";
+	}
+
+}}
 int main(int argc, const char* argv[]) {
 	//mjon661::gridnav::blocked::run();
 	//mjon661::pancake::run();
 	//mjon661::tiles::run();
 	
-	using Json = mjon661::Json;
-	
-	Json j;
-	
-	j["adj_matrix"] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-	
-	using DomStack_t = mjon661::testgraph::GridTestGraphStack<10>;
-	DomStack_t domStack; //dom(j);
-	auto dom = typename DomStack_t::template Domain<0>(domStack);
-	
-	dom.dump(std::cout);
-	
-	mjon661::algorithm::hastarv2::HAstar_StatsSimple<DomStack_t> hastar_alg(domStack, Json());
-		
-	mjon661::Solution<DomStack_t> sol;
-	
-	hastar_alg.execute(domStack.getInitState(), sol);
-	
-	sol.printSolution(domStack, std::cout);
-	std::cout << "Path cost: " << sol.pathCost(domStack) << "\n";
-	Json jStats = hastar_alg.report();
-	
-	std::cout << jStats.dump(4) << "\n";
+	mjon661::testgraph::run();
 }

@@ -12,11 +12,13 @@
 #include "util/json.hpp"
 #include "util/debug.hpp"
 
+#include "search/ugsa/v6/defs.hpp"
+
 namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 
 
-	template<typename D, unsigned L, unsigned Bound, typename StatsManager>
+	template<typename D, unsigned L, unsigned Bound>
 	class UGSAv6_Abt {
 		public:
 
@@ -27,31 +29,41 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
-		using StatsAcc = typename StatsManager::template StatsAcc<L>;
 
 
 		struct GoalPin {
+			GoalPin() {nxt = nullptr;}
+			void destroy() {if(nxt) nxt.destroy(); delete this;}
 			PackedState goalPkd;
 			unsigned mindepth, maxdepth;
 			Cost cost;
 			unsigned dist;
+			GoalPin* nxt;
 		};
-
+		
 
 		struct ExactCacheEntry {
 			PackedState pkd;
-			std::vector<ExactCacheEntry> goalPins;
+			GoalPin* goalPinsHead;
 			
-			GoalPin& find(bool& newPin, Domain const& dom, PackedState const& goalPkd) {
-				for(GoalPin const& gp : goalPins)
-					if(dom.compare(gp.pkd, goalPkd)) {
+			ExactCacheEntry() { goalPinsHead = nullptr; }
+			
+			GoalPin* find(bool& newPin, Domain const& dom, PackedState const& goalPkd) {
+				GoalPin* gp = goalPinsHead;
+				while(true) {
+					if(dom.compare(gp->goalPkd, goalPkd)) {
 						newPin = false;
 						return gp;
 					}
-				goalPins.push_back(GoalPin());
-				goalPins.back().goalPkd = goalPkd;
+					if(gp->nxt == nullptr)
+						break;
+					gp = gp->nxt;
+				}
+				
+				gp->nxt = new GoalPin;
+				gp->goalPkd = goalPkd;
 				newPin = true;
-				return goalPins.back();
+				return gp;
 			}
 		};
 
@@ -108,7 +120,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 										PackedState, 
 										ClosedOps,
 										ClosedOps,
-										Domain::Hash_Range>;
+										Domain::Is_Perfect_Hash>;
 									  
 		using NodePool_t = NodePool<Node, typename ClosedList_t::Wrapped_t>;
 
@@ -116,8 +128,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 		
 
-		UGSAv6_Abt(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
-			mStatsAcc			(pStats),
+		UGSAv6_Abt(D& pDomStack, Json const& jConfig) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
@@ -136,7 +147,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
-			mStatsAcc.reset();
+			
+			for(auto it=mExactCache.begin(); it!=mExactCache.end(); ++it)
+				(*it).goalPinsHead->destroy();
+			
+			mExactCache.clear();
 		}
 		
 		void submitStats() {
@@ -166,7 +181,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			
 			doSearch(s0);
 			
-			slow_assert(tryFindExactCached(s0, remcost, remdist);
+			slow_assert(tryFindExactCached(s0, remcost, remdist));
 			
 			out_cost = remcost;
 			out_remexp = compRemExp(remdist);
@@ -228,7 +243,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				if(ops[i] == n->parent_op)
 					continue;
 				
-				mStatsAcc.a_gend();
 				considerkid(n, s, ops[i]);
 			}
 		}
@@ -238,7 +252,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			Edge		edge 	= 		mDomain.createEdge(pParentState, pInOp);
 			Cost 		kid_g   = 		pParentNode->g + edge.cost();
 			unsigned	kid_depth = 	pParentNode->depth + 1;
-			Util_t		kid_ug =		mParams_wf * kid_g + mParams_wt * mParam_k * compRemExp(kid_depth);
+			Util_t		kid_ug =		mParams_wf * kid_g + mParams_wt * mParams_k * compRemExp(kid_depth);
 			Util_t		kid_uf = 		kid_ug;// + //..
 			
 			PackedState kid_pkd;
@@ -294,25 +308,25 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			unsigned goal_depth = goalNode->depth;
 			
 			
-			for(Node* n=goalNode; n!=nullptr; n=n.parent) {
+			for(Node* n=goalNode; n!=nullptr; n=n->parent) {
 				State s;
 				mDomain.unpackState(s, n->pkd);
 				
 				ExactCacheEntry* ent;
-				bool newEntry = mExactCache.find(n->pkd, ent);
+				mExactCache.get(n->pkd, ent);
 
 				bool newPin;
-				GoalPin& goalpin = ent.find(newPin, mDomain, goalNode->pkd);
+				GoalPin* goalpin = ent->find(newPin, mDomain, goalNode->pkd);
 				
 				if(newPin) {
-					goalpin.mindepth = goalpin.maxdepth = n->depth;
-					goalpin.cost = goal_cost - n.g;
-					goalpin.dist = goal_depth - n.depth;
+					goalpin->mindepth = goalpin->maxdepth = n->depth;
+					goalpin->cost = goal_cost - n->g;
+					goalpin->dist = goal_depth - n->depth;
 				} else {
-					goalpin.mindepth = mathutil::min(goalpin.mindepth, n.depth);
-					goalpin.maxdepth = mathutil::max(goalpin.maxdepth, n.depth);
-					slow_assert(goalpin.cost == goal_cost - n.g);
-					slow_assert(goalpin.dist == goal_depth - n.depth);
+					goalpin->mindepth = mathutil::min(goalpin->mindepth, n->depth);
+					goalpin->maxdepth = mathutil::max(goalpin->maxdepth, n->depth);
+					slow_assert(goalpin->cost == goal_cost - n->g);
+					slow_assert(goalpin->dist == goal_depth - n->depth);
 				}
 			}
 		}
@@ -331,10 +345,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				mDomain.prettyPrint(s, out);
 				out << "\n\nPINS:\n";
 				
-				for(auto it2=(*it)->goalPins.begin(); it2!=(*it)->goalPins.end(); ++it2) {
-					out << (*it2)->mindepth << " " << (*it2)->maxdepth << " " << (*it2)->cost << " " << (*it2)->dist << "\n";
+				for(GoalPin* gp=(*it)->goalPinsHead; gp; gp=gp->nxt) {
+					out << gp->mindepth << " " << gp->maxdepth << " " << gp->cost << " " << gp->dist << "\n";
 					State goalState;
-					mDomain.unpackState(goalState, (*it2)->goalPkd);
+					mDomain.unpackState(goalState, gp->goalPkd);
 					mDomain.prettyPrint(goalState, out);
 					out << "\n\n";
 				}
@@ -343,12 +357,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			}
 		}
 		
-		StatsAcc mStatsAcc;
+
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
-		CachedStore_t mExactCache;
+		CacheStore_t mExactCache;
 		double mParams_wf, mParams_wt, mParams_k, mParams_bf;
 	};
 }}}

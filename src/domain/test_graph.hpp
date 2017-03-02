@@ -107,6 +107,10 @@ namespace mjon661 { namespace testgraph {
 			return s;
 		}
 		
+		bool compare(unsigned a, unsigned b) const {
+			return a == b;
+		}
+		
 		void prettyPrint(unsigned s, std::ostream& out) const {
 			out << s;
 		}

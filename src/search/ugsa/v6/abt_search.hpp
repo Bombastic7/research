@@ -33,7 +33,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 		struct GoalPin {
 			GoalPin() {nxt = nullptr;}
-			void destroy() {if(nxt) nxt.destroy(); delete this;}
+			void destroy() {if(nxt) nxt->destroy(); delete this;}
 			PackedState goalPkd;
 			unsigned mindepth, maxdepth;
 			Cost cost;
@@ -49,21 +49,31 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			ExactCacheEntry() { goalPinsHead = nullptr; }
 			
 			GoalPin* find(bool& newPin, Domain const& dom, PackedState const& goalPkd) {
-				GoalPin* gp = goalPinsHead;
-				while(true) {
-					if(dom.compare(gp->goalPkd, goalPkd)) {
-						newPin = false;
-						return gp;
-					}
-					if(gp->nxt == nullptr)
-						break;
-					gp = gp->nxt;
-				}
 				
-				gp->nxt = new GoalPin;
-				gp->goalPkd = goalPkd;
-				newPin = true;
-				return gp;
+				
+				if(goalPinsHead != nullptr) {
+					GoalPin* gp = goalPinsHead;
+					while(true) {
+						if(dom.compare(gp->goalPkd, goalPkd)) {
+							newPin = false;
+							return gp;
+						}
+						if(gp->nxt == nullptr)
+							break;
+						gp = gp->nxt;
+					}
+				
+					gp->nxt = new GoalPin;
+					gp->goalPkd = goalPkd;
+					newPin = true;
+					return gp;
+				}
+				else {
+					goalPinsHead = new GoalPin;
+					goalPinsHead->goalPkd = goalPkd;
+					newPin = true;
+					return goalPinsHead;
+				}
 			}
 		};
 
@@ -147,9 +157,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
-			
+		}
+		
+		void clearCache() {
 			for(auto it=mExactCache.begin(); it!=mExactCache.end(); ++it)
-				(*it).goalPinsHead->destroy();
+				(*it)->goalPinsHead->destroy();
 			
 			mExactCache.clear();
 		}
@@ -181,10 +193,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			
 			doSearch(s0);
 			
-			slow_assert(tryFindExactCached(s0, remcost, remdist));
+			//slow_assert(tryFindExactCached(s0, remcost, remdist));
 			
-			out_cost = remcost;
-			out_remexp = compRemExp(remdist);
+			out_cost = 0;//remcost;
+			out_remexp = 0;//compRemExp(remdist);
 		}
 		
 		//private:

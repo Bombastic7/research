@@ -161,7 +161,13 @@ namespace mjon661 { namespace testgraph {
 		
 		unsigned remcost;
 		algorithm::ugsav6::Util_t remdist;
-		ugsaAlg.computeRemainingEffort(0, remcost, remdist);
+		
+		for(unsigned i=0; i<2; i++) {
+			for(unsigned s0=0; s0<25; s0++) {
+				ugsaAlg.computeRemainingEffort(s0, remcost, remdist);
+				ugsaAlg.reset();
+			}
+		}
 		
 		ugsaAlg.dumpExactCache(std::cout);
 		

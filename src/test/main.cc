@@ -6,8 +6,8 @@
 #include <vector>
 //#include "domain/gridnav/blocked/graph.hpp"
 //#include "domain/pancake/fwd.hpp"
-#include "domain/tiles/fwd.hpp"
-#include "domain/star_abt.hpp"
+//#include "domain/tiles/fwd.hpp"
+//#include "domain/star_abt.hpp"
 #include "search/debug_walker.hpp"
 
 #include "util/debug.hpp"
@@ -16,6 +16,9 @@
 #include "search/hastar/v2/hastar.hpp"
 
 #include "search/solution.hpp"
+
+#include "domain/test_graph.hpp"
+
 /*
 namespace mjon661 { namespace gridnav { namespace blocked {
 	
@@ -86,7 +89,7 @@ namespace mjon661 { namespace pancake {
 
 }}
 */
-
+/*
 namespace mjon661 { namespace tiles {
 	
 	
@@ -120,9 +123,35 @@ namespace mjon661 { namespace tiles {
 	}
 
 }}
+*/
+
 
 int main(int argc, const char* argv[]) {
 	//mjon661::gridnav::blocked::run();
 	//mjon661::pancake::run();
-	mjon661::tiles::run();
+	//mjon661::tiles::run();
+	
+	using Json = mjon661::Json;
+	
+	Json j;
+	
+	j["adj_matrix"] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+	
+	using DomStack_t = mjon661::testgraph::GridTestGraphStack<10>;
+	DomStack_t domStack; //dom(j);
+	auto dom = typename DomStack_t::template Domain<0>(domStack);
+	
+	dom.dump(std::cout);
+	
+	mjon661::algorithm::hastarv2::HAstar_StatsSimple<DomStack_t> hastar_alg(domStack, Json());
+		
+	mjon661::Solution<DomStack_t> sol;
+	
+	hastar_alg.execute(domStack.getInitState(), sol);
+	
+	sol.printSolution(domStack, std::cout);
+	std::cout << "Path cost: " << sol.pathCost(domStack) << "\n";
+	Json jStats = hastar_alg.report();
+	
+	std::cout << jStats.dump(4) << "\n";
 }

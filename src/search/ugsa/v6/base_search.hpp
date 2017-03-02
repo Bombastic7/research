@@ -98,13 +98,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		}
 		
 		
-		void doSearch(Solution<Domain>& pSolution) {
+		void doSearch(Solution<D>& pSolution) {
 			{
 				Node* n0 = mNodePool.construct();
 
 				n0->g = 		Cost(0);
-				n0->in_op = 	mDomain.noOp;
-				n0->parent_op = mDomain.noOp;
+				n0->in_op = 	mDomain.getNoOp();
+				n0->parent_op = mDomain.getNoOp();
 				n0->parent = 	nullptr;
 
 				n0->u = evalUtil(mInitState, 0);
@@ -138,7 +138,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		
 		private:
 		
-		void prepareSolution(Solution<Domain>& sol, Node* pGoalNode) {
+		void prepareSolution(Solution<D>& sol, Node* pGoalNode) {
 			std::vector<Node*> reversePath;
 			
 			for(Node *n = pGoalNode; n != nullptr; n = static_cast<Node*>(n->parent))

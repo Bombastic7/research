@@ -18,7 +18,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		{}
 		
 		
-		void execute(Solution<BaseDomain>& pSol) {
+		void execute(State const& s0, Solution<DomStack>& pSol) {
 			mAlgo.doSearch(pSol);
 		}
 

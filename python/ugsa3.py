@@ -233,12 +233,13 @@ class UGSA2_AbtSearch:
 		if n.depth not in self.cache_partial[n.s]:
 			#Use prev encounters at lower depths or do abt search starting at current depth of this node?
 			uh1 = 0
+			"""
 			for cachedDepth, cachedU in self.cache_partial[n.s].iteritems():
 				if cachedDepth > n.depth:
 					continue
 				if cachedU > uh1:
 					uh1 = cachedU
-
+			"""
 			if self.abtSearch is not None:
 				abtstate = self.domstack.getDomain(self.lvl+1).abstractState(n.s)
 				uh2 = self.abtSearch.doSearch(abtstate)
@@ -247,15 +248,15 @@ class UGSA2_AbtSearch:
 
 			self.cache_partial[n.s][n.depth] = max(uh1, uh2)
 
-			assert(max(uh1, uh2) <= self.test_uncachedAlg.doSearch(n.s, n.depth))
-
+			#assert(max(uh1, uh2) <= self.test_uncachedAlg.doSearch(n.s, n.depth))
+			"""
 			if uh1 > uh2:
 				self.test_best_h[n.s] = "lowerDepth"
 			elif uh1 < uh2:
 				self.test_best_h[n.s] = "abt"
 			else:
 				self.test_best_h[n.s] = "eq"
-
+			"""
 		n.uf = n.ug + self.cache_partial[n.s][n.depth]
 
 
@@ -419,10 +420,10 @@ class UGSA2:
 	def compBaseUtil(self, s, g):
 		abtstate = self.doms[1].abstractState(s)
 		a = self.wf*g + self.abtSearch.doSearch(abtstate)
-		b = self.wf*g + self.abtSearch_uncached.doSearch(abtstate)
-		if a != b:
-			print s, abtstate, self.wf*g, a, b
-		assert(a == b)
+		#b = self.wf*g + self.abtSearch_uncached.doSearch(abtstate)
+		#if a != b:
+		#	print s, abtstate, self.wf*g, a, b
+		#assert(a == b)
 		return a
 		
 	

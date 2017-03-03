@@ -191,8 +191,8 @@ namespace mjon661 { namespace testgraph {
 	
 		ugsaAlg.execute(domStack.getInitState(), sol);
 		
-		sol.printSolution(domStack, std::cout);
-		std::cout << "Path cost: " << sol.pathCost(domStack) << "\n";
+		//sol.printSolution(domStack, std::cout);
+		//std::cout << "Path cost: " << sol.pathCost(domStack) << "\n";
 		Json jStats = ugsaAlg.report();
 		std::cout << jStats.dump(4) << "\n";
 	}

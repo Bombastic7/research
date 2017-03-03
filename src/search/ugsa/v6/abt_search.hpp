@@ -172,7 +172,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mRemExpCache.resize(2);
 			mRemExpCache[0] = 0;
 			mRemExpCache[1] = mParams_bf;
-			//clear cache
+			
+			clearCache();
 		}
 		
 		

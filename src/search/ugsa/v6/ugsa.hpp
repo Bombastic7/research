@@ -27,7 +27,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		}
 
 		Json report() {
-			return Json();
+			return mAlgo.report();
 		}
 		
 		void reset() {

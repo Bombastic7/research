@@ -1,11 +1,16 @@
 #pragma once
 
+#include "search/solution.hpp"
+#include "util/json.hpp"
+
+#include "search/ugsa/v6/base_search.hpp"
+
 namespace mjon661 { namespace algorithm { namespace ugsav6 {
 	
 	
 	
 	template<typename DomStack>
-	class UGSAv6 {
+	struct UGSAv6 {
 		
 		
 		using BaseDomain = typename DomStack::template Domain<0>;
@@ -13,28 +18,23 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		
 		
 		UGSAv6(DomStack& pStack, Json const& jConfig) :
-			mStatsManager(),
-			mAlgo(pStack, jConfig, mStatsManager)
+			mAlgo(pStack, jConfig)
 		{}
 		
 		
 		void execute(State const& s0, Solution<DomStack>& pSol) {
-			mAlgo.doSearch(pSol);
+			mAlgo.doSearch(s0, pSol);
 		}
 
 		Json report() {
-			mAlgo.submitStats();
-			Json j = mStatsManager.report();
-			return j;
+			return Json();
 		}
 		
 		void reset() {
 			mAlgo.reset();
-			mStatsManager.reset();
 		}
 
-
-		StatsManager mStatsManager;
+		private:
 		UGSAv6_Base<DomStack> mAlgo;
 	};
 	

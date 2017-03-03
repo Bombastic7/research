@@ -178,6 +178,14 @@ namespace mjon661 { namespace tiles {
 		Cost distanceHeuristic(State const& pState) const {
 			return pState.get_d();
 		}
+
+		bool compare(State const& a, State const& b) const {
+			return a == b;
+		}
+
+		bool compare(PackedState const& a, PackedState const& b) const {
+			return a == b;
+		}
 		
 		std::pair<Cost, Cost> pairHeuristics(State const& pState) const {
 			return std::pair<Cost, Cost>(pState.get_h(), pState.get_d());
@@ -301,6 +309,14 @@ namespace mjon661 { namespace tiles {
 		
 		Cost distanceHeuristic(State const& pState) const {
 			return 0;
+		}
+		
+		bool compare(State const& a, State const& b) const {
+			return a == b;
+		}
+
+		bool compare(PackedState const& a, PackedState const& b) const {
+			return a == b;
 		}
 		
 		std::pair<Cost, Cost> pairHeuristics(State const& pState) const {
@@ -440,7 +456,14 @@ namespace mjon661 { namespace tiles {
 		bool checkGoal(State const& pState) const {
 			return pState == mGoalState;
 		}
-		
+
+		bool compare(State const& a, State const& b) const {
+			return a == b;
+		}
+
+		bool compare(PackedState const& a, PackedState const& b) const {
+			return a == b;
+		}
 		
 		private:
 

@@ -1,11 +1,23 @@
 #pragma once
 
+#include <vector>
+
+#include "search/openlist.hpp"
+#include "search/closedlist.hpp"
+#include "search/nodepool.hpp"
+#include "search/cache_store.hpp"
+#include "structs/object_pool.hpp"
+#include "util/json.hpp"
+#include "util/debug.hpp"
+
+#include "search/ugsa/v6/defs.hpp"
+#include "search/ugsa/v6/abt_search.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 
-	template<typename D, typename StatsManager>
+	template<typename D>
 	class UGSAv6_Base {
 		public:
 
@@ -16,9 +28,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
-		using StatsAcc = typename StatsManager::template StatsAcc<0>;
 
-
+		using AbtSearch = UGSAv6_Abt<D, 1, 1>;
+		
 		struct Node {
 			Cost g;
 			//unsigned depth;
@@ -67,23 +79,22 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 										PackedState, 
 										ClosedOps,
 										ClosedOps,
-										Domain::Hash_Range>;
+										Domain::Is_Perfect_Hash>;
 									  
 		using NodePool_t = NodePool<Node, typename ClosedList_t::Wrapped_t>;
 
 
 
-		UGSAv6_Base(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
-			mStatsAcc			(pStats),
+		UGSAv6_Base(D& pDomStack, Json const& jConfig) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
-			mInitState			(mDomain.createState()),
-			mWf					(jConfig.at("wf"))
-			mWt					(jConfig.at("wt"))
+			mAbtSearch			(pDomStack, jConfig),
+			mParams_wf			(jConfig.at("wf")),
+			mParams_wt			(jConfig.at("wt"))
 		{
-			fast_assert(mWf >= 0 && mWt >= 0);
+			fast_assert(mParams_wf >= 0 && mParams_wt >= 0);
 		}
 
 		
@@ -91,14 +102,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
-			mStatsAcc.reset();
+			mAbtSearch.reset();
 		}
 		
-		void submitStats() {
+		void clearCache() {
+			mAbtSearch.clearCache();
 		}
 		
+
 		
-		void doSearch(Solution<D>& pSolution) {
+		void doSearch(State const& s0, Solution<D>& pSolution) {
+			mAbtSearch.resetParams(1, 1.2);
+			
 			{
 				Node* n0 = mNodePool.construct();
 
@@ -107,13 +122,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				n0->parent_op = mDomain.getNoOp();
 				n0->parent = 	nullptr;
 
-				n0->u = evalUtil(mInitState, 0);
+				n0->u = evalUtil(s0, 0);
 
-				mDomain.packState(mInitState, n0->pkd);
+				mDomain.packState(s0, n0->pkd);
 				
 				mOpenList.push(n0);
 				mClosedList.add(n0);
-			}
+			}			
 			
 			while(true) {				
 				Node* n = mOpenList.pop();
@@ -156,7 +171,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				if(i != reversePath.size()-1)
 					sol.operators.push_back(reversePath[i]->in_op);	
 				else
-					fast_assert(reversePath[i]->in_op == mDomain.noOp);
+					fast_assert(reversePath[i]->in_op == mDomain.getNoOp());
 			}
 		}
 		
@@ -170,8 +185,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			for(unsigned i=0; i<ops.size(); i++) {
 				if(ops[i] == n->parent_op)
 					continue;
-				
-				mStatsAcc.a_gend();
+
 				considerkid(n, s, ops[i]);
 			}
 		}
@@ -180,7 +194,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
 			Cost 		kid_g   = pParentNode->g + edge.cost();
-			//unsigned	kid_depth = pParentNode->get_depth() + 1;
 			
 			PackedState kid_pkd;
 			mDomain.packState(edge.state(), kid_pkd);
@@ -190,9 +203,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			if(kid_dup) {
 				//mStatsAcc.a_dups();
 				if(kid_dup->g > kid_g) {
-					kid_dup->u			-= kid_dup->g * mWf;
-					kid_dup->u			+= kid_g * mWf;
-					
+					kid_dup->u 			= evalUtil(edge.state(), kid_g);
 					kid_dup->g			= kid_g;
 
 					kid_dup->in_op		= pInOp;
@@ -223,9 +234,20 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mDomain.destroyEdge(edge);
 		}
 		
-		Util_u evalUtil(State const& s, Cost g) {
-			return mWf*g + mAbtSearch.doSearch(s);
+		Util_t evalUtil(State const& s, Cost g) {
+			Cost remcost;
+			Util_t remexp;
+			mAbtSearch.computeRemainingEffort_parentState(s, remcost, remexp);
+			return mParams_wf*(g + remcost) + mParams_wt*remexp;
 		}
+		
+		
+		Domain mDomain;
+		OpenList_t mOpenList;
+		ClosedList_t mClosedList;
+		NodePool_t mNodePool;
+		AbtSearch mAbtSearch;
+		Util_t mParams_wf, mParams_wt;
 	};
 
 

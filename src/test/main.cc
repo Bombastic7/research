@@ -1,4 +1,5 @@
 
+#include <algorithm>
 #include <stdexcept>
 #include <fstream>
 #include <iostream>
@@ -6,7 +7,7 @@
 #include <vector>
 //#include "domain/gridnav/blocked/graph.hpp"
 //#include "domain/pancake/fwd.hpp"
-//#include "domain/tiles/fwd.hpp"
+#include "domain/tiles/fwd.hpp"
 //#include "domain/star_abt.hpp"
 #include "search/debug_walker.hpp"
 
@@ -18,7 +19,7 @@
 #include "search/solution.hpp"
 
 #include "domain/test_graph.hpp"
-#include "search/ugsa/v6/abt_search.hpp"
+#include "search/ugsa/v6/ugsa.hpp"
 
 /*
 namespace mjon661 { namespace gridnav { namespace blocked {
@@ -130,9 +131,16 @@ namespace mjon661 { namespace testgraph {
 	
 	
 	void run() {
-		using DomStack_t = GridTestGraphStack<5>;
+		Json jDomConfig;
+		jDomConfig["init"] = std::vector<unsigned>{4, 3, 2, 1, 8, 0, 6, 5, 7};
+		jDomConfig["goal"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8};
+		jDomConfig["kept"] = std::vector<unsigned>{5, 4, 3, 2, 1, 1, 1, 1};
 		
-		DomStack_t domStack;
+		//using DomStack_t = GridTestGraphStack<5>;
+		using DomStack_t = tiles::TilesGeneric_DomainStack<3,3, false, true, 5>;
+		
+		
+		DomStack_t domStack(jDomConfig);
 		
 		using HAalg_t = algorithm::hastarv2::HAstar_StatsSimple<DomStack_t>;
 		
@@ -141,37 +149,52 @@ namespace mjon661 { namespace testgraph {
 
 		Solution<DomStack_t> sol;
 		
-		hastar_alg.execute(domStack.getInitState(), sol);
+		//hastar_alg.execute(domStack.getInitState(), sol);
+		//
+	//	sol.printSolution(domStack, std::cout);
+	//	std::cout << "Path cost: " << sol.pathCost(domStack) << "\n";
+	//	Json jStats = hastar_alg.report();
 		
-		sol.printSolution(domStack, std::cout);
-		std::cout << "Path cost: " << sol.pathCost(domStack) << "\n";
-		Json jStats = hastar_alg.report();
-		
-		std::cout << jStats.dump(4) << "\n";
+	//	std::cout << jStats.dump(4) << "\n";
 		
 		
-		using UGSAv6AbtAlg_t = algorithm::ugsav6::UGSAv6_Abt<DomStack_t, 0, 0>;
+		using UGSAv6AbtAlg_t = algorithm::ugsav6::UGSAv6<DomStack_t>;
 		
 		Json jConfig;
 		jConfig["wf"] = 1;
 		jConfig["wt"] = 1;
 		UGSAv6AbtAlg_t ugsaAlg(domStack, jConfig);
 		
-		ugsaAlg.resetParams(1, 1.2);
-		
-		unsigned remcost;
+		/*
+		int remcost;
 		algorithm::ugsav6::Util_t remdist;
 		
+		unsigned nruns = 0;
 		for(unsigned i=0; i<2; i++) {
-			for(unsigned s0=0; s0<25; s0++) {
-				ugsaAlg.computeRemainingEffort(s0, remcost, remdist);
+			nruns = 0;
+			tiles::ProblemIterator<3,3> it(std::vector<int>{0,1,2,3,4,5,6,7,8});
+			
+			
+			do {
+				ugsaAlg.computeRemainingEffort(it(), remcost, remdist);
 				ugsaAlg.reset();
-			}
+				nruns++;
+				if(nruns%10 == 0)
+					std::cout << nruns << "\n";
+			} while(it.next());
 		}
 		
 		ugsaAlg.dumpExactCache(std::cout);
 		
 		std::cout << "\n\n" << remcost << " " << remdist << "\n";
+	*/
+	
+		ugsaAlg.execute(domStack.getInitState(), sol);
+		
+		sol.printSolution(domStack, std::cout);
+		std::cout << "Path cost: " << sol.pathCost(domStack) << "\n";
+		Json jStats = ugsaAlg.report();
+		std::cout << jStats.dump(4) << "\n";
 	}
 
 }}

@@ -125,4 +125,34 @@ namespace mjon661 { namespace tiles {
 		BoardState<H,W> const& mGoalBoard;
 	};
 
+
+	template<int H, int W>
+	struct ProblemIterator {
+		ProblemIterator(BoardState<H,W> const& pGoalBoard) :
+			mCurBoard(),
+			mGoalBoard(pGoalBoard)
+		{
+			for(unsigned i=0; i<H*W; i++)
+				mCurBoard[i] = i;
+		}
+		
+		bool next() {
+			bool ret = true;
+			do {
+				bool b = std::next_permutation(mCurBoard.begin(), mCurBoard.end());
+				if(!b)
+					ret = false;
+			} while(!isSolvable<H,W>(mCurBoard, mGoalBoard));
+			
+			return ret;
+		}
+		
+		BoardState<H,W> const& operator()() {
+			return mCurBoard;
+		}
+		
+		private:
+		BoardState<H,W> mCurBoard, mGoalBoard;
+		
+	};
 }}

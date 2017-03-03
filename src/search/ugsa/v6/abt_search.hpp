@@ -49,8 +49,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			ExactCacheEntry() { goalPinsHead = nullptr; }
 			
 			GoalPin* find(bool& newPin, Domain const& dom, PackedState const& goalPkd) {
-				
-				
 				if(goalPinsHead != nullptr) {
 					GoalPin* gp = goalPinsHead;
 					while(true) {
@@ -144,6 +142,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mExactCache			(mDomain),
+			mRemExpCache		(),
 			mParams_wf			(jConfig.at("wf")),
 			mParams_wt			(jConfig.at("wt")),
 			mParams_k			(0),
@@ -165,19 +164,21 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			
 			mExactCache.clear();
 		}
-		
-		void submitStats() {
-		}
-		
+
 		void resetParams(double k, double bf) {
 			mParams_k = k;
 			mParams_bf = bf;
+			
+			mRemExpCache.resize(2);
+			mRemExpCache[0] = 0;
+			mRemExpCache[1] = mParams_bf;
 			//clear cache
 		}
 		
 		
 		template<typename PS>
 		void computeRemainingEffort_parentState(PS const& pParentState, Cost& out_cost, Util_t& out_remexp) {
+			reset();
 			State s0 = mDomain.abstractParentState(pParentState);
 			computeRemainingEffort(s0, out_cost, out_remexp);
 		}
@@ -185,7 +186,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		void computeRemainingEffort(State const& s0, Cost& out_cost, Util_t& out_remexp) {
 			Cost remcost;
 			unsigned remdist;
-			if(tryFindExactCached(s0, remcost, remdist)) {
+			if(tryFindExactCached(s0, 0, remcost, remdist)) {
 				out_cost = remcost;
 				out_remexp = compRemExp(remdist);
 				return;
@@ -193,17 +194,30 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			
 			doSearch(s0);
 			
-			//slow_assert(tryFindExactCached(s0, remcost, remdist));
+			slow_assert(tryFindExactCached(s0, 0, remcost, remdist));
 			
-			out_cost = 0;//remcost;
-			out_remexp = 0;//compRemExp(remdist);
+			out_cost = remcost;
+			out_remexp = compRemExp(remdist);
 		}
 		
-		//private:
-		//void compPartialPathUtil()
+
 		
-		
-		bool tryFindExactCached(State const& s, Cost&, unsigned&) {
+		bool tryFindExactCached(State const& s, unsigned depth, Cost& out_cost, unsigned& out_dist) {
+			PackedState pkd;
+			mDomain.packState(s, pkd);
+			ExactCacheEntry* ent = mExactCache.retrieve(pkd);
+			
+			if(!ent)
+				return false;
+			
+			for(GoalPin* gp = ent->goalPinsHead; gp; gp=gp->nxt) {
+				if(gp->mindepth <= depth && gp->maxdepth >= depth) {
+					out_cost = gp->cost;
+					out_dist = gp->dist;
+					return true;
+				}
+			}
+			
 			return false;
 		}
 		
@@ -343,11 +357,23 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			}
 		}
 		
+
 		Util_t compRemExp(unsigned depth) {
-			Util_t acc = 0;
-			for(unsigned i=1; i<=depth; i++)
-				acc += std::pow(mParams_bf, i);
-			return acc;
+			if(mRemExpCache.size() <= depth) {
+				unsigned pos = mRemExpCache.size()-1;
+				mRemExpCache.resize(depth+1);
+			
+				for(unsigned i=pos+1; i<mRemExpCache.size(); i++)
+					mRemExpCache[i] = mRemExpCache[i-1] + std::pow(mParams_bf, i);
+
+				//~ Util_t acc = 0;
+				//~ for(unsigned i=1; i<=depth; i++)
+					//~ acc += std::pow(mParams_bf, i);
+			
+				//~ slow_assert(acc == mRemExpCache.at(depth));
+			}
+			
+			return mRemExpCache[depth];//......
 		}
 		
 		void dumpExactCache(std::ostream& out) {
@@ -375,6 +401,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
 		CacheStore_t mExactCache;
+		std::vector<Util_t> mRemExpCache;
 		double mParams_wf, mParams_wt, mParams_k, mParams_bf;
 	};
 }}}

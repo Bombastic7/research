@@ -2,6 +2,8 @@
 
 #include <array>
 #include <vector>
+#include <random>
+#include <algorithm>
 
 #include "util/json.hpp"
 #include "util/math.hpp"
@@ -51,11 +53,31 @@ namespace mjon661 { namespace tiles {
 			return mInitState;
 		}
 		
+		BoardState<Height, Width> randInitState(unsigned pN) const {
+			BoardState<Height, Width> s;
+			for(unsigned i=0; i<Height*Width; i++)
+				s[i] = i;
+			
+			std::mt19937 gen;
+			
+			for(unsigned i=0; i<(pN+3)*17; i++) {
+				do {
+					std::shuffle(s.begin(), s.end(), gen);
+				} while(!isSolvable(s, mGoalState));
+			}
+			
+			return s;
+		}
+		
 		TilesGeneric_DomainStack(Json const& jConfig) :
 			mAbtSpec(jConfig.at("kept").get<std::vector<unsigned>>()),
-			mInitState(jConfig.at("init").get<std::vector<tile_t>>()),
 			mGoalState(jConfig.at("goal").get<std::vector<tile_t>>())
 		{
+			if(jConfig.count("init"))
+				mInitState = BoardState<Height, Width>(jConfig.at("goal").get<std::vector<tile_t>>());
+			else
+				mInitState = randInitState(0);
+			
 			if(!mInitState.valid())
 				throw ConfigException("Bad init");
 			

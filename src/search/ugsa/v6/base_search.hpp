@@ -164,8 +164,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				
 				expand(n, s);
 				
-				if(mLog_expd == mResort_next)
-					doResort();
+				//if(mLog_expd == mResort_next)
+					//doResort();
 			}
 			
 			for(Node* n=goalNode; n; n=n->parent) {
@@ -188,6 +188,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			j["gend"] = mLog_gend;
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
+			
+			j["bf_stats"] = mathutil::sampleStats(mLog_resort_bf);
+			
+			std::vector<double> remexpError;
+			for(auto p : mLog_solpathRemExp) {
+				double trueRemExp = mLog_expd - p[0];
+				if(trueRemExp == 0)
+					continue;
+				remexpError.push_back(p[1] / trueRemExp);
+			}
+			
+			j["remexp_errors"] = remexpError;
+			j["remexp_stats"] = mathutil::sampleStats(remexpError);
 			return j;
 		}
 		

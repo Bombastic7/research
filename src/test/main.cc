@@ -132,12 +132,16 @@ namespace mjon661 { namespace testgraph {
 	
 	void run() {
 		Json jDomConfig;
-		jDomConfig["init"] = std::vector<unsigned>{4, 3, 2, 1, 8, 0, 6, 5, 7};
+		//jDomConfig["init"] = std::vector<unsigned>{4, 3, 2, 1, 8, 0, 6, 5, 7};
+		//jDomConfig["goal"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+		//jDomConfig["kept"] = std::vector<unsigned>{6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1};
+		
 		jDomConfig["goal"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8};
 		jDomConfig["kept"] = std::vector<unsigned>{5, 4, 3, 2, 1, 1, 1, 1};
 		
 		//using DomStack_t = GridTestGraphStack<5>;
-		using DomStack_t = tiles::TilesGeneric_DomainStack<3,3, false, true, 5>;
+		//using DomStack_t = tiles::TilesGeneric_DomainStack<3, 4, false, false, 6>;
+		using DomStack_t = tiles::TilesGeneric_DomainStack<3, 3, false, false, 5>;
 		
 		
 		DomStack_t domStack(jDomConfig);
@@ -204,4 +208,8 @@ int main(int argc, const char* argv[]) {
 	//mjon661::tiles::run();
 	
 	mjon661::testgraph::run();
+	
+	
+	
+	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";
 }

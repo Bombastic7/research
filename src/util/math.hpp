@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <iterator>
 #include <cmath>
+#include <vector>
+#include <array>
+#include <limits>
+
 //#include <boost/multiprecision/cpp_int.hpp>
 #include "util/debug.hpp"
 #include "util/impl/LambertW/LambertW.h"
@@ -131,5 +135,31 @@ namespace mjon661 { namespace mathutil {
 			s += std::pow(b, i);
 		
 		return s;
+	}
+	
+	template<typename V>
+	std::array<double, 3> sampleStats(V const& pVals) {
+		if(pVals.size() == 0)
+			return {0, 0, std::numeric_limits<double>::infinity()};
+		if(pVals.size() == 1)
+			return {pVals[0], pVals[0], std::numeric_limits<double>::infinity()};
+
+		double mean = 0;
+		for(auto v : pVals)
+			mean += v;
+		mean /= pVals.size();
+		
+		V vsrtd(pVals);
+		
+		std::sort(vsrtd.begin(), vsrtd.end());
+		double median = vsrtd[(vsrtd.size()-1)/2];
+		
+		double stddev = 0;
+		for(auto v : pVals)
+			stddev += std::pow(v - mean, 2);
+		stddev /= pVals.size() - 1;
+		stddev = std::sqrt(stddev);
+		
+		return {mean, median, stddev};
 	}
 }}

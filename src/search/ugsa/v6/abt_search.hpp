@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <vector>
+#include <unordered_map>
 #include <cmath>
 
 #include "search/openlist.hpp"
@@ -32,19 +33,20 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 
 		struct GoalPin {
-			GoalPin() {nxt = nullptr;}
-			void destroy() {if(nxt) nxt->destroy(); delete this;}
+			//GoalPin() {nxt = nullptr;}
+			//void destroyNxt() {if(nxt) {nxt->destroyNxt(); delete nxt;}}
 			PackedState goalPkd;
 			unsigned mindepth, maxdepth;
 			Cost cost;
 			unsigned dist;
-			GoalPin* nxt;
+			//GoalPin* nxt;
 		};
 		
 
 		struct ExactCacheEntry {
-			PackedState pkd;
-			GoalPin* goalPinsHead;
+			//PackedState pkd;
+			std::vector<GoalPin> goalPins;
+			/*GoalPin* goalPinsHead;
 			
 			ExactCacheEntry() { goalPinsHead = nullptr; }
 			
@@ -60,11 +62,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 							break;
 						gp = gp->nxt;
 					}
-				
+
 					gp->nxt = new GoalPin;
 					gp->goalPkd = goalPkd;
 					newPin = true;
-					return gp;
+					return gp->nxt;
 				}
 				else {
 					goalPinsHead = new GoalPin;
@@ -73,6 +75,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 					return goalPinsHead;
 				}
 			}
+			
+			void clearPins() {
+				if(goalPinsHead) {
+					goalPinsHead->destroyNxt();
+					delete goalPinsHead;
+				}
+			}*/
 		};
 
 
@@ -132,16 +141,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 									  
 		using NodePool_t = NodePool<Node, typename ClosedList_t::Wrapped_t>;
 
-		using CacheStore_t = CacheStore<Domain, ExactCacheEntry>;
 
-		
 
 		UGSAv6_Abt(D& pDomStack, Json const& jConfig) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
-			mExactCache			(mDomain),
+			mExactCache			(),
 			mRemExpCache		(),
 			mParams_wf			(jConfig.at("wf")),
 			mParams_wt			(jConfig.at("wt")),
@@ -149,6 +156,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mParams_bf			(0)
 		{
 			fast_assert(mParams_wf >= 0 && mParams_wt >= 0);
+		}
+		
+		~UGSAv6_Abt() {
+			clearCache();
 		}
 
 		
@@ -159,8 +170,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		}
 		
 		void clearCache() {
-			for(auto it=mExactCache.begin(); it!=mExactCache.end(); ++it)
-				(*it)->goalPinsHead->destroy();
+			//for(auto it=mExactCache.begin(); it!=mExactCache.end(); ++it)
+			//	(*it)->clearPins();
 			
 			mExactCache.clear();
 		}
@@ -179,7 +190,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		
 		template<typename PS>
 		void computeRemainingEffort_parentState(PS const& pParentState, Cost& out_cost, Util_t& out_remexp) {
-			reset();
 			State s0 = mDomain.abstractParentState(pParentState);
 			computeRemainingEffort(s0, out_cost, out_remexp);
 		}
@@ -206,15 +216,17 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		bool tryFindExactCached(State const& s, unsigned depth, Cost& out_cost, unsigned& out_dist) {
 			PackedState pkd;
 			mDomain.packState(s, pkd);
-			ExactCacheEntry* ent = mExactCache.retrieve(pkd);
 			
-			if(!ent)
+			if(mExactCache.count(pkd) == 0)
 				return false;
 			
-			for(GoalPin* gp = ent->goalPinsHead; gp; gp=gp->nxt) {
-				if(gp->mindepth <= depth && gp->maxdepth >= depth) {
-					out_cost = gp->cost;
-					out_dist = gp->dist;
+			
+			ExactCacheEntry const& ent = mExactCache[pkd];
+			
+			for(auto it=ent.goalPins.begin(); it!=ent.goalPins.end(); ++it) {
+				if(it->mindepth <= depth && it->maxdepth >= depth) {
+					out_cost = it->cost;
+					out_dist = it->dist;
 					return true;
 				}
 			}
@@ -224,6 +236,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		
 		
 		void doSearch(State const& s0) {
+			reset();
 			Node* n0 = mNodePool.construct();
 
 			n0->g = 		Cost(0);
@@ -336,25 +349,31 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			
 			
 			for(Node* n=goalNode; n!=nullptr; n=n->parent) {
-				State s;
-				mDomain.unpackState(s, n->pkd);
-				
-				ExactCacheEntry* ent;
-				mExactCache.get(n->pkd, ent);
 
-				bool newPin;
-				GoalPin* goalpin = ent->find(newPin, mDomain, goalNode->pkd);
+				ExactCacheEntry& ent = mExactCache[n->pkd];
 				
-				if(newPin) {
-					goalpin->mindepth = goalpin->maxdepth = n->depth;
-					goalpin->cost = goal_cost - n->g;
-					goalpin->dist = goal_depth - n->depth;
-				} else {
-					goalpin->mindepth = mathutil::min(goalpin->mindepth, n->depth);
-					goalpin->maxdepth = mathutil::max(goalpin->maxdepth, n->depth);
-					slow_assert(goalpin->cost == goal_cost - n->g);
-					slow_assert(goalpin->dist == goal_depth - n->depth);
+				bool pinFound = false;
+				for(auto it=ent.goalPins.begin(); it!=ent.goalPins.end(); ++it) {
+					if(goalNode->pkd == it->goalPkd) {
+						it->mindepth = mathutil::min(it->mindepth, n->depth);
+						it->maxdepth = mathutil::max(it->maxdepth, n->depth);
+						slow_assert(it->cost == goal_cost - n->g);
+						slow_assert(it->dist == goal_depth - n->depth);
+						pinFound = true;
+						break;
+					}
 				}
+				
+				if(pinFound)
+					continue;
+				
+				GoalPin newPin;
+				newPin.goalPkd = goalNode->pkd;
+				newPin.mindepth = newPin.maxdepth = n->depth;
+				newPin.cost = goal_cost - n->g;
+				newPin.dist = goal_depth - n->depth;
+				
+				ent.goalPins.push_back(newPin);
 			}
 		}
 		
@@ -377,6 +396,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			return mRemExpCache[depth];//......
 		}
 		
+		/*
 		void dumpExactCache(std::ostream& out) {
 			for(auto it=mExactCache.begin(); it!=mExactCache.end(); ++it) {
 				State s;
@@ -395,13 +415,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				out << "\n\n\n\n";
 			}
 		}
-		
+		*/
 
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
-		CacheStore_t mExactCache;
+		std::unordered_map<PackedState, ExactCacheEntry> mExactCache;
 		std::vector<Util_t> mRemExpCache;
 		double mParams_wf, mParams_wt, mParams_k, mParams_bf;
 	};

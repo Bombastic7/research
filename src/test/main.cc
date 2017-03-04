@@ -14,12 +14,14 @@
 #include "util/debug.hpp"
 #include "util/json.hpp"
 
-#include "search/hastar/v2/hastar.hpp"
+//#include "search/hastar/v2/hastar.hpp"
 
 #include "search/solution.hpp"
 
 #include "domain/test_graph.hpp"
 #include "search/ugsa/v6/ugsa.hpp"
+
+#include "search/ugsa/cost_pure/ugsa_cost_pure.hpp"
 
 /*
 namespace mjon661 { namespace gridnav { namespace blocked {
@@ -127,6 +129,40 @@ namespace mjon661 { namespace tiles {
 }}
 */
 
+
+namespace mjon661 { namespace tiles {
+	
+	
+	void run_ugsapure() {
+		Json jDomConfig;
+		jDomConfig["goal"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8};
+		jDomConfig["kept"] = std::vector<unsigned>{5, 4, 3, 2, 1, 1, 1, 1};
+		
+		using DomStack_t = tiles::TilesGeneric_DomainStack<3, 3, false, false, 5>;
+		
+		DomStack_t domStack(jDomConfig);
+
+		//auto s0 = domStack.getInitState();
+
+		Solution<DomStack_t> sol;
+
+		using UGSAAlg_t = algorithm::ugsav6::UGSA_CostPure<DomStack_t>;
+		
+		Json jConfig;
+		jConfig["wf"] = 1;
+		jConfig["wt"] = 1;
+		UGSAAlg_t ugsaAlg(domStack, jConfig);
+		
+
+		ugsaAlg.execute(domStack.randInitState(123), sol);
+
+		Json jStats = ugsaAlg.report();
+		std::cout << jStats.dump(4) << "\n";
+	}
+
+}}
+
+/*
 namespace mjon661 { namespace testgraph {
 	
 	
@@ -169,7 +205,7 @@ namespace mjon661 { namespace testgraph {
 		jConfig["wt"] = 1;
 		UGSAv6AbtAlg_t ugsaAlg(domStack, jConfig);
 		
-		/*
+		
 		int remcost;
 		algorithm::ugsav6::Util_t remdist;
 		
@@ -191,9 +227,9 @@ namespace mjon661 { namespace testgraph {
 		ugsaAlg.dumpExactCache(std::cout);
 		
 		std::cout << "\n\n" << remcost << " " << remdist << "\n";
-	*/
 	
-		ugsaAlg.execute(domStack.getInitState(), sol);
+	
+		ugsaAlg.execute(domStack.randInitState(123), sol);
 		
 		//sol.printSolution(domStack, std::cout);
 		//std::cout << "Path cost: " << sol.pathCost(domStack) << "\n";
@@ -202,13 +238,15 @@ namespace mjon661 { namespace testgraph {
 	}
 
 }}
+*/
 int main(int argc, const char* argv[]) {
 	//mjon661::gridnav::blocked::run();
 	//mjon661::pancake::run();
 	//mjon661::tiles::run();
 	
-	mjon661::testgraph::run();
+	//mjon661::testgraph::run();
 	
+	mjon661::tiles::run_ugsapure();
 	
 	
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";

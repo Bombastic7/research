@@ -17,14 +17,14 @@
 namespace mjon661 { namespace algorithm {
 
 
-	template<typename D, unsigned L, unsigned Bound, bool Min_Cost, typename StatsManager>
+	template<typename D, unsigned L, unsigned Bound, bool Min_Cost>
 	class AdmissibleAbtSearch {
 
 		static const bool Do_Print_Expansions = false;//true;
 		
 		public:
 		
-		using AbtSearch = AdmissibleAbtSearch<D, L+1, Bound, Min_Cost, StatsManager>;
+		using AbtSearch = AdmissibleAbtSearch<D, L+1, Bound, Min_Cost>;
 		
 		using Domain = typename D::template Domain<L>;
 		using Cost = typename Domain::Cost;
@@ -33,7 +33,6 @@ namespace mjon661 { namespace algorithm {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
-		using StatsAcc = typename StatsManager::template StatsAcc<L>;
 
 		using BaseState = typename D::template Domain<L-1>::State;
 
@@ -123,9 +122,8 @@ namespace mjon661 { namespace algorithm {
 		
 		
 
-		AdmissibleAbtSearch(D& pDomStack, Json const& jConfig, StatsManager& pStats) :
-			mStatsAcc			(pStats),
-			mAbtSearch			(pDomStack, jConfig, pStats),
+		AdmissibleAbtSearch(D& pDomStack, Json const& jConfig) :
+			mAbtSearch			(pDomStack, jConfig),
 			mDomain				(pDomStack),
 			mDomStack			(pDomStack),
 			mOpenList			(OpenOps()),
@@ -137,27 +135,22 @@ namespace mjon661 { namespace algorithm {
 
 		
 		void reset() {
-			mStatsAcc.reset();
-			mAbtSearch.reset();
+			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
+			mOpenList.clear();
+			mClosedList.clear();
+			mNodePool.clear();
+			mBestExactNode = nullptr;
 		}
 		
 		void clearCache() {
 			mCache.clear();
 			mAbtSearch.clearCache();
 		}
-		
-		void submitStats() {
-			std::string descStr = "min ";
-			descStr += Min_Cost ? "cost" : "dist";
-			
-			Json j;
-			j["alg desc"] = descStr;
-			mStatsAcc.submit(j);
-			mAbtSearch.submitStats();
-		}
+
 
 		
 		bool doSearch(BaseState const& pBaseState, PrimVal_t& out_h) {
+			reset();
 			{
 				State s0 = mDomain.abstractParentState(pBaseState);
 				PackedState pkd0;
@@ -167,8 +160,6 @@ namespace mjon661 { namespace algorithm {
 				CacheEntry* ent = mCache.retrieve(pkd0);
 			
 				if(ent && ent->exact) {
-					mStatsAcc.s_cacheHit();
-					mStatsAcc.s_end();
 					out_h = ent->h;
 					return false;
 				}
@@ -178,11 +169,6 @@ namespace mjon661 { namespace algorithm {
 				if(miss) {
 					ent->exact = false;
 					mAbtSearch.doSearch(s0, ent->h);
-					mStatsAcc.s_cacheMiss();
-					mStatsAcc.l_cacheAdd();
-				}
-				else {
-					mStatsAcc.s_cachePartial();
 				}
 
 
@@ -211,7 +197,6 @@ namespace mjon661 { namespace algorithm {
 				if(mDomain.checkGoal(s) || n == mBestExactNode) {
 					out_h = n->y();
 					goalNode = n;
-					mStatsAcc.s_solutionFull();
 					
 					if(mDomain.checkGoal(s))
 						slow_assert(n->y() == n->x());
@@ -240,7 +225,6 @@ namespace mjon661 { namespace algorithm {
 				
 				if(ent->h < pg) {
 					ent->h = pg;
-					mStatsAcc.l_cacheImprove();
 				}
 			}
 			
@@ -249,20 +233,10 @@ namespace mjon661 { namespace algorithm {
 				slow_assert(ent);
 				
 				if(!ent->exact) {
-					mStatsAcc.l_cacheMadeExact();
 					ent->exact = true;
 				}
 			}
 
-			mStatsAcc.s_openListSize(mOpenList.size());
-			mStatsAcc.s_closedListSize(mClosedList.getFill());
-			
-			mOpenList.clear();
-			mClosedList.clear();
-			mNodePool.clear();
-			mBestExactNode = nullptr;
-			
-			mStatsAcc.s_end();
 			return true;
 		}
 		
@@ -270,16 +244,7 @@ namespace mjon661 { namespace algorithm {
 		private:
 		
 		void expand(Node* n, State& s) {
-			
-			if(Do_Print_Expansions && L == 1) {
-				std::cerr << "-- " << mStatsAcc.getExpd() << "\n";
-				mDomain.prettyPrint(s, std::cerr);
-				std::cerr << "\n\n";
-				std::cerr << "x: " << n->x() << " y: " << n->y() << "\n";
-				std::cerr << "open: " << mOpenList.size() << " closed: " << mClosedList.getFill() << "\n\n\n";
-				getchar();
-			}
-			mStatsAcc.a_expd();
+			mLog_expd++;
 			
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
@@ -287,7 +252,7 @@ namespace mjon661 { namespace algorithm {
 				if(ops[i] == n->parent_op)
 					continue;
 				
-				mStatsAcc.a_gend();
+				mLog_gend++;
 				considerkid(n, s, ops[i]);
 			}
 		}
@@ -303,7 +268,7 @@ namespace mjon661 { namespace algorithm {
 			Node* kid_dup = mClosedList.find(kid_pkd);
 
 			if(kid_dup) {
-				mStatsAcc.a_dups();
+				mLog_dups++;
 				if(kid_dup->x() > kid_x) {
 					kid_dup->y()		-= kid_dup->x();
 					kid_dup->y()		+= kid_x;
@@ -313,7 +278,7 @@ namespace mjon661 { namespace algorithm {
 					kid_dup->parent		= pParentNode;
 
 					if(!mOpenList.contains(kid_dup)) {
-						mStatsAcc.a_reopnd();
+						mLog_reopnd++;
 					}
 					
 					mOpenList.pushOrUpdate(kid_dup);
@@ -340,7 +305,6 @@ namespace mjon661 { namespace algorithm {
 				if(miss) {
 					ent->exact = false;
 					mAbtSearch.doSearch(edge.state(), ent->h);
-					mStatsAcc.l_cacheAdd();
 				}
 
 				kid_node->x() 		= kid_x;
@@ -361,7 +325,7 @@ namespace mjon661 { namespace algorithm {
 			mDomain.destroyEdge(edge);
 		}
 
-		StatsAcc				mStatsAcc;
+
 		AbtSearch				mAbtSearch;
 		const Domain			mDomain;
 		D const&				mDomStack;
@@ -372,18 +336,20 @@ namespace mjon661 { namespace algorithm {
 		
 		CacheStore_t			mCache;
 		Node*					mBestExactNode;
+		
+		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
 	};
 	
 	
-	template<typename D, unsigned Bound, bool Min_Cost, typename StatsManager>
-	struct AdmissibleAbtSearch<D, Bound, Bound, Min_Cost, StatsManager> {
+	template<typename D, unsigned Bound, bool Min_Cost>
+	struct AdmissibleAbtSearch<D, Bound, Bound, Min_Cost> {
 		
 		using Domain = typename D::template Domain<Bound-1>;
 		using Cost = typename Domain::Cost;
 		using State = typename Domain::State;
 		
 
-		AdmissibleAbtSearch(D& pDomStack, Json const&, StatsManager& pStats) {}
+		AdmissibleAbtSearch(D& pDomStack, Json const&) {}
 		
 		template<typename PV>
 		bool doSearch(State const&, PV& out_h) {
@@ -393,6 +359,5 @@ namespace mjon661 { namespace algorithm {
 		
 		void reset() {}
 		void clearCache() {}
-		void submitStats() {}
 	};	
 }}

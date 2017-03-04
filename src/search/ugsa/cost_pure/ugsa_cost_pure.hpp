@@ -14,8 +14,7 @@
 #include "util/json.hpp"
 #include "util/debug.hpp"
 
-#include "search/ugsa/v6/defs.hpp"
-#include "search/ugsa/v6/abt_search.hpp"
+#include "search/admissible_abtsearch2.hpp"
 
 
 namespace mjon661 { namespace algorithm { namespace ugsav6 {
@@ -24,7 +23,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 	
 
 	template<typename D>
-	class UGSAv6_Base {
+	class UGSA_CostPure_impl {
 		public:
 
 		using Domain = typename D::template Domain<0>;
@@ -35,12 +34,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
 
-		using AbtSearch = UGSAv6_Abt<D, 1, 1>;
+		using AbtSearch = AdmissibleAbtSearch2<D, 1, D::Top_Abstract_Level, true>;
 		
 		struct Node {
 			Cost g, f;
 			unsigned depth;
-			Util_t u;
+			double u;
 			
 			PackedState pkd;
 			Node* parent;
@@ -94,7 +93,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 
 
-		UGSAv6_Base(D& pDomStack, Json const& jConfig) :
+		UGSA_CostPure_impl(D& pDomStack, Json const& jConfig) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
@@ -119,6 +118,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mLog_exp_f.clear();
 			mLog_exp_u.clear();
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
+			
+			mParams_bf = 0;
 		}
 		
 		void clearCache() {
@@ -129,8 +130,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		
 		void doSearch(State const& s0, Solution<D>& pSolution) {
 			reset();
-			mAbtSearch.resetParams(1, 1);
-
 			
 			{
 				Node* n0 = mNodePool.construct();
@@ -164,6 +163,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				}
 				
 				expand(n, s);
+				
+				if(mLog_expd == mResort_next) {
+					doCompBF();
+					mResort_n++;
+					mResort_next *= 2;
+				}
 				
 				//if(mLog_expd == mResort_next)
 					//doResort();
@@ -203,7 +208,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			j["remexp_errors"] = remexpError;
 			j["remexp_stats"] = mathutil::sampleStats(remexpError);
 			
-			j["abt"] = mAbtSearch.report();
+			//j["abt"] = mAbtSearch.report();
 			return j;
 		}
 		
@@ -270,7 +275,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
 					
-					evalHr(kid_dup, edge.state(), kid_g);
+					evalHr(kid_dup, edge.state());
 					
 					if(!mOpenList.contains(kid_dup)) {
 						mLog_reopnd++;
@@ -298,13 +303,27 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mDomain.destroyEdge(edge);
 		}
 		
+		
+		double compRemExp(unsigned depth) {
+			Util_t acc = 0;
+			for(unsigned i=1; i<=depth; i++) {
+				acc += std::pow(mParams_bf, i);
+			}
+			
+			return acc;
+		}
+		
+		
 		void evalHr(Node* n, State const& s) {
 			Cost remcost;
-			Util_t remexp;
-			mAbtSearch.computeRemainingEffort_parentState(s, remcost, remexp);
+			unsigned remdepth;
+
+			mAbtSearch.doSearch(s, remcost, remdepth);
+			double remexp = compRemExp(remdepth);
 			
 			n->f = n->g + remcost;
-			n->u = mParams_wf*(n->g + remcost) + mParams_wt*remexp;
+			//n->u = mParams_wf*n->f + mParams_wt*remexp;
+			n->u = n->f;
 			
 			n->log_expCount = mLog_expd;
 			n->log_remexp = remexp;
@@ -316,6 +335,34 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mLog_exp_u.push_back(n->u);
 		}
 		
+		void doCompBF() {
+			std::map<Cost, unsigned> fcount;
+			for(auto it=mLog_exp_f.begin(); it!=mLog_exp_f.end(); ++it) {
+				if(fcount.count(*it) == 0)
+					fcount[*it] = 1;
+				else
+					fcount[*it]++;
+			}
+			
+			std::vector<double> bfsamples;
+			
+			auto fcntit = fcount.begin();
+			slow_assert(fcntit != fcount.end());
+			
+			unsigned prevcount = fcntit->second;
+			++fcntit;
+			for(; fcntit!=fcount.end(); ++fcntit) {
+				bfsamples.push_back((double)fcntit->second / prevcount);
+				prevcount = fcntit->second;
+			}
+			
+			double bf = 0;
+			if(bfsamples.size() > 0)
+				bf = bfsamples[(bfsamples.size()-1)/2];
+			mLog_resort_bf.push_back(bf);
+		}
+		
+		/*
 		void doResort() {
 			std::map<Cost, unsigned> fcount;
 			for(auto it=mLog_exp_f.begin(); it!=mLog_exp_f.end(); ++it) {
@@ -360,13 +407,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			
 			mOpenList.reinit();
 		}
+		*/
 		
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
 		AbtSearch mAbtSearch;
-		Util_t mParams_wf, mParams_wt;
+		double mParams_wf, mParams_wt, mParams_bf;
 		
 		unsigned mResort_n, mResort_next;
 		
@@ -380,5 +428,24 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 	};
 
 
-
+	template<typename D>
+	struct UGSA_CostPure {
+		
+		using State = typename D::template Domain<0>::State;
+		
+		UGSA_CostPure(D& pDomStack, Json const& jConfig) :
+			mAlgo(pDomStack, jConfig)
+		{}
+		
+		void execute(State const& s0, Solution<D>& pSol) {
+			mAlgo.doSearch(s0, pSol);
+		}
+		
+		Json report() {
+			return mAlgo.report();
+		}
+		
+		UGSA_CostPure_impl<D> mAlgo;
+	};
+	
 }}}

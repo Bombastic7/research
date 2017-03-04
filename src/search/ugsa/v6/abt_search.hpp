@@ -273,6 +273,20 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		}
 		
 
+		Json report() {
+			unsigned entryCount = 0;
+			for(auto it=mExactCache.begin(); it!=mExactCache.end(); ++it)
+				entryCount += it->second.goalPins.size();
+			
+			Json j;
+			j["n_cached_states"] = mExactCache.size();
+			j["n_cached_pins"] = entryCount;
+			j["sizeof_cacheEntry"] = sizeof(ExactCacheEntry);
+			j["sizeof_goalPin"] = sizeof(GoalPin);
+			
+			return j;
+		}
+
 		
 		void expand(Node* n, State& s) {
 			//mStatsAcc.a_expd();

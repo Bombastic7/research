@@ -647,7 +647,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				std::vector<unsigned> abttrns;
 				
 				if(isTrivial)
-					logDebug("Intermediate level is trivial.");
+					logDebug(std::string("Intermediate level is trivial: ") + std::to_string(lvl));
 				isTrivial = starabt::createAbstractLevel(2, mAbtEdges.back(), abttrns, abtedges);
 
 				mAbtEdges.push_back(abtedges);
@@ -657,6 +657,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			if(!isTrivial)
 				logDebug("Last level is not trivial.");
 			
+			g_logDebugOfs.flush();
 			
 			if(jConfig.count("init") == 0 || jConfig.count("goal") == 0) {
 				std::mt19937 gen;

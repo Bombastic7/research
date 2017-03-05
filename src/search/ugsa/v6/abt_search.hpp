@@ -371,7 +371,14 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 					if(goalNode->pkd == it->goalPkd) {
 						it->mindepth = mathutil::min(it->mindepth, n->depth);
 						it->maxdepth = mathutil::max(it->maxdepth, n->depth);
-						slow_assert(it->cost == goal_cost - n->g);
+						
+						if(!(it->cost == goal_cost - n->g)) {
+							std::string s;
+							s += std::to_string(goal_cost - n->g) + " " + std::to_string(goal_depth - n->depth) + ", ";
+							s += std::to_string(it->cost) + " " + std::to_string(it->dist);
+							s += std::string(", ") + std::to_string(n->g) + " " + std::to_string(n->depth) + " " + std::to_string(n->ug);
+							slow_assert(it->cost == goal_cost - n->g, "%s", s.c_str());
+						}
 						slow_assert(it->dist == goal_depth - n->depth);
 						pinFound = true;
 						break;

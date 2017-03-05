@@ -119,12 +119,16 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			
 			//mLog_exp_f.clear();
 			//mLog_exp_u.clear();
-			mLog_exp_fmap.clear();
+			mLog_exp_umap.clear();
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			
 			mLog_resort_k.clear();
 			mLog_resort_bf.clear();
-			mLog_solpathRemExp.clear();
+			
+			mLog_resort_bf.push_back(1);
+			mLog_resort_k.push_back(1);
+			
+			mGoalNode = nullptr;
 			
 		}
 		
@@ -156,8 +160,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				mClosedList.add(n0);
 			}			
 			
-			Node* goalNode;
-			
+
 			while(true) {				
 				Node* n = mOpenList.pop();
 					
@@ -166,7 +169,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 				if(mDomain.checkGoal(s)) {
 					prepareSolution(pSolution, n);
-					goalNode = n;
+					mGoalNode = n;
 					break;
 				}
 				
@@ -175,41 +178,37 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				if(mLog_expd == mResort_next)
 					doResort();
 			}
-			
-			for(Node* n=goalNode; n; n=n->parent) {
-				mLog_solpathRemExp.push_back({n->log_expCount, n->log_remexp});
-			}
+
 		}
 		
 		
 		Json report() {
 			Json j;
-			//j["exp_f"] = mLog_exp_f;
-			//j["exp_u"] = mLog_exp_u;
-			j["resort_k"] = mLog_resort_k;
-			j["resort_bf"] = mLog_resort_bf;
-			j["resort_n"] = mResort_n;
-			j["resort_next"] = mResort_next;
-			j["sol_remexp"] = mLog_solpathRemExp;
 			
 			j["expd"] = mLog_expd;
 			j["gend"] = mLog_gend;
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
-			
-			j["bf_stats"] = mathutil::sampleStats(mLog_resort_bf);
-			
-			std::vector<double> remexpError;
-			for(auto p : mLog_solpathRemExp) {
-				double trueRemExp = mLog_expd - p[0];
-				if(trueRemExp == 0)
-					continue;
-				remexpError.push_back(p[1] / trueRemExp);
+
+			j["resort_k"] = mLog_resort_k;
+			j["resort_bf"] = mLog_resort_bf;
+			j["resort_n"] = mResort_n;
+			j["resort_next"] = mResort_next;
+
+			std::vector<std::array<double, 5>> remExpErrorInfo;
+
+			for(Node* n=mGoalNode; n; n=n->parent) {
+				double trueRemExp = mLog_expd - n->log_expCount;
+				
+				remExpErrorInfo.push_back({trueRemExp, n->log_remexp, n->log_remexp/trueRemExp, 
+											mLog_resort_k.at(logExpCountToResortN(n->log_expCount)),
+											mLog_resort_bf.at(logExpCountToResortN(n->log_expCount))
+										});
 			}
 			
-			j["remexp_errors"] = remexpError;
-			j["remexp_stats"] = mathutil::sampleStats(remexpError);
-			
+			//j["bf_stats"] = mathutil::sampleStats(mLog_resort_bf);
+			j["remexp_errors"] = remExpErrorInfo;
+
 			j["abt"] = mAbtSearch.report();
 			return j;
 		}
@@ -319,10 +318,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		
 		
 		void informExpansion(Node* n) {
-			if(mLog_exp_fmap.count(n->f) == 0)
-				mLog_exp_fmap[n->f] = 1;
+			if(mLog_exp_umap.count(n->u) == 0)
+				mLog_exp_umap[n->u] = 1;
 			else
-				mLog_exp_fmap[n->f]++;
+				mLog_exp_umap[n->u]++;
 			
 			//mLog_exp_f.push_back(n->f);
 			//mLog_exp_u.push_back(n->u);
@@ -331,11 +330,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		void doResort() {
 			std::vector<double> bfsamples;
 			
-			unsigned flvl = 0;
-			for(auto it=mLog_exp_fmap.begin(); it!=mLog_exp_fmap.end(); ++it, flvl++) {
-				if(flvl == 0)
+			unsigned ulvl = 0;
+			for(auto it=mLog_exp_umap.begin(); it!=mLog_exp_umap.end(); ++it, ulvl++) {
+				if(ulvl == 0)
 					continue;
-				double bf = std::pow(it->second, 1.0/flvl);
+				double bf = std::pow(it->second + mLog_resort_k.back(), 1.0/ulvl);
 				bfsamples.push_back(bf);				
 			}
 			
@@ -366,23 +365,36 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mOpenList.reinit();
 		}
 		
+		unsigned logExpCountToResortN(unsigned i) {
+			if(i < 16)
+				return 0;
+
+			unsigned n = 1, t = 32;
+			while(true) {
+				if(i >= t/2 && i < t)
+					return n;
+				n++;
+				t *= 2;
+			}
+			return (unsigned)-1;
+		}
+		
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
 		AbtSearch mAbtSearch;
+		Node* mGoalNode;
 		Util_t mParams_wf, mParams_wt;
 		
 		unsigned mResort_n, mResort_next;
 		
 		//std::vector<Cost> mLog_exp_f;
 		//std::vector<Util_t> mLog_exp_u;
-		std::map<Cost, unsigned> mLog_exp_fmap;
+		std::map<Cost, unsigned> mLog_exp_umap;
 		std::vector<double> mLog_resort_bf;
 		std::vector<double> mLog_resort_k;
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
-		
-		std::vector<std::vector<double>> mLog_solpathRemExp;
 	};
 
 

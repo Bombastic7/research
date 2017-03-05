@@ -117,8 +117,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mResort_n = 0;
 			mResort_next = 16;
 			
-			mLog_exp_f.clear();
-			mLog_exp_u.clear();
+			//mLog_exp_f.clear();
+			//mLog_exp_u.clear();
+			mLog_exp_fmap.clear();
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			
 			mLog_resort_k.clear();
@@ -276,7 +277,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 					kid_dup->parent_op	= edge.parentOp();
 					kid_dup->parent		= pParentNode;
 					
-					evalHr(kid_dup, edge.state(), kid_g);
+					evalHr(kid_dup, edge.state());
 					
 					if(!mOpenList.contains(kid_dup)) {
 						mLog_reopnd++;
@@ -330,7 +331,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		void doResort() {
 			std::vector<double> bfsamples;
 			
-			for(auto it=mLog_exp_fmap.begin(), unsigned flvl = 0; it!=mLog_exp_fmap.end(); ++it, flvl++) {
+			unsigned flvl = 0;
+			for(auto it=mLog_exp_fmap.begin(); it!=mLog_exp_fmap.end(); ++it, flvl++) {
 				if(flvl == 0)
 					continue;
 				double bf = std::pow(it->second, 1.0/flvl);

@@ -156,12 +156,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		bool isOpen(unsigned i) const {
-			slow_assert(i < mSize);
-			int test_cells[10];
-			for(unsigned j=0; j<10; j++) {
-				test_cells[j] = (int)(mCells.at(j));
-			}
-			while(test_cells == nullptr) {}
+			slow_assert(i < mSize, "%u %u", i, mSize);
 			return cells()[i] == Cell_t::Open;
 		}
 		
@@ -176,11 +171,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		private:
 		
 		void initRandomMap(unsigned seed) {
-			std::mt19937 gen(std::mersenne_twister_engine::seed + seed);
-			std::uniform_int_distribution<int> d(0,1);
+			std::mt19937 gen(5489u + seed);
+			std::uniform_real_distribution<double> d(0.0,1.0);
 			
 			for(unsigned i=0; i<mSize; i++) {
-				mCells[i] = (Cell_t)d(gen);
+				mCells[i] = d(gen) <= 0.35 ? Cell_t::Blocked : Cell_t::Open;
 			}
 		}
 		
@@ -663,24 +658,34 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				logDebug("Last level is not trivial.");
 			
 			
-			if(jConfig.count("init") == 0 || jConfig.count("goal") == 0)
+			if(jConfig.count("init") == 0 || jConfig.count("goal") == 0) {
 				std::mt19937 gen;
-				std::uniform_int_distribution<unsigned> dh(0, mHeight), dw(0, mWidth);
+				std::uniform_int_distribution<unsigned> dh(0, mHeight-1), dw(0, mWidth-1);
 				double diagLen = std::hypot(mHeight, mWidth);
 				
 				while(true) {
 					unsigned ix = dw(gen), iy = dh(gen), gx = dw(gen), gy = dh(gen);
-					unsigned s0 = ix + iy*mWidth, sg = gx + gy*mWidth'
+					unsigned s0 = ix + iy*mWidth, sg = gx + gy*mWidth;
 					
-					if(std::hypot((double)ix-gx, (double)iy-gy) < diagLen * 0.5)
+					if(std::hypot((double)ix-gx, (double)iy-gy) < diagLen * 0.5) {
+						//logDebugStream() << "a " << (double)ix-gx << " "  << (double)iy-gy << " " << diagLen << "\n";
 						continue;
+					}
 					
-					if(abstractBaseState(s0, Top_Abstract_Level) != abstractBaseState(sg, Top_Abstract_Level))
+					if(!mCellGraph.isOpen(s0) || !mCellGraph.isOpen(sg)) {
+						//logDebug("b");
 						continue;
+					}
+
+					if(abstractBaseState(s0, Top_Abstract_Level) != abstractBaseState(sg, Top_Abstract_Level)) {
+						//logDebug("c");
+						continue;
+					}
 					
 					mInitState = s0;
 					mGoalState = sg;
-					logDebugStream() << "Random init and goal: " << mInitState << ", " << mGoalState << "\n";
+					logDebugStream() << "Random init and goal: " << mInitState << " (" << ix << "," << iy << ")" << ", " 
+					<< mGoalState << " (" << gx << "," << gy << ")\n";
 					break;
 				}
 			}

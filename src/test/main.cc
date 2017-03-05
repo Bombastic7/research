@@ -135,10 +135,13 @@ namespace mjon661 {
 	
 	void run_ugsapure() {
 		Json jDomConfig;
-		jDomConfig["goal"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8};
-		jDomConfig["kept"] = std::vector<unsigned>{5, 4, 3, 2, 1, 1, 1, 1};
+		//jDomConfig["goal"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8};
+		//jDomConfig["kept"] = std::vector<unsigned>{5, 4, 3, 2, 1, 1, 1, 1};
+		jDomConfig["map"] = ".1";
+		jDomConfig["width"] = 100;
+		jDomConfig["height"] = 100;
 		
-		using DomStack_t = gridnav::blocked::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,3>;
+		using DomStack_t = gridnav::blocked::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,4>;
 		
 		DomStack_t domStack(jDomConfig);
 
@@ -146,7 +149,7 @@ namespace mjon661 {
 
 		Solution<DomStack_t> sol;
 
-		using UGSAAlg_t = algorithm::ugsav6::UGSA_CostPure<DomStack_t>;
+		using UGSAAlg_t = algorithm::ugsav6::UGSAv6<DomStack_t>;
 		
 		Json jConfig;
 		jConfig["wf"] = 1;
@@ -154,7 +157,7 @@ namespace mjon661 {
 		UGSAAlg_t ugsaAlg(domStack, jConfig);
 		
 
-		ugsaAlg.execute(domStack.randInitState(123), sol);
+		ugsaAlg.execute(domStack.getInitState(), sol);
 
 		Json jStats = ugsaAlg.report();
 		std::cout << jStats.dump(4) << "\n";
@@ -246,7 +249,7 @@ int main(int argc, const char* argv[]) {
 	
 	//mjon661::testgraph::run();
 	
-	mjon661::tiles::run_ugsapure();
+	mjon661::run_ugsapure();
 	
 	
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";

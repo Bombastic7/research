@@ -52,7 +52,7 @@
 
 #define logDebugStream() mjon661::g_logDebugOfs << __FILE__ << ":" << std::to_string(__LINE__) << ": "
 
-#define logDebug(s) mjon661::g_logDebugOfs < __FILE__ << ":" << std::to_string(__LINE__) << ": " << s << "\n"
+#define logDebug(s) mjon661::g_logDebugOfs << __FILE__ << ":" << std::to_string(__LINE__) << ": " << s << "\n"
 
 
 

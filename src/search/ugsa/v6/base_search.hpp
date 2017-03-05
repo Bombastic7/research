@@ -5,6 +5,7 @@
 #include <fstream>
 #include <utility>
 #include <vector>
+#include <map>
 
 #include "search/openlist.hpp"
 #include "search/closedlist.hpp"
@@ -119,6 +120,11 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mLog_exp_f.clear();
 			mLog_exp_u.clear();
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
+			
+			mLog_resort_k.clear();
+			mLog_resort_bf.clear();
+			mLog_solpathRemExp.clear();
+			
 		}
 		
 		void clearCache() {
@@ -165,8 +171,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				
 				expand(n, s);
 				
-				//if(mLog_expd == mResort_next)
-					//doResort();
+				if(mLog_expd == mResort_next)
+					doResort();
 			}
 			
 			for(Node* n=goalNode; n; n=n->parent) {
@@ -177,8 +183,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		
 		Json report() {
 			Json j;
-			j["exp_f"] = mLog_exp_f;
-			j["exp_u"] = mLog_exp_u;
+			//j["exp_f"] = mLog_exp_f;
+			//j["exp_u"] = mLog_exp_u;
 			j["resort_k"] = mLog_resort_k;
 			j["resort_bf"] = mLog_resort_bf;
 			j["resort_n"] = mResort_n;
@@ -312,40 +318,37 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		
 		
 		void informExpansion(Node* n) {
-			mLog_exp_f.push_back(n->f);
-			mLog_exp_u.push_back(n->u);
+			if(mLog_exp_fmap.count(n->f) == 0)
+				mLog_exp_fmap[n->f] = 1;
+			else
+				mLog_exp_fmap[n->f]++;
+			
+			//mLog_exp_f.push_back(n->f);
+			//mLog_exp_u.push_back(n->u);
 		}
 		
 		void doResort() {
-			std::map<Cost, unsigned> fcount;
-			for(auto it=mLog_exp_f.begin(); it!=mLog_exp_f.end(); ++it) {
-				if(fcount.count(*it) == 0)
-					fcount[*it] = 1;
-				else
-					fcount[*it]++;
-			}
-			
 			std::vector<double> bfsamples;
 			
-			auto fcntit = fcount.begin();
-			slow_assert(fcntit != fcount.end());
-			
-			unsigned prevcount = fcntit->second;
-			++fcntit;
-			for(; fcntit!=fcount.end(); ++fcntit) {
-				bfsamples.push_back((double)fcntit->second / prevcount);
-				prevcount = fcntit->second;
+			for(auto it=mLog_exp_fmap.begin(), unsigned flvl = 0; it!=mLog_exp_fmap.end(); ++it, flvl++) {
+				if(flvl == 0)
+					continue;
+				double bf = std::pow(it->second, 1.0/flvl);
+				bfsamples.push_back(bf);				
 			}
 			
-			std::sort(bfsamples.begin(), bfsamples.end());
-			slow_assert(bfsamples.size() >= 1);
+			double bf_gm = 1;
+			for(auto it=bfsamples.begin(); it!=bfsamples.end(); ++it)
+				bf_gm *= *it;
 			
-			double bf = bfsamples[(bfsamples.size()-1)/2];
+			bf_gm /= bfsamples.size() - 1;
+			
+
 			double k = mOpenList.size();
 			
-			mAbtSearch.resetParams(k, bf);
+			mAbtSearch.resetParams(k, bf_gm);
 			
-			mLog_resort_bf.push_back(bf);
+			mLog_resort_bf.push_back(bf_gm);
 			mLog_resort_k.push_back(k);
 			
 			mResort_n++;
@@ -355,7 +358,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				Node* n = mOpenList.at(i);
 				State s;
 				mDomain.unpackState(s, n->pkd);
-				evalHr(n, s, n->g);
+				evalHr(n, s);
 			}
 			
 			mOpenList.reinit();
@@ -370,8 +373,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		
 		unsigned mResort_n, mResort_next;
 		
-		std::vector<Cost> mLog_exp_f;
-		std::vector<Util_t> mLog_exp_u;
+		//std::vector<Cost> mLog_exp_f;
+		//std::vector<Util_t> mLog_exp_u;
+		std::map<Cost, unsigned> mLog_exp_fmap;
 		std::vector<double> mLog_resort_bf;
 		std::vector<double> mLog_resort_k;
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;

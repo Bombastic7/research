@@ -5,9 +5,9 @@
 #include <iostream>
 #include <cstdio>
 #include <vector>
-//#include "domain/gridnav/blocked/graph.hpp"
+#include "domain/gridnav/blocked/graph.hpp"
 //#include "domain/pancake/fwd.hpp"
-#include "domain/tiles/fwd.hpp"
+//#include "domain/tiles/fwd.hpp"
 //#include "domain/star_abt.hpp"
 #include "search/debug_walker.hpp"
 
@@ -130,7 +130,7 @@ namespace mjon661 { namespace tiles {
 */
 
 
-namespace mjon661 { namespace tiles {
+namespace mjon661 {
 	
 	
 	void run_ugsapure() {
@@ -138,7 +138,7 @@ namespace mjon661 { namespace tiles {
 		jDomConfig["goal"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8};
 		jDomConfig["kept"] = std::vector<unsigned>{5, 4, 3, 2, 1, 1, 1, 1};
 		
-		using DomStack_t = tiles::TilesGeneric_DomainStack<3, 3, false, false, 5>;
+		using DomStack_t = gridnav::blocked::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,3>;
 		
 		DomStack_t domStack(jDomConfig);
 
@@ -160,7 +160,7 @@ namespace mjon661 { namespace tiles {
 		std::cout << jStats.dump(4) << "\n";
 	}
 
-}}
+}
 
 /*
 namespace mjon661 { namespace testgraph {

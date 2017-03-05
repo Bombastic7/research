@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <limits>
 #include <type_traits>
+#include <fstream>
 
 #include <execinfo.h>
 
@@ -49,6 +50,11 @@
 #define gen_assert(cond,...) (cond) ? ((void)0) : ::mjon661::debugimpl::assertfailimpl(__FILE__, __LINE__, __PRETTY_FUNCTION__, ##__VA_ARGS__)
 
 
+#define logDebugStream() mjon661::g_logDebugOfs << __FILE__ << ":" << std::to_string(__LINE__) << ": "
+
+#define logDebug(s) mjon661::g_logDebugOfs < __FILE__ << ":" << std::to_string(__LINE__) << ": " << s << "\n"
+
+
 
 namespace mjon661 {
 	enum {
@@ -63,11 +69,6 @@ namespace mjon661 {
 		public:
 		AssertException(const std::string& str) : runtime_error(str) {}
 	};
-	
-	template<typename T>
-	void logDebug(T const& str) {
-		std::cerr << str << std::endl;
-	}
 
 	namespace debugimpl {
 		template<typename = void>
@@ -119,6 +120,20 @@ namespace mjon661 {
 			throw AssertException(msgstr);
 		}
 	}
+	
+	std::ofstream g_logDebugOfs;
+	
+	template<typename = void>
+	struct GblInitImpl {
+		GblInitImpl() {
+			g_logDebugOfs.open("log.txt");
+			gen_assert(g_logDebugOfs);
+		}
+	};
+	
+	GblInitImpl<> g_gblInitImpl;
+	
+
 	
 	namespace overflow {
 		template<typename T>

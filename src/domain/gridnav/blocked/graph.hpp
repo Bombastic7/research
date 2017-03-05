@@ -11,6 +11,8 @@
 #include <unordered_map>
 #include <utility>
 #include <algorithm>
+#include <cstdlib>
+#include <random>
 
 #include "util/debug.hpp"
 #include "util/math.hpp"
@@ -121,21 +123,29 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mSize(pSize),
 			mCells(mSize)
 		{
-			std::ifstream ifs(pMapFile);
-			
-			if(!ifs)
-				throw std::runtime_error("Could not open map file");
-
-			for(unsigned i=0; i<mSize; i++) {
-				int v;
-				Cell_t c;
-				ifs >> v;
-				c = (Cell_t)v;
+			if(pMapFile[0] == '.') {
+				unsigned seed = std::strtol(pMapFile.c_str()+1, nullptr, 10);
+				initRandomMap(seed);
+				logDebug("Random CellMap init");
+			}
+			else {
+				std::ifstream ifs(pMapFile);
 				
-				gen_assert(c == Cell_t::Open || c == Cell_t::Blocked);
-				mCells[i] = c;
+				if(!ifs)
+					throw std::runtime_error("Could not open map file");
+
+				for(unsigned i=0; i<mSize; i++) {
+					int v;
+					Cell_t c;
+					ifs >> v;
+					c = (Cell_t)v;
+					
+					gen_assert(c == Cell_t::Open || c == Cell_t::Blocked);
+					mCells[i] = c;
+				}
 			}
 		}
+		
 		
 		std::vector<Cell_t> const& cells() const {
 			return mCells;
@@ -164,6 +174,16 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		private:
+		
+		void initRandomMap(unsigned seed) {
+			std::mt19937 gen(std::mersenne_twister_engine::seed + seed);
+			std::uniform_int_distribution<int> d(0,1);
+			
+			for(unsigned i=0; i<mSize; i++) {
+				mCells[i] = (Cell_t)d(gen);
+			}
+		}
+		
 		const unsigned mSize;
 		std::vector<Cell_t> mCells;
 	};
@@ -558,7 +578,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 
 		private:
-		CellGraph_t const& mCellGraph; //CellMap iterator uses *this, but in stateBegin *this is not a CellMap instance.
+		CellGraph_t const& mCellGraph;
 		const unsigned mGoalState;
 	};
 	
@@ -570,6 +590,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		using Stack_t = GridNav_StarAbtStack<CellGraph_t, Top_Abt>;		
 		
 		static const unsigned Top_Abstract_Level = Top_Abt;
+		
+		static const unsigned Null_Idx = (unsigned)-1;
 		
 		template<unsigned L, typename = void>
 		struct Domain : public starabt::StarAbtDomain<BaseDomain_t> {
@@ -614,23 +636,61 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mAbtEdges(1),
 			mAbtTrns(),
 			mBaseTrns(),
-			mInitState(jConfig.at("init")),
-			mGoalState(jConfig.at("goal"))
+			mInitState(Null_Idx),
+			mGoalState(Null_Idx),
+			mHeight(jConfig.at("height")),
+			mWidth(jConfig.at("width"))
 		{
-			BaseDomain_t dom(mCellGraph, mGoalState);
+			BaseDomain_t dom(mCellGraph, Null_Idx);
 
 			starabt::createBaseMap(dom, mBaseTrns, mAbtEdges[0]);
+			
+			bool isTrivial = false;
 			
 			for(unsigned lvl=0; lvl<=Top_Abstract_Level; lvl++) {
 				std::vector<std::vector<starabt::GroupEdge<BaseDomain_t>>> abtedges;
 				std::vector<unsigned> abttrns;
 				
-				/*bool isTrivial = */starabt::createAbstractLevel(2, mAbtEdges.back(), abttrns, abtedges);
+				if(isTrivial)
+					logDebug("Intermediate level is trivial.");
+				isTrivial = starabt::createAbstractLevel(2, mAbtEdges.back(), abttrns, abtedges);
 
 				mAbtEdges.push_back(abtedges);
 				mAbtTrns.push_back(abttrns);
 			}
 			
+			if(!isTrivial)
+				logDebug("Last level is not trivial.");
+			
+			
+			if(jConfig.count("init") == 0 || jConfig.count("goal") == 0)
+				std::mt19937 gen;
+				std::uniform_int_distribution<unsigned> dh(0, mHeight), dw(0, mWidth);
+				double diagLen = std::hypot(mHeight, mWidth);
+				
+				while(true) {
+					unsigned ix = dw(gen), iy = dh(gen), gx = dw(gen), gy = dh(gen);
+					unsigned s0 = ix + iy*mWidth, sg = gx + gy*mWidth'
+					
+					if(std::hypot((double)ix-gx, (double)iy-gy) < diagLen * 0.5)
+						continue;
+					
+					if(abstractBaseState(s0, Top_Abstract_Level) != abstractBaseState(sg, Top_Abstract_Level))
+						continue;
+					
+					mInitState = s0;
+					mGoalState = sg;
+					logDebugStream() << "Random init and goal: " << mInitState << ", " << mGoalState << "\n";
+					break;
+				}
+			}
+			else {
+				mInitState = jConfig.at("init");
+				mGoalState = jConfig.at("goal");
+				logDebugStream() << "Supplied init and goal: " << mInitState << ", " << mGoalState << "\n";
+			}
+			
+
 
 			/*
 			std::cout << mAbtEdges.at(0).size() <<  " " << mBaseTrns.size() << "\n";
@@ -680,7 +740,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		std::vector<std::vector<std::vector<starabt::GroupEdge<BaseDomain_t>>>> mAbtEdges;
 		std::vector<std::vector<unsigned>> mAbtTrns;
 		std::map<unsigned, unsigned> mBaseTrns;
-		const unsigned mInitState, mGoalState;
+		unsigned mInitState, mGoalState;
+		const unsigned mHeight, mWidth;
 		
 	};
 }}}

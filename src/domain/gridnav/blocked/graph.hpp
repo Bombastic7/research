@@ -34,7 +34,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	
 
 
-	template<bool Use_Nways, bool Use_LifeCost>
 	inline unsigned manhat(unsigned pState, unsigned pGoal, unsigned pWidth) {
 		int x = pState % pWidth, y = pState / pWidth;
 		int gx = pGoal % pWidth, gy = pGoal / pWidth;
@@ -524,13 +523,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		Cost costHeuristic(unsigned pState) const {
 			Cost h, d;
-			mCellGraph.getHeuristicValues(pState, mGoalState, h, d);
+			mCellGraph.compHrVals(pState, mGoalState, h, d);
 			return h;
 		}
 		
 		Cost distanceHeuristic(unsigned pState) const {
 			Cost h, d;
-			mCellGraph.getHeuristicValues(pState, mGoalState, h, d);
+			mCellGraph.compHrVals(pState, mGoalState, h, d);
 			return d;
 		}
 		

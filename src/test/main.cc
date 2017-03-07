@@ -22,6 +22,7 @@
 #include "search/ugsa/v6/ugsa.hpp"
 
 #include "search/ugsa/cost_pure/ugsa_cost_pure.hpp"
+#include "search/astar.hpp"
 
 /*
 namespace mjon661 { namespace gridnav { namespace blocked {
@@ -138,10 +139,10 @@ namespace mjon661 {
 		//jDomConfig["goal"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8};
 		//jDomConfig["kept"] = std::vector<unsigned>{5, 4, 3, 2, 1, 1, 1, 1};
 		jDomConfig["map"] = ".1";
-		jDomConfig["width"] = 500;
-		jDomConfig["height"] = 500;
+		jDomConfig["width"] = 100;
+		jDomConfig["height"] = 100;
 		
-		using DomStack_t = gridnav::blocked::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,5>;
+		using DomStack_t = gridnav::blocked::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,4>;
 		
 		DomStack_t domStack(jDomConfig);
 
@@ -160,6 +161,16 @@ namespace mjon661 {
 		ugsaAlg.execute(domStack.getInitState(), sol);
 
 		Json jStats = ugsaAlg.report();
+		std::cout << jStats.dump(4) << "\n\n\n\n";
+		
+		
+		using AstarAlg_t = algorithm::AstarImpl<DomStack_t, algorithm::AstarSearchMode::Standard>;
+		
+		AstarAlg_t astaralg(domStack, jConfig);
+		
+		astaralg.execute(domStack.getInitState(), sol);
+		
+		jStats = ugsaAlg.report();
 		std::cout << jStats.dump(4) << "\n";
 	}
 

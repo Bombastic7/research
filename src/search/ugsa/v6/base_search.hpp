@@ -120,6 +120,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mLogCurBF = 1;
 			mGoalNode = nullptr;
 			
+			mLogN0 = mLogN1 = mLogNp = 0;
+			mLogU0 = mLogU1 = -1;
+			
 		}
 		
 		void clearCache() {
@@ -284,18 +287,36 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			
 			n->log_expCount = mLog_expd;
 			n->log_remexp = std::get<2>(abtres);
+			
+			mDomain.prettyPrint(s, g_logDebugOfs);
+			g_logDebugOfs << " (" << n->g << "," << n->depth << "," << n->f << "," << n->u << ")\n";
+			g_logDebugOfs << "h: " << std::get<0>(abtres) << "\n";
+			g_logDebugOfs << "d: " << std::get<1>(abtres) << "\n";
+			g_logDebugOfs << "remexp: " << std::get<2>(abtres) << "\n";
+			g_logDebugOfs << "uh: " << std::get<3>(abtres) << "\n\n\n";
 		}
 		
 		
 		void informExpansion(Node* n) {
 			unsigned u = std::round(n->u);
 			
+			if(mLogU1 < 0) {
+				mLogU1 = u;
+				mLogN1 = 1;
+				return;
+			}
+
 			if(u == mLogU1)
 				mLogN1++;
 			else if(u > mLogU1) {
-				mLogCurBF = (double)mLogN1 / mLogN0;
+				if(mLogU0 >= 0)
+					mLogCurBF = (double)(mLogNp + mLogN1) / (mLogNp + mLogN0);
+
+				mLogNp += mLogN0;
 				mLogN0 = mLogN1;
 				mLogU0 = mLogU1;
+				mLogN1 = 1;
+				mLogU1 = u;
 			}
 		//	else
 		//		slow_assert(false);
@@ -314,7 +335,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		Util_t mParams_wf, mParams_wt;
 		
 		Util_t mLogU0, mLogU1;
-		unsigned mLogN0, mLogN1;
+		unsigned mLogN0, mLogN1, mLogNp;
 		Util_t mLogCurBF;
 
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;

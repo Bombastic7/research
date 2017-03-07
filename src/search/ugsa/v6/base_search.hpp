@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <utility>
+#include <tuple>
 #include <vector>
 #include <map>
 
@@ -113,21 +114,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mClosedList.clear();
 			mNodePool.clear();
 			mAbtSearch.reset();
-			
-			mResort_n = 0;
-			mResort_next = 16;
-			
-			//mLog_exp_f.clear();
-			//mLog_exp_u.clear();
-			mLog_exp_umap.clear();
+
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			
-			mLog_resort_k.clear();
-			mLog_resort_bf.clear();
-			
-			mLog_resort_bf.push_back(1);
-			mLog_resort_k.push_back(1);
-			
+			mLogCurBF = 1;
 			mGoalNode = nullptr;
 			
 		}
@@ -140,9 +130,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		
 		void doSearch(State const& s0, Solution<D>& pSolution) {
 			reset();
-			mAbtSearch.resetParams(1, 1);
-
-			
 			{
 				Node* n0 = mNodePool.construct();
 
@@ -174,11 +161,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 				}
 				
 				expand(n, s);
-				
-				if(mLog_expd == mResort_next)
-					doResort();
 			}
-
 		}
 		
 		
@@ -189,25 +172,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			j["gend"] = mLog_gend;
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
-
-			j["resort_k"] = mLog_resort_k;
-			j["resort_bf"] = mLog_resort_bf;
-			j["resort_n"] = mResort_n;
-			j["resort_next"] = mResort_next;
-
-			std::vector<std::array<double, 5>> remExpErrorInfo;
-
-			for(Node* n=mGoalNode; n; n=n->parent) {
-				double trueRemExp = mLog_expd - n->log_expCount;
-				
-				remExpErrorInfo.push_back({trueRemExp, n->log_remexp, n->log_remexp/trueRemExp, 
-											mLog_resort_k.at(logExpCountToResortN(n->log_expCount)),
-											mLog_resort_bf.at(logExpCountToResortN(n->log_expCount))
-										});
-			}
-			
-			//j["bf_stats"] = mathutil::sampleStats(mLog_resort_bf);
-			j["remexp_errors"] = remExpErrorInfo;
 
 			j["abt"] = mAbtSearch.report();
 			return j;
@@ -257,6 +221,13 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		}
 		
 		
+		Util_t compRemExp(unsigned depth) {
+			Util_t acc = 0;
+			for(unsigned i=1; i<=depth; i++)
+				acc += std::pow(mLogCurBF, depth);
+			return acc;
+		}
+		
 		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
 			Cost 		kid_g   = pParentNode->g + edge.cost();
@@ -305,79 +276,34 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		}
 		
 		void evalHr(Node* n, State const& s) {
-			Cost remcost;
-			Util_t remexp;
-			mAbtSearch.computeRemainingEffort_parentState(s, remcost, remexp);
+			std::tuple<Cost, unsigned, Util_t, Util_t> abtres = 
+				mAbtSearch.computeRemainingEffort_parentState(s, mLogCurBF, mOpenList.size() + 1);
 			
-			n->f = n->g + remcost;
-			n->u = mParams_wf*(n->g + remcost) + mParams_wt*remexp;
+			n->f = n->g + std::get<0>(abtres);
+			n->u = mParams_wf*n->f + std::get<3>(abtres);
 			
 			n->log_expCount = mLog_expd;
-			n->log_remexp = remexp;
+			n->log_remexp = std::get<2>(abtres);
 		}
 		
 		
 		void informExpansion(Node* n) {
-			if(mLog_exp_umap.count(n->u) == 0)
-				mLog_exp_umap[n->u] = 1;
-			else
-				mLog_exp_umap[n->u]++;
+			unsigned u = std::round(n->u);
 			
-			//mLog_exp_f.push_back(n->f);
-			//mLog_exp_u.push_back(n->u);
+			if(u == mLogU1)
+				mLogN1++;
+			else if(u > mLogU1) {
+				mLogCurBF = (double)mLogN1 / mLogN0;
+				mLogN0 = mLogN1;
+				mLogU0 = mLogU1;
+			}
+		//	else
+		//		slow_assert(false);
 		}
 		
-		void doResort() {
-			std::vector<double> bfsamples;
-			
-			unsigned ulvl = 0;
-			for(auto it=mLog_exp_umap.begin(); it!=mLog_exp_umap.end(); ++it, ulvl++) {
-				if(ulvl == 0)
-					continue;
-				double bf = std::pow(it->second + mLog_resort_k.back(), 1.0/ulvl);
-				bfsamples.push_back(bf);				
-			}
-			
-			double bf_gm = 1;
-			for(auto it=bfsamples.begin(); it!=bfsamples.end(); ++it)
-				bf_gm *= *it;
-			
-			bf_gm /= bfsamples.size() - 1;
-			
-
-			double k = mOpenList.size();
-			
-			mAbtSearch.resetParams(k, bf_gm);
-			
-			mLog_resort_bf.push_back(bf_gm);
-			mLog_resort_k.push_back(k);
-			
-			mResort_n++;
-			mResort_next *= 2;
-			
-			for(unsigned i=0; i<mOpenList.size(); i++) {
-				Node* n = mOpenList.at(i);
-				State s;
-				mDomain.unpackState(s, n->pkd);
-				evalHr(n, s);
-			}
-			
-			mOpenList.reinit();
-		}
 		
-		unsigned logExpCountToResortN(unsigned i) {
-			if(i < 16)
-				return 0;
+		
 
-			unsigned n = 1, t = 32;
-			while(true) {
-				if(i >= t/2 && i < t)
-					return n;
-				n++;
-				t *= 2;
-			}
-			return (unsigned)-1;
-		}
 		
 		Domain mDomain;
 		OpenList_t mOpenList;
@@ -387,13 +313,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		Node* mGoalNode;
 		Util_t mParams_wf, mParams_wt;
 		
-		unsigned mResort_n, mResort_next;
-		
-		//std::vector<Cost> mLog_exp_f;
-		//std::vector<Util_t> mLog_exp_u;
-		std::map<Cost, unsigned> mLog_exp_umap;
-		std::vector<double> mLog_resort_bf;
-		std::vector<double> mLog_resort_k;
+		Util_t mLogU0, mLogU1;
+		unsigned mLogN0, mLogN1;
+		Util_t mLogCurBF;
+
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
 	};
 

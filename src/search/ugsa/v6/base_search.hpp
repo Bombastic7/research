@@ -293,7 +293,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			g_logDebugOfs << "h: " << std::get<0>(abtres) << "\n";
 			g_logDebugOfs << "d: " << std::get<1>(abtres) << "\n";
 			g_logDebugOfs << "remexp: " << std::get<2>(abtres) << "\n";
-			g_logDebugOfs << "uh: " << std::get<3>(abtres) << "\n\n\n";
+			g_logDebugOfs << "uh: " << std::get<3>(abtres) << "\n";
+			g_logDebugOfs << "bf: " << mLogCurBF << ", k: " << mOpenList.size() << "\n\n\n";
+			
 		}
 		
 		

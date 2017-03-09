@@ -23,6 +23,7 @@
 
 #include "search/ugsa/cost_pure/ugsa_cost_pure.hpp"
 #include "search/astar.hpp"
+#include "search/bugsy.hpp"
 
 /*
 namespace mjon661 { namespace gridnav { namespace blocked {
@@ -170,8 +171,17 @@ namespace mjon661 {
 		
 		astaralg.execute(domStack.getInitState(), sol);
 		
-		jStats = ugsaAlg.report();
-		std::cout << jStats.dump(4) << "\n";
+		jStats = astaralg.report();
+		std::cout << jStats.dump(4) << "\n\n\n\n";
+		
+		
+		using BugsyAlg_t = algorithm::BugsyImpl<DomStack_t, true>;
+		BugsyAlg_t bugsyalg(domStack, jConfig);
+		
+		bugsyalg.execute(domStack.getInitState(), sol);
+		
+		jStats = bugsyalg.report();
+		std::cout << jStats.dump(4) << "\n\n\n\n";
 	}
 
 }

@@ -535,7 +535,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		std::pair<Cost, Cost> pairHeuristics(unsigned pState) const {
 			Cost h, d;
-			mCellGraph.getHeuristicValues(pState, mGoalState, h, d);
+			mCellGraph.compHrVals(pState, mGoalState, h, d);
 			return std::pair<Cost, Cost>(h, d);
 		}
 		

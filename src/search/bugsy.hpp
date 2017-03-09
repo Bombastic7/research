@@ -1,21 +1,25 @@
 #pragma once
 
-#include <array>
 #include <string>
+#include <utility>
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
 #include "search/nodepool.hpp"
+#include "search/solution.hpp"
 #include "util/debug.hpp"
 #include "util/json.hpp"
-#include "util/time.hpp"
 #include "util/exception.hpp"
+#include "util/time.hpp"
 
 
 namespace mjon661 { namespace algorithm {
 
-	template<typename D, bool Use_Normed_Tradeoff>
-	struct BugsyImpl {
-		
+
+
+	template<typename D, bool Use_Exp_Time>
+	class BugsyImpl {
+		public:
+
 		using Domain = typename D::template Domain<0>;
 		using Cost = typename Domain::Cost;
 		using Operator = typename Domain::Operator;
@@ -23,12 +27,11 @@ namespace mjon661 { namespace algorithm {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
-		
-		
+
+
 		struct Node {
 			PackedState pkd;
-			Cost f, g;
-			unsigned d;
+			Cost g;
 			double u;
 			
 			Node *parent;
@@ -37,8 +40,12 @@ namespace mjon661 { namespace algorithm {
 			unsigned expdGen;
 		};
 		
+
+
 		struct ClosedOps {
-			ClosedOps(Domain const& pDomain) : mDomain(pDomain) {}
+			ClosedOps(Domain const& pDomain) :
+				mDomain(pDomain)
+			{}
 			
 			bool operator()(Node * const n, PackedState const& pkd) const {
 				return mDomain.compare(n->pkd, pkd);
@@ -58,10 +65,8 @@ namespace mjon661 { namespace algorithm {
 		
 		struct OpenOps {
 			bool operator()(Node * const a, Node * const b) const {
-				if (a->u != b->u)
-					return a->u > b->u;
-				if (a->f != b->f)
-					return a->f < b->f;
+				if(a->u != b->u)
+					return a->u < b->u;
 				return a->g > b->g;
 			}
 		};
@@ -74,196 +79,108 @@ namespace mjon661 { namespace algorithm {
 										PackedState, 
 										ClosedOps,
 										ClosedOps,
-										Domain::Hash_Range>;
+										Domain::Is_Perfect_Hash>;
 									  
 		using NodePool_t = NodePool<Node, typename ClosedList_t::Wrapped_t>;
 		
 		
 		
-		struct SearchStats {
-			unsigned expd, gend, dups, reopnd, nresorts;
-			
-			void reset() {
-				expd = gend = dups = reopnd = nresorts = 0;
-			}
-			
-			Json report() {
-				Json j;
-				j["_all_expd"] = expd;
-				j["_all_gend"] = gend;
-				j["dups"] = dups;
-				j["reopnd"] = reopnd;
-				j["nresorts"] = nresorts;
-				return j;
-			}
-			
-			SearchStats() {
-				reset();
-			}
-		};
 		
-		
-		
-		struct BugsyConfig {
-			const double wf, wt;
-			
-			bool validate() {
-				if(Use_Normed_Tradeoff && wt != 1)
-					return false;
-
-				return wf >= 0 && wt >= 0;
-			}
-			
-			Json report() {
-				Json j;
-				j["wf"] = wf;
-				j["wt"] = wt;
-				j["used normalised exptime"] = Use_Normed_Tradeoff;
-				return j;
-			}
-			
-			BugsyConfig(Json const& j) :
-				wf(j.at("wf")),
-				wt(j.at("wt"))
-			{
-				if(!validate())
-					throw ConfigException("");
-			}
-			
-			bool mUseNormalisedExptime;
-		};
-		
-		
-		
-		
-		struct BugsyBehaviour : public SearchStats {
-			static const unsigned First_Resort = 128;
-			static const unsigned Next_Resort_Fact = 2;
-			
-			double last_avgExpDelay, last_avgExpTime;
-			double next_accExpDelay;
-			unsigned last_expd, next_expd;
-			Timer mTimer;
-			
-			void reset() {
-				SearchStats::reset();
-				last_avgExpDelay = last_avgExpTime = 0;
-				next_accExpDelay = 0;
-				last_expd = 0;
-				next_expd = Next_Resort_Fact;
-				
-				if(Use_Normed_Tradeoff)
-					last_avgExpTime = 1;
-				
-				mTimer.start();
-			}
-			
-			void notify_expansionDelay(unsigned pExpdAtGen) {
-				next_accExpDelay += SearchStats::expd - pExpdAtGen;
-			}
-			
-			bool shouldResort() {
-				return SearchStats::expd >= next_expd;
-			}
-			
-			void update() {
-				mTimer.stop();
-				double timeSinceLastUpdate = mTimer.seconds();
-				mTimer.start();
-				
-				last_avgExpDelay = next_accExpDelay / (SearchStats::expd - last_expd);
-				
-				if(!Use_Normed_Tradeoff)
-					last_avgExpTime = timeSinceLastUpdate / (SearchStats::expd - last_expd);
-				
-				next_accExpDelay = 0;
-				
-				last_expd = SearchStats::expd;
-				next_expd = SearchStats::expd * Next_Resort_Fact;
-			}
-			
-			Json report() {
-				Json j = SearchStats::report();
-				Json jB;
-				jB["last_avgExpDelay"] = last_avgExpDelay;
-				jB["last_avgExpTime"] = last_avgExpTime;
-				jB["last_expd"] = last_expd;
-				jB["next_expd"] = next_expd;
-				
-				j["bugsy"] = jB;
-				return j;
-			}
-			
-			BugsyBehaviour()
-			{
-				reset();
-			}
-		};
 		
 		
 		BugsyImpl(D& pDomStack, Json const& jConfig) :
-			mConfig				(jConfig),
-			mBehaviour			(),
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
-			mNodePool			()
+			mNodePool			(),
+			mParams_wf			(jConfig.at("wf")),
+			mParams_wt			(jConfig.at("wt"))
 		{}
-		
-		Node* doSearch(State const& s0) {
-			mBehaviour.reset();
-					
-			{		
-				Node* n0 = mNodePool.construct();
-				
-				n0->g = 		Cost(0);
-				n0->f = 		mDomain.heuristicValue(s0);
-				n0->d =			mDomain.distanceValue(s0);
-				n0->in_op = 	mDomain.noOp;
-				n0->parent_op = mDomain.noOp;
-				n0->parent = 	nullptr;
-				
-				n0->expdGen =	0;
-				n0->u = 		computeUtil(n0->f, n0->d);
-				
-				mDomain.packState(s0, n0->pkd);
 
+		void reset() {
+			mOpenList.clear();
+			mClosedList.clear();
+			mNodePool.clear();
+
+			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
+			
+			mLog_curExpDelay = 1;
+			mLog_nextExpDelayAcc = 0;
+			mLog_curExpTime = Use_Exp_Time ? 0 : 1;
+			
+			mResort_next = 16;
+			mResort_n = 0;
+			mTimer.start();
+		}
+
+		
+		void execute(State const& s0, Solution<D>& pSolution) {
+			doSearch(s0, pSolution);
+		}
+		
+		void doSearch(State const& s0, Solution<D>& pSolution) {
+			reset();
+			{
+				Node* n0 = mNodePool.construct();
+
+				n0->g = 		Cost(0);
+				n0->in_op = 	mDomain.getNoOp();
+				n0->parent_op = mDomain.getNoOp();
+				n0->parent = 	nullptr;
+				n0->expdGen =	0;
+				
+				evalHr(n0, s0);
+
+				mDomain.packState(s0, n0->pkd);
+				
 				mOpenList.push(n0);
 				mClosedList.add(n0);
-			}
+			}			
 			
-			
-			while(!mOpenList.empty()) {
+
+			while(true) {				
 				Node* n = mOpenList.pop();
 					
 				State s;
 				mDomain.unpackState(s, n->pkd);
 
-				if(mDomain.checkGoal(s))
-					return n;
+				if(mDomain.checkGoal(s)) {
+					prepareSolution(pSolution, n);
+					mGoalNode = n;
+					break;
+				}
 				
 				expand(n, s);
 				
-				if(mBehaviour.shouldResort()) {
-					mBehaviour.update();
-					resortOpenList();
-				}
+				if(mLog_expd == mResort_next)
+					doResort();
 			}
-			
-			return nullptr;
 		}
 		
-		void reset() {
-			mOpenList.clear();
-			mClosedList.clear();
-			mNodePool.clear();
-			mBehaviour.reset();
+		
+		Json report() {
+			Json j;
+			j["expd"] = mLog_expd;
+			j["gend"] = mLog_gend;
+			j["reopnd"] = mLog_reopnd;
+			j["dups"] = mLog_dups;
+			j["use_exp_time"] = Use_Exp_Time;
+			j["resort_next"] = mResort_next;
+			j["resort_n"] = mResort_n;
+			j["curExpTime"] = mLog_curExpTime;
+			j["curExpDelay"] = mLog_curExpDelay;
+			j["wf"] = mParams_wf;
+			j["wt"] = mParams_wt;
+			return j;
 		}
-
-		void prepareSolution(Solution<typename D::template Domain<0>>& sol, Node* pGoalNode) {
+		
+		
+		private:
+		
+		void prepareSolution(Solution<D>& sol, Node* pGoalNode) {
 			std::vector<Node*> reversePath;
 			
-			for(Node *n = pGoalNode; n; n = n->parent)
+			for(Node *n = pGoalNode; n != nullptr; n = static_cast<Node*>(n->parent))
 				reversePath.push_back(n);
 			
 			sol.states.clear();
@@ -278,47 +195,29 @@ namespace mjon661 { namespace algorithm {
 				if(i != reversePath.size()-1)
 					sol.operators.push_back(reversePath[i]->in_op);	
 				else
-					fast_assert(reversePath[i]->in_op == mDomain.noOp);
+					fast_assert(reversePath[i]->in_op == mDomain.getNoOp());
 			}
 		}
 		
-		Json report() {
-			Json j = mBehaviour.report();
-			j["Node size"] = sizeof(Node);
-			j["Wrapped Node Size"] = sizeof(typename ClosedList_t::Wrapped_t);
-			j["closed fill"] = mClosedList.getFill();
-			j["closed table size"] = mClosedList.size();
-			j["open size"] = mOpenList.size();
-			j["open capacity"] = mOpenList.capacity();
-			j["bugsy config"] = mConfig.report();
-			return j;
-		}
-		
-		BugsyConfig const& getConfig() {
-			return mConfig;
-		}
-		
-		
-		private:
 		
 		void expand(Node* n, State& s) {
-			mBehaviour.expd++;
-
-			mBehaviour.notify_expansionDelay(n->expdGen);
+			mLog_expd++;
+			
+			informExpansion(n);
 			
 			OperatorSet ops = mDomain.createOperatorSet(s);
-
+			
 			for(unsigned i=0; i<ops.size(); i++) {
 				if(ops[i] == n->parent_op)
 					continue;
-				
-				mBehaviour.gend++;
+
+				mLog_gend++;
 				considerkid(n, s, ops[i]);
 			}
 		}
 		
-		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
 
+		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
 			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
 			Cost 		kid_g   = pParentNode->g + edge.cost();
 			
@@ -327,107 +226,95 @@ namespace mjon661 { namespace algorithm {
 
 			Node* kid_dup = mClosedList.find(kid_pkd);
 
-			if(kid_dup) {				
-				mBehaviour.dups++;
-				
+			if(kid_dup) {
+				mLog_dups++;
 				if(kid_dup->g > kid_g) {
-					kid_dup->f 		   -= kid_dup->g;
-					kid_dup->f 		   += kid_g;
-					kid_dup->g 		   = kid_g;
-					kid_dup->in_op	   = pInOp;
-					kid_dup->parent_op = edge.parentOp();
-					kid_dup->parent	   = pParentNode;
+					kid_dup->g			= kid_g;
+					kid_dup->in_op		= pInOp;
+					kid_dup->parent_op	= edge.parentOp();
+					kid_dup->parent		= pParentNode;
+					kid_dup->expdGen	= mLog_expd;
 					
-					kid_dup->u		   = computeUtil(kid_dup->f, kid_dup->d);
+					evalHr(kid_dup, edge.state());
 					
-					if(!mOpenList.contains(kid_dup))
-						mBehaviour.reopnd++;
-					
+					if(!mOpenList.contains(kid_dup)) {
+						mLog_reopnd++;
+					}
+
 					mOpenList.pushOrUpdate(kid_dup);
 				}
-			} else {
+			}
+			else {
 				Node* kid_node 		= mNodePool.construct();
 
 				kid_node->g 		= kid_g;
-				kid_node->f 		= kid_g + mDomain.heuristicValue(edge.state());
-				kid_node->d			= mDomain.distanceValue(edge.state());
 				kid_node->pkd 		= kid_pkd;
 				kid_node->in_op 	= pInOp;
 				kid_node->parent_op = edge.parentOp();
 				kid_node->parent	= pParentNode;
-				kid_node->expdGen	= mBehaviour.expd;
+				kid_node->expdGen	= mLog_expd;
 				
-				kid_node->u 		= computeUtil(kid_node->f, kid_node->d);
-				
+				evalHr(kid_node, edge.state());
+
 				mOpenList.push(kid_node);
 				mClosedList.add(kid_node);
 			}
 			
 			mDomain.destroyEdge(edge);
 		}
-
-		double computeUtil(Cost const& pCost, unsigned pDist) {
-			return -(mConfig.wf * pCost + 
-				   mConfig.wt * mBehaviour.last_avgExpDelay * pDist * mBehaviour.last_avgExpTime);
+		
+		void evalHr(Node* n, State const& s) {
+			std::pair<Cost, Cost> hrvals = mDomain.pairHeuristics(s);
+			
+			Cost f = n->g + hrvals.first;
+			double remexp = mLog_curExpDelay * hrvals.second;
+			
+			n->u = mParams_wf * f + mParams_wt * mLog_curExpTime * remexp;
 		}
 		
-		void resortOpenList() {
+		void informExpansion(Node* n) {
+			double expDelay = mLog_expd - n->expdGen;
+			mLog_nextExpDelayAcc += expDelay;
+		}
+		
+		void doResort() {
+			unsigned expThisPhase = mResort_n == 0 ? 16 : mLog_expd / 2;
+			
+			if(Use_Exp_Time) {
+				mTimer.stop();
+				mTimer.start();
+				mLog_curExpTime = mTimer.seconds() / expThisPhase;
+			}
+			
+			mLog_curExpDelay = mLog_nextExpDelayAcc / expThisPhase;
+			mLog_nextExpDelayAcc = 0;
+			
 			for(unsigned i=0; i<mOpenList.size(); i++) {
+				State s;
 				Node* n = mOpenList.at(i);
-				n->u = computeUtil(n->f, n->d);
+				mDomain.unpackState(s, n->pkd);
+				evalHr(n, s);
 			}
 			mOpenList.reinit();
-			mBehaviour.nresorts++;
-		}
-
-		BugsyConfig			mConfig;
-		BugsyBehaviour		mBehaviour;
-		
-		const Domain		mDomain;
-		
-		OpenList_t 			mOpenList;
-		ClosedList_t 		mClosedList;
-		NodePool_t 			mNodePool;
-	};
-	
-	
-	template<typename D, bool Use_Normed_Tradeoff>
-	struct BugsyFront {
-		using Bugsy_t =			BugsyImpl<D, Use_Normed_Tradeoff>;
-		using Domain =			typename D::template Domain<0>;
-		using State = 			typename Domain::State;
-		using Node =			typename Bugsy_t::Node;
-		
-		BugsyFront(D& pDomStack, Json const& jConfig) :
-			mDomain(pDomStack),
-			mAlgo(pDomStack, jConfig)
-		{}
-		
-		void execute(Solution<Domain>& pSolution) {
-			State s0 = mDomain.createState();
 			
-			Node* goalNode = mAlgo.doSearch(s0);
-			
-			mAlgo.prepareSolution(pSolution, goalNode);
+			mResort_n++;
+			mResort_next *= 2;
 		}
 		
-		void reset() {
-			mAlgo.reset();
-		}
-		
-		Json report() {
-			Json j = mAlgo.report();
-			return j;
-		}
 
+		Domain mDomain;
+		OpenList_t mOpenList;
+		ClosedList_t mClosedList;
+		NodePool_t mNodePool;
+		Node* mGoalNode;
 		
-		const Domain mDomain;
-		Bugsy_t mAlgo;
+		double mParams_wf, mParams_wt;
+		
+		unsigned mResort_next, mResort_n;
+		
+		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
+		
+		double mLog_curExpDelay, mLog_nextExpDelayAcc, mLog_curExpTime;
+		Timer mTimer; //Should this be walltime or cputime ??
 	};
-	
-	template<typename D>
-	using Bugsy = BugsyFront<D, true>;
-	
-	template<typename D>
-	using Bugsy_Norm = BugsyFront<D, false>;
 }}

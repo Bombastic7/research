@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstdio>
 #include <vector>
+#include <string>
 #include "domain/gridnav/blocked/graph.hpp"
 //#include "domain/pancake/fwd.hpp"
 //#include "domain/tiles/fwd.hpp"
@@ -87,18 +88,24 @@ namespace mjon661 {
 	template<typename D>
 	Json run_session1_bugsy(D& domStack, typename D::template Domain<0>::State const& s0, double wf, double wt) {
 		
-		using Alg_t = algorithm::BugsyImpl<D, false, true, false>;
+		using Alg_min_t = algorithm::BugsyImpl<D, false, algorithm::BugsyHrMode::Abt_min>;
+		using Alg_delayweight_t = algorithm::BugsyImpl<D, false, algorithm::BugsyHrMode::Abt_delayweight>;
 		
 		Json jConfig;
 		jConfig["wf"] = wf;
 		jConfig["wt"] = wt;
 		
-		Alg_t alg(domStack, jConfig);
+		Alg_min_t alg1(domStack, jConfig);
+		Alg_delayweight_t alg2(domStack, jConfig);
 		
 		Solution<D> sol;
-		alg.execute(s0, sol);
+		alg1.execute(s0, sol);
+		alg2.execute(s0, sol);
 		
-		return alg.report();
+		Json res;
+		res["hr_abt_min"] = alg1.report();
+		res["hr_abt_delay_weight"] = alg2.report();
+		return res;
 	}
 	
 	/*
@@ -192,8 +199,8 @@ namespace mjon661 {
 		Json jConfig;
 		Json res;
 		
-		jConfig["height"] = 1000;
-		jConfig["width"] = 1000;
+		jConfig["height"] = 100;
+		jConfig["width"] = 100;
 		jConfig["map"] = ".1";
 		
 		for(int prob = -1; prob >= -3; prob--) {
@@ -202,7 +209,11 @@ namespace mjon661 {
 			
 			D_1000_4_u d_1000_4_u(jConfig);
 			
-			res["1000_4_u"][prob]["astar"] = run_session1_astar(d_1000_4_u, d_1000_4_u.getInitState());
+			res["1000_4_u"][std::to_string(prob)]["astar"] = run_session1_astar(d_1000_4_u, d_1000_4_u.getInitState());
+			res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,0"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 0);
+			res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,1"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 1);
+			res["1000_4_u"][std::to_string(prob)]["bugsy"]["10,1"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 10, 1);
+			res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,10"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 10);
 		}
 		
 		return res;

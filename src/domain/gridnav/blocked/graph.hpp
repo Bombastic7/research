@@ -597,7 +597,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		static const unsigned Null_Idx = (unsigned)-1;
 		
 		
-		//Abstract domain. For L > mTopUsedAbtLevel, reuse top level state/edges, and have abstractParentState return state as is.
+		//Abstract domain. For L > mTopUsedAbtLevel, reuse top level state/edges, and have abstractParentState return state as-is.
 		template<unsigned L, typename = void>
 		struct Domain : public starabt::StarAbtDomain<BaseDomain_t> {
 			Domain(Stack_t& pStack) :
@@ -610,7 +610,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			unsigned abstractParentState(unsigned bs) const {
 				if(L > mStack.mTopUsedAbtLevel) {
-					logDebug("Warning, abstracted past last used level.");
+					logDebug(std::string("Warning, abstracted past last used level. :Level=") + std::to_string(L));
 					return bs;
 				}
 				
@@ -649,6 +649,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		}
 		
 		std::pair<unsigned,unsigned> genRandInitAndGoal(unsigned skip) const {
+			fast_assert(skip < 10);
+			
 			std::mt19937 gen;
 			std::uniform_int_distribution<unsigned> dh(0, mHeight-1), dw(0, mWidth-1);
 			double diagLen = std::hypot(mHeight, mWidth);
@@ -670,9 +672,11 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				if(!baseStatesConnected(s0, sg)) {
 					continue;
 				}
-				
-				if(skipcount < skip)
+
+				if(skipcount < skip) {
+					skipcount++;
 					continue;
+				}
 
 				return {s0, sg};
 			}
@@ -725,6 +729,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				mAbtTrns.push_back(abttrns);
 				mTopUsedAbtLevel++;
 				
+				std::cout << mTopUsedAbtLevel << "\n";
+				//g_logDebugOfs.flush();
+				
 				if(!isTrivial && Top_Abstract_Level == mTopUsedAbtLevel) {
 					logDebug(std::string("Last level is not trivial, but out of abt levels to use. TopLevel=") + 
 								std::to_string(mTopUsedAbtLevel));
@@ -738,10 +745,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			}
 
 			logDebug(std::string("gridnav abtstack info hash: ") + std::to_string(hashStackInfo()));
+			logDebug(std::string("sizeof mAbtEdges: ") + std::to_string(mAbtEdges.size()));
 			
 			if(jConfig.at("init") < 0 || jConfig.at("goal") < 0) {
-				unsigned skip = - strtol(jConfig.at("init").get_ref<std::string const&>().c_str(), nullptr, 10);
-				auto genStates = genRandInitAndGoal(skip);
+				int skip = - (int)jConfig.at("init");
+				fast_assert(skip >= 0);
+				auto genStates = genRandInitAndGoal((unsigned)skip);
 				
 				mInitState = genStates.first;
 				mGoalState = genStates.second;

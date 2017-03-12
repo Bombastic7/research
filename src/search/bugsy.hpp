@@ -14,13 +14,32 @@
 #include "util/time.hpp"
 
 #include "search/admissible_abtsearch.hpp"
+#include "search/admissible_abtsearch_util.hpp"
 
 
 namespace mjon661 { namespace algorithm {
 
 
+	
+	enum struct BugsyHrMode {
+		Abt_min, Abt_delayweight, Dom
+	};
+	
+	std::string bugsyHrModeStr(BugsyHrMode m) {
+		if(m == BugsyHrMode::Abt_min)
+			return "Abt_min";
+		else if(m == BugsyHrMode::Abt_delayweight)
+			return "Abt_delayweight";
+		else if(m == BugsyHrMode::Dom)
+			return "Dom";
+		else
+			gen_assert(false);
+		return "";
+	}
 
-	template<typename D, bool Use_Exp_Time, bool Use_Abstraction_Hr, bool Use_BF_Mod>
+
+
+	template<typename D, bool Use_Exp_Time, BugsyHrMode Hr_Mode>
 	class BugsyImpl {
 		public:
 
@@ -33,7 +52,8 @@ namespace mjon661 { namespace algorithm {
 		using Edge = typename Domain::Edge;
 		using AbtSearch_cost = AdmissibleAbtSearch<D, 1, D::Top_Abstract_Level+1, true>;
 		using AbtSearch_dist = AdmissibleAbtSearch<D, 1, D::Top_Abstract_Level+1, false>;
-
+		using AbtSearch_util = AdmissibleAbtSearch_Util<D, 1, D::Top_Abstract_Level+1>;
+		
 
 		struct Node {
 			PackedState pkd;
@@ -95,18 +115,17 @@ namespace mjon661 { namespace algorithm {
 		
 		
 		
-		BugsyImpl(D& pDomStack, Json const& jConfig, double pBFmod = 0) :
+		BugsyImpl(D& pDomStack, Json const& jConfig) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mAbtSearch_cost		(pDomStack, jConfig),
 			mAbtSearch_dist		(pDomStack, jConfig),
+			mAbtSearch_util		(pDomStack, jConfig),
 			mParams_wf			(jConfig.at("wf")),
 			mParams_wt			(jConfig.at("wt"))
-		{
-			mParams_BFmod = pBFmod;
-		}
+		{}
 
 		void reset() {
 			mOpenList.clear();
@@ -118,7 +137,8 @@ namespace mjon661 { namespace algorithm {
 			mLog_curExpDelay = 1;
 			mLog_nextExpDelayAcc = 0;
 			mLog_curExpTime = Use_Exp_Time ? 0 : 1;
-			
+			mLog_curDepthWeight = mLog_curExpDelay * mLog_curExpTime * mParams_wt;
+
 			mResort_next = 16;
 			mResort_n = 0;
 			mTimer.start();
@@ -179,15 +199,13 @@ namespace mjon661 { namespace algorithm {
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
 			j["use_exp_time"] = Use_Exp_Time;
-			j["use_abstraction_hr"] = Use_Abstraction_Hr;
-			j["use_bf_mod"] = Use_BF_Mod;
+			j["hr_mode"] = bugsyHrModeStr(Hr_Mode);
 			j["resort_next"] = mResort_next;
 			j["resort_n"] = mResort_n;
 			j["curExpTime"] = mLog_curExpTime;
 			j["curExpDelay"] = mLog_curExpDelay;
 			j["wf"] = mParams_wf;
 			j["wt"] = mParams_wt;
-			j["bf_mod"] = mParams_BFmod;
 			return j;
 		}
 		
@@ -282,32 +300,30 @@ namespace mjon661 { namespace algorithm {
 		}
 		
 		void evalHr(Node* n, State const& s) {
+			if(Hr_Mode == BugsyHrMode::Abt_delayweight) {
+				mAbtSearch_util.doSearch_ParentState(s, n->u);
+				n->u += n->g * mParams_wf;
+				n->f = 0;
+				return;
+			}
+			
 			Cost h;
 			unsigned d;
 			
-			if(Use_Abstraction_Hr) {
-				mAbtSearch_cost.doSearch_ParentState(s, h);
-				mAbtSearch_dist.doSearch_ParentState(s, d);
-			} else {
+			if(Hr_Mode == BugsyHrMode::Dom) {
 				std::pair<Cost, Cost> hrvals = mDomain.pairHeuristics(s);
 				h = hrvals.first;
 				d = hrvals.second;
-			}
+			} else if(Hr_Mode == BugsyHrMode::Abt_min) {
+				mAbtSearch_cost.doSearch_ParentState(s, h);
+				mAbtSearch_dist.doSearch_ParentState(s, d);
+			} else
+				gen_assert(false);
+
 			
 			Cost f = n->g + h;
 			
-			double remexp;
-			
-			if(Use_BF_Mod) {
-				remexp = 0;
-				for(unsigned i=1; i<=d; i++)
-					remexp += std::pow(mLog_curExpDelay, i);
-			}
-			else
-				remexp = mLog_curExpDelay * d;
-			
-			n->u = mParams_wf * f + mParams_wt * mLog_curExpTime * remexp;
-			
+			n->u = mParams_wf * f + mLog_curDepthWeight * d;
 			n->f = f; //.........
 		}
 		
@@ -338,6 +354,11 @@ namespace mjon661 { namespace algorithm {
 			
 			mResort_n++;
 			mResort_next *= 2;
+			
+			mLog_curDepthWeight = mLog_curExpDelay * mLog_curExpTime * mParams_wt;
+			
+			if(Hr_Mode == BugsyHrMode::Abt_delayweight)
+				mAbtSearch_util.setWeights(mParams_wf, mLog_curExpDelay * mLog_curExpTime);
 		}
 		
 
@@ -348,15 +369,15 @@ namespace mjon661 { namespace algorithm {
 		Node* mGoalNode;
 		AbtSearch_cost mAbtSearch_cost;
 		AbtSearch_dist mAbtSearch_dist;
+		AbtSearch_util mAbtSearch_util;
 		
 		double mParams_wf, mParams_wt;
-		double mParams_BFmod;
 		
 		unsigned mResort_next, mResort_n;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
 		
-		double mLog_curExpDelay, mLog_nextExpDelayAcc, mLog_curExpTime;
+		double mLog_curExpDelay, mLog_nextExpDelayAcc, mLog_curExpTime, mLog_curDepthWeight;
 		Timer mTimer; //Should this be walltime or cputime ??
 		
 		std::vector<double> mTest_exp_f, mTest_exp_u;

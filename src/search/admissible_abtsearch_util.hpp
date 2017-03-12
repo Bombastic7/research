@@ -134,6 +134,10 @@ namespace mjon661 { namespace algorithm {
 
 
 		bool doSearch_ParentState(BaseState const& pBaseState, Util_t& out_h) {
+			if(mDomStack.topUsedAbstractLevel() < L) {
+				out_h = 0;
+				return false;
+			}
 			State s0 = mDomain.abstractParentState(pBaseState);
 			
 			return doSearch(s0, out_h);

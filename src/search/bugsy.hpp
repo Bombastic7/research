@@ -358,7 +358,7 @@ namespace mjon661 { namespace algorithm {
 			mLog_curDepthWeight = mLog_curExpDelay * mLog_curExpTime * mParams_wt;
 			
 			if(Hr_Mode == BugsyHrMode::Abt_delayweight)
-				mAbtSearch_util.setWeights(mParams_wf, mLog_curExpDelay * mLog_curExpTime);
+				mAbtSearch_util.setWeights(mParams_wf, mLog_curDepthWeight);
 		}
 		
 

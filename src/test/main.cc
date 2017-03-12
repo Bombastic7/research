@@ -199,8 +199,8 @@ namespace mjon661 {
 		Json jConfig;
 		Json res;
 		
-		jConfig["height"] = 100;
-		jConfig["width"] = 100;
+		jConfig["height"] = 1000;
+		jConfig["width"] = 1000;
 		jConfig["map"] = ".1";
 		
 		for(int prob = -1; prob >= -3; prob--) {
@@ -209,8 +209,8 @@ namespace mjon661 {
 			
 			D_1000_4_u d_1000_4_u(jConfig);
 			
-			res["1000_4_u"][std::to_string(prob)]["astar"] = run_session1_astar(d_1000_4_u, d_1000_4_u.getInitState());
-			res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,0"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 0);
+			//res["1000_4_u"][std::to_string(prob)]["astar"] = run_session1_astar(d_1000_4_u, d_1000_4_u.getInitState());
+			//res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,0"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 0);
 			res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,1"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 1);
 			res["1000_4_u"][std::to_string(prob)]["bugsy"]["10,1"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 10, 1);
 			res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,10"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 10);

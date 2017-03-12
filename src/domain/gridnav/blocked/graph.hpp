@@ -5,14 +5,9 @@
 #include <random>
 #include <vector>
 #include <cmath>
-#include <queue>
 #include <string>
 #include <fstream>
-#include <unordered_map>
 #include <utility>
-#include <algorithm>
-#include <cstdlib>
-#include <random>
 
 #include "util/debug.hpp"
 #include "util/math.hpp"
@@ -20,7 +15,6 @@
 #include "domain/star_abt.hpp"
 #include "util/hash.hpp"
 
-#include <cstdio>
 
 namespace mjon661 { namespace gridnav { namespace blocked {
 
@@ -688,6 +682,9 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			fast_assert(s0 < mHeight*mWidth && sg < mHeight * mWidth);
 		}
 		
+		unsigned topUsedAbstractLevel() const {
+			return mTopUsedAbtLevel;
+		}
 		
 		GridNav_StarAbtStack(Json const& jConfig) :
 			mCellGraph(jConfig.at("height"), jConfig.at("width"), jConfig.at("map")),
@@ -728,9 +725,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				mAbtEdges.push_back(abtedges);
 				mAbtTrns.push_back(abttrns);
 				mTopUsedAbtLevel++;
-				
-				std::cout << mTopUsedAbtLevel << "\n";
-				//g_logDebugOfs.flush();
 				
 				if(!isTrivial && Top_Abstract_Level == mTopUsedAbtLevel) {
 					logDebug(std::string("Last level is not trivial, but out of abt levels to use. TopLevel=") + 

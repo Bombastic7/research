@@ -600,7 +600,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		//Abstract domain. For L > mTopUsedAbtLevel, reuse top level state/edges, and have abstractParentState return state as is.
 		template<unsigned L, typename = void>
 		struct Domain : public starabt::StarAbtDomain<BaseDomain_t> {
-			Domain(Stack_t const& pStack) :
+			Domain(Stack_t& pStack) :
 				starabt::StarAbtDomain<BaseDomain_t>(
 					pStack.mAbtEdges.at(mathutil::min(L, pStack.mTopUsedAbtLevel)), 
 					pStack.abstractBaseState(pStack.mGoalState, mathutil::min(L, pStack.mTopUsedAbtLevel))
@@ -609,18 +609,18 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			{}
 			
 			unsigned abstractParentState(unsigned bs) const {
-				if(L > mTopUsedAbtLevel) {
+				if(L > mStack.mTopUsedAbtLevel) {
 					logDebug("Warning, abstracted past last used level.");
 					return bs;
 				}
 				
 				if(L == 1)
-					return mStack.mAbtTrns[0][mBaseTrns[bs]];
+					return mStack.mAbtTrns[0][mStack.mBaseTrns[bs]];
 
 				return mStack.mAbtTrns[L-1][bs];
 			}
 			
-			Stack_t const& mStack;
+			Stack_t& mStack;
 		};
 		
 		template<typename Ign>
@@ -676,7 +676,12 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 
 				return {s0, sg};
 			}
-			
+		}
+		
+		void setInitAndGoalStates(unsigned s0, unsigned sg) {
+			mInitState = s0;
+			mGoalState = sg;
+			fast_assert(s0 < mHeight*mWidth && sg < mHeight * mWidth);
 		}
 		
 		
@@ -712,7 +717,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 				std::vector<unsigned> abttrns;
 				
 				if(isTrivial)
-					logDebug(std::string("Intermediate level is trivial: ") + std::to_string(lvl));
+					logDebug(std::string("Intermediate level is trivial: ") + std::to_string(mTopUsedAbtLevel));
 				
 				isTrivial = starabt::createAbstractLevel(2, mAbtEdges.back(), abttrns, abtedges);
 				
@@ -735,25 +740,31 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			logDebug(std::string("gridnav abtstack info hash: ") + std::to_string(hashStackInfo()));
 			
 			if(jConfig.at("init") < 0 || jConfig.at("goal") < 0) {
-				unsigned skip = - strtol(jConfig.at("init").c_str(), nullptr, 10)
+				unsigned skip = - strtol(jConfig.at("init").get_ref<std::string const&>().c_str(), nullptr, 10);
 				auto genStates = genRandInitAndGoal(skip);
 				
 				mInitState = genStates.first;
 				mGoalState = genStates.second;
 				
 				logDebugStream() << "Random init and goal (skip=" << skip << "): "
-					<< "i: " << dom.prettyPrint(mInitState) << "  "
-					<< "g: " << dom.prettyPrint(mGoalState) << "\n";
+					<< "i: ";
+					dom.prettyPrint(mInitState, g_logDebugOfs);
+					g_logDebugOfs << "  g: ";
+					dom.prettyPrint(mGoalState, g_logDebugOfs);
+					g_logDebugOfs << "\n";
 			}
 			else {
 				mInitState = jConfig.at("init");
 				mGoalState = jConfig.at("goal");
 				logDebugStream() << "Supplied init and goal: "
-					<< "i: " << dom.prettyPrint(mInitState) << "  "
-					<< "g: " << dom.prettyPrint(mGoalState) << "\n";
+					<< "i: ";
+					dom.prettyPrint(mInitState, g_logDebugOfs);
+					g_logDebugOfs << "  g: ";
+					dom.prettyPrint(mGoalState, g_logDebugOfs);
+					g_logDebugOfs << "\n";
 			}
 			
-			fast_assert(baseStatesConnected(mInitState, mGoalState);
+			fast_assert(baseStatesConnected(mInitState, mGoalState));
 		}
 		
 		
@@ -763,7 +774,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			for(unsigned i=0; i<=mTopUsedAbtLevel; i++)
 				for(unsigned j=0; j<mAbtEdges[i].size(); j++)
-					hashVals.push_back(mAbtEdges[i][j].dst);
+					for(unsigned k=0; k<mAbtEdges[i][j].size(); k++)
+						hashVals.push_back(mAbtEdges[i][j][k].dst);
 			
 			for(auto it=mBaseTrns.begin(); it!=mBaseTrns.end(); ++it) {
 				hashVals.push_back(it->first);

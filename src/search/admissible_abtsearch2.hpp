@@ -216,7 +216,7 @@ namespace mjon661 { namespace algorithm {
 		}
 		
 		
-		boo doSearch_ParentState(BaseState const& pBaseState, Cost& out_h, unsigned& out_d) {
+		bool doSearch_ParentState(BaseState const& pBaseState, Cost& out_h, unsigned& out_d) {
 			State s0 = mDomain.abstractParentState(pBaseState);
 			return doSearch(s0, out_h, out_d);
 		}
@@ -224,7 +224,6 @@ namespace mjon661 { namespace algorithm {
 		bool doSearch(State const& s0, Cost& out_h, unsigned& out_d) {
 			reset();
 			{
-				State s0 = mDomain.abstractParentState(pBaseState);
 				PackedState pkd0;
 				
 				mDomain.packState(s0, pkd0);

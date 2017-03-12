@@ -124,7 +124,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			
-			mLogCurBF = BF_Mode == BFMode::Locked ? mParamsLockedBF : 1;
+			mLogCurBF = BF_Mode == BFMode::Locked ? mParams_lockedBF : 1;
 			mGoalNode = nullptr;
 			
 			mTest_exp_u.clear();
@@ -344,8 +344,6 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			}
 			
 			mLogCurBF /= mLog_exp_fcounts.size() - 1;
-			if(mLogCurBF > mParams_maxBF)
-				mLogCurBF = mParams_maxBF;
 		}
 		
 	

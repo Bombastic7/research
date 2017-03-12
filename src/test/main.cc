@@ -87,7 +87,7 @@ namespace mjon661 {
 	template<typename D>
 	Json run_session1_bugsy(D& domStack, typename D::template Domain<0>::State const& s0, double wf, double wt) {
 		
-		using Alg_t = algorithm::Bugsy<D, false, true, false>;
+		using Alg_t = algorithm::BugsyImpl<D, false, true, false>;
 		
 		Json jConfig;
 		jConfig["wf"] = wf;
@@ -101,7 +101,7 @@ namespace mjon661 {
 		return alg.report();
 	}
 	
-	
+	/*
 	template<typename D>
 	Json run_session1_bugsy_bfmod(D& domStack, typename D::template Domain<0>::State const& s0, double wf, double wt, double bfmod) {
 		
@@ -174,22 +174,23 @@ namespace mjon661 {
 		res["uninformed"] = run_session1_uninformed(domStack, s0);
 		return res;
 	}
-	
+	*/
 	
 
 	Json run_session1_gridnav() {
 		
-		using D_1000_4_u = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,10>;
-		using D_1000_4_w = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<true,false>,10>;
-		using D_2000_4_u = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,10>;
-		using D_2000_4_w = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<true,false>,10>;
+		using D_1000_4_u = gridnav::blocked::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,10>;
+		//~ using D_1000_4_w = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<true,false>,10>;
+		//~ using D_2000_4_u = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,10>;
+		//~ using D_2000_4_w = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<true,false>,10>;
 		
-		using D_1000_8_u = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_8_hr<false,false>,10>;
-		using D_1000_8_w = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_8_hr<true,false>,10>;
-		using D_2000_8_u = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_8_hr<false,false>,10>;
-		using D_2000_8_w = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_8_hr<true,false>,10>;
+		//~ using D_1000_8_u = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_8_hr<false,false>,10>;
+		//~ using D_1000_8_w = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_8_hr<true,false>,10>;
+		//~ using D_2000_8_u = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_8_hr<false,false>,10>;
+		//~ using D_2000_8_w = gridnav::GridNav_StarAbtStack<gridnav::blocked::CellGraph_8_hr<true,false>,10>;
 		
 		Json jConfig;
+		Json res;
 		
 		jConfig["height"] = 1000;
 		jConfig["width"] = 1000;
@@ -199,17 +200,16 @@ namespace mjon661 {
 			jConfig["init"] = prob;
 			jConfig["goal"] = prob;
 			
-			D_1000_4_u d_100_4_u_alg(
+			D_1000_4_u d_1000_4_u(jConfig);
+			
+			res["1000_4_u"][prob]["astar"] = run_session1_astar(d_1000_4_u, d_1000_4_u.getInitState());
 		}
 		
-		
-		Json res;
-		
-		res["2000_4_u"] = 
+		return res;
 	}
 	
 	
-	
+	/*
 	void run_ugsapure() {
 		Json jDomConfig;
 		//jDomConfig["goal"] = std::vector<unsigned>{0, 1, 2, 3, 4, 5, 6, 7, 8};
@@ -266,7 +266,7 @@ namespace mjon661 {
 			ofs << jExpU.dump(4);
 		}
 		
-		/*
+		
 		for(double maxbf = 1.0; maxbf <= 1.5; maxbf += 0.01) {
 			Json jConfig;
 			jConfig["wf"] = 1;
@@ -280,9 +280,9 @@ namespace mjon661 {
 			std::cout << "Max BF: " << maxbf << "\n";
 			std::cout << jStats.dump(4) << "\n\n\n\n";
 		}
-		*/
 		
-		/*
+		
+		
 		using AstarAlg_t = algorithm::AstarImpl<DomStack_t, algorithm::AstarSearchMode::Standard>;
 		
 		AstarAlg_t astaralg(domStack, jConfig);
@@ -313,9 +313,9 @@ namespace mjon661 {
 			fast_assert(ofs);
 			ofs << jExpU.dump(4);
 		}
-		*/
+		
 	}
-
+	*/
 }
 
 int main(int argc, const char* argv[]) {
@@ -325,8 +325,12 @@ int main(int argc, const char* argv[]) {
 	
 	//mjon661::testgraph::run();
 	
-	mjon661::run_ugsapure();
+	//mjon661::run_ugsapure();
 	
+	mjon661::Json res;
+	res["gridnav"] = mjon661::run_session1_gridnav();
+	
+	std::cout << res.dump(4);
 	
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";
 }

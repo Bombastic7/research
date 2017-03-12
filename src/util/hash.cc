@@ -1,5 +1,6 @@
 #include "util/hash.hpp"
 
+#include <cstdint>
 #include <cstddef>
 #include <vector>
 

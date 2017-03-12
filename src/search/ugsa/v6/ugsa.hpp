@@ -9,7 +9,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 	
 	
 	
-	template<typename DomStack>
+	template<typename DomStack, bool Perfect_Hr, BFMode BF_Mode>
 	struct UGSAv6 {
 		
 		
@@ -17,8 +17,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		using State = typename BaseDomain::State;
 		
 		
-		UGSAv6(DomStack& pStack, Json const& jConfig) :
-			mAlgo(pStack, jConfig)
+		UGSAv6(DomStack& pStack, Json const& jConfig, double pLockedBF = 0) :
+			mAlgo(pStack, jConfig, pLockedBF)
 		{}
 		
 		
@@ -34,8 +34,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mAlgo.reset();
 		}
 
-		private:
-		UGSAv6_Base<DomStack> mAlgo;
+
+		UGSAv6_Base<DomStack, Perfect_Hr, BF_Mode> mAlgo;
 	};
 	
 }}}

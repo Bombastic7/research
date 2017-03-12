@@ -23,9 +23,11 @@
 namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 
-	
+	enum struct BFMode {
+		U_based, F_based, Locked
+	};
 
-	template<typename D>
+	template<typename D, bool Perfect_Hr, BFMode BF_Mode>
 	class UGSAv6_Base {
 		public:
 
@@ -36,8 +38,10 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
+		
+		static const unsigned Abt_Working_Level = Perfect_Hr ? 0 : 1;
 
-		using AbtSearch = UGSAv6_Abt<D, 1, 1>;
+		using AbtSearch = UGSAv6_Abt<D, Abt_Working_Level, 1>;
 		
 		struct Node {
 			Cost g, f;
@@ -50,6 +54,8 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			
 			double log_expCount;
 			double log_remexp;
+			
+			Util_t uh;
 		};
 		
 		
@@ -96,7 +102,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 
 
-		UGSAv6_Base(D& pDomStack, Json const& jConfig) :
+		UGSAv6_Base(D& pDomStack, Json const& jConfig, double pLockedBF = 0) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
@@ -106,6 +112,7 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mParams_wt			(jConfig.at("wt"))
 		{
 			fast_assert(mParams_wf >= 0 && mParams_wt >= 0);
+			mParams_lockedBF = pLockedBF;
 		}
 
 		
@@ -117,11 +124,12 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			
-			mLogCurBF = 1;
+			mLogCurBF = BF_Mode == BFMode::Locked ? mParamsLockedBF : 1;
 			mGoalNode = nullptr;
 			
-			mLogN0 = mLogN1 = mLogNp = 0;
-			mLogU0 = mLogU1 = -1;
+			mTest_exp_u.clear();
+			mTest_exp_f.clear();
+			mTest_exp_uh.clear();
 			
 		}
 		
@@ -175,13 +183,15 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			j["gend"] = mLog_gend;
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
+			
+			j["bf"] = mLogCurBF;
 
 			j["abt"] = mAbtSearch.report();
 			return j;
 		}
 		
 		
-		private:
+
 		
 		void prepareSolution(Solution<D>& sol, Node* pGoalNode) {
 			std::vector<Node*> reversePath;
@@ -211,6 +221,9 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mLog_expd++;
 			
 			informExpansion(n);
+			mTest_exp_u.push_back(n->u);
+			mTest_exp_f.push_back(n->f);
+			mTest_exp_uh.push_back(n->uh);
 			
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
@@ -278,16 +291,20 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			mDomain.destroyEdge(edge);
 		}
 		
+		template<bool> struct Tag {};
+		
 		void evalHr(Node* n, State const& s) {
-			std::tuple<Cost, unsigned, Util_t, Util_t> abtres = 
-				mAbtSearch.computeRemainingEffort_parentState(s, mLogCurBF, mOpenList.size() + 1);
+			std::tuple<Cost, unsigned, Util_t, Util_t> abtres = doAbtSearch(s, mLogCurBF, mOpenList.size() + 1, Tag<Perfect_Hr>{});
+				
 			
 			n->f = n->g + std::get<0>(abtres);
-			n->u = mParams_wf*n->f + std::get<3>(abtres);
+			n->u = mParams_wf*n->g + std::get<3>(abtres);
 			
 			n->log_expCount = mLog_expd;
 			n->log_remexp = std::get<2>(abtres);
 			
+			n->uh = mParams_wf * std::get<0>(abtres) + std::get<3>(abtres);
+			/*
 			mDomain.prettyPrint(s, g_logDebugOfs);
 			g_logDebugOfs << " (" << n->g << "," << n->depth << "," << n->f << "," << n->u << ")\n";
 			g_logDebugOfs << "h: " << std::get<0>(abtres) << "\n";
@@ -295,38 +312,43 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 			g_logDebugOfs << "remexp: " << std::get<2>(abtres) << "\n";
 			g_logDebugOfs << "uh: " << std::get<3>(abtres) << "\n";
 			g_logDebugOfs << "bf: " << mLogCurBF << ", k: " << mOpenList.size() << "\n\n\n";
+			*/
 			
 		}
 		
+		std::tuple<Cost, unsigned, Util_t, Util_t> doAbtSearch(State const& s, Tag<false>) {
+			return mAbtSearch.computeRemainingEffort_parentState(s, mLogCurBF, mOpenList.size() + 1);
+		}
+		
+		std::tuple<Cost, unsigned, Util_t, Util_t> doAbtSearch(State const& s, Tag<true>) {
+			return mAbtSearch.computeRemainingEffort(s, mLogCurBF, mOpenList.size() + 1);
+		}		
 		
 		void informExpansion(Node* n) {
-			unsigned u = std::round(n->u);
-			
-			if(mLogU1 < 0) {
-				mLogU1 = u;
-				mLogN1 = 1;
+			if(BF_Mode == BFMode::Locked)
 				return;
-			}
 
-			if(u == mLogU1)
-				mLogN1++;
-			else if(u > mLogU1) {
-				if(mLogU0 >= 0)
-					mLogCurBF = (double)(mLogNp + mLogN1) / (mLogNp + mLogN0);
-
-				mLogNp += mLogN0;
-				mLogN0 = mLogN1;
-				mLogU0 = mLogU1;
-				mLogN1 = 1;
-				mLogU1 = u;
+			mLog_exp_fcounts[n->f]++;
+			
+			auto it = mLog_exp_fcounts.begin(), itprev = mLog_exp_fcounts.begin();
+			
+			++it;
+			
+			if(it == mLog_exp_fcounts.end())
+				return;
+			
+			mLogCurBF = 0;
+			
+			for(; it!=mLog_exp_fcounts.end(); ++it, ++itprev) {
+				mLogCurBF += (double)it->second / itprev->second;
 			}
-		//	else
-		//		slow_assert(false);
+			
+			mLogCurBF /= mLog_exp_fcounts.size() - 1;
+			if(mLogCurBF > mParams_maxBF)
+				mLogCurBF = mParams_maxBF;
 		}
 		
-		
-		
-
+	
 		
 		Domain mDomain;
 		OpenList_t mOpenList;
@@ -335,12 +357,18 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		AbtSearch mAbtSearch;
 		Node* mGoalNode;
 		Util_t mParams_wf, mParams_wt;
-		
-		Util_t mLogU0, mLogU1;
-		unsigned mLogN0, mLogN1, mLogNp;
+
 		Util_t mLogCurBF;
 
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
+		
+		std::map<Cost, unsigned> mLog_exp_fcounts;
+		
+		std::vector<double> mTest_exp_u;
+		std::vector<double> mTest_exp_f;
+		std::vector<double> mTest_exp_uh;
+		
+		double mParams_lockedBF;
 	};
 
 

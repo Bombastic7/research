@@ -184,11 +184,19 @@ namespace mjon661 { namespace algorithm { namespace ugsav6 {
 		}
 		
 		
+		Util_t compRemExp(unsigned depth) {
+			Util_t acc = 0;
+			for(unsigned i=1; i<=depth; i++)
+				acc += std::pow(mParams_bf, depth);
+			return acc;
+		}
+		
+		
 		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
 			Edge		edge 	= 		mDomain.createEdge(pParentState, pInOp);
 			Cost 		kid_g   = 		pParentNode->g + edge.cost();
 			unsigned	kid_depth = 	pParentNode->depth + 1;
-			Util_t		kid_remexp =	pParentNode->remexp + mParams_k * std::pow(mParams_bf, kid_depth);
+			Util_t		kid_remexp =	mParams_k * compRemExp(kid_depth);
 			Util_t		kid_ug = 		mParams_wf * kid_g + mParams_wt * kid_remexp;
 			
 			PackedState kid_pkd;

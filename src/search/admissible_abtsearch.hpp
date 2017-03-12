@@ -148,11 +148,15 @@ namespace mjon661 { namespace algorithm {
 		}
 
 
+		bool doSearch_ParentState(BaseState const& pBaseState, PrimVal_t& out_h) {
+			State s0 = mDomain.abstractParentState(pBaseState);
+			
+			return doSearch(s0, out_h);
+		}
 		
-		bool doSearch(BaseState const& pBaseState, PrimVal_t& out_h) {
+		bool doSearch(State const& s0, PrimVal_t& out_h) {
 			reset();
 			{
-				State s0 = mDomain.abstractParentState(pBaseState);
 				PackedState pkd0;
 				
 				mDomain.packState(s0, pkd0);
@@ -168,7 +172,7 @@ namespace mjon661 { namespace algorithm {
 					
 				if(miss) {
 					ent->exact = false;
-					mAbtSearch.doSearch(s0, ent->h);
+					mAbtSearch.doSearch_ParentState(s0, ent->h);
 				}
 
 
@@ -304,7 +308,7 @@ namespace mjon661 { namespace algorithm {
 			
 				if(miss) {
 					ent->exact = false;
-					mAbtSearch.doSearch(edge.state(), ent->h);
+					mAbtSearch.doSearch_ParentState(edge.state(), ent->h);
 				}
 
 				kid_node->x() 		= kid_x;
@@ -352,7 +356,7 @@ namespace mjon661 { namespace algorithm {
 		AdmissibleAbtSearch(D& pDomStack, Json const&) {}
 		
 		template<typename PV>
-		bool doSearch(State const&, PV& out_h) {
+		bool doSearch_ParentState(State const&, PV& out_h) {
 			out_h = 0;
 			return true;
 		}

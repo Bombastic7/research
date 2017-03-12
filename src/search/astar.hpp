@@ -14,7 +14,7 @@ namespace mjon661 { namespace algorithm {
 
 
 	enum AstarSearchMode {
-		Standard, Weighted, Greedy, Speedy
+		Standard, Weighted, Greedy, Speedy, Uninformed
 	};
 	
 	template<typename = void>
@@ -25,11 +25,13 @@ namespace mjon661 { namespace algorithm {
 			return std::string("Weighted");
 		else if(m == AstarSearchMode::Greedy)
 			return std::string("Greedy");
-		return std::string("Speedy");
+		else if(m == AstarSearchMode::Speedy)
+			return std::string("Speedy");
+		return std::string("Uninformed");
 	}
 
 
-	template<typename D, AstarSearchMode Search_Mode>
+	template<typename D, AstarSearchMode Search_Mode, bool Use_Abstraction_Hr, bool Perfect_Hr>
 	class AstarImpl {
 		public:
 
@@ -40,8 +42,14 @@ namespace mjon661 { namespace algorithm {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
-
-
+		
+		static const unsigned Abt_Working_Level = Perfect_Hr ? 0 : 1;
+		
+		using AbtSearch = AdmissibleAbtSearch<D, Abt_Working_Level, D::Top_Abstract_Level+1, true>;
+		
+		static_assert(!Use_Abstraction_Hr || Search_Mode!=AstarSearchMode::Speedy, "");
+		static_assert(!Perfect_Hr || Use_Abstraction_Hr, "");
+		
 		struct Node {
 			Cost g, f;
 			PackedState pkd;
@@ -102,7 +110,8 @@ namespace mjon661 { namespace algorithm {
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
-			mNodePool			()
+			mNodePool			(),
+			mAbtSearch			(pDomStack, jConfig)
 		{
 			if(Search_Mode == AstarSearchMode::Weighted)
 				mHrWeight = jConfig.at("weight");
@@ -113,7 +122,9 @@ namespace mjon661 { namespace algorithm {
 			mClosedList.clear();
 			mNodePool.clear();
 
-			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;			
+			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
+			
+			mTest_exp_f.clear();			
 		}
 
 		
@@ -172,7 +183,7 @@ namespace mjon661 { namespace algorithm {
 		}
 		
 		
-		private:
+		//private:
 		
 		void prepareSolution(Solution<D>& sol, Node* pGoalNode) {
 			std::vector<Node*> reversePath;
@@ -199,6 +210,8 @@ namespace mjon661 { namespace algorithm {
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
+			
+			mTest_exp_f.push_back(n->f);
 			
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
@@ -258,23 +271,48 @@ namespace mjon661 { namespace algorithm {
 		
 		void evalHr(Node* n, State const& s) {
 			if(Search_Mode == AstarSearchMode::Standard)
-				n->f = n->g + mDomain.costHeuristic(s);
+				n->f = n->g + getCostHr(s);
 			else if(Search_Mode == AstarSearchMode::Weighted)
-				n->f = n->g + mHrWeight * mDomain.costHeuristic(s);
+				n->f = n->g + mHrWeight * getCostHr(s);
 			else if(Search_Mode == AstarSearchMode::Greedy)
-				n->f = mDomain.costHeuristic(s);
-			else
+				n->f = getCostHr(s);
+			else if(Search_Mode == AstarSearchMode::Speedy)
 				n->f = mDomain.distanceHeuristic(s);
+			else
+				n->f = n->g;
 		}
 		
+		
+		template<bool> struct Tag{};
+		
+		Cost getCostHr(State const& s) {
+			if(Use_Abstraction_Hr) {
+				Cost h;
+				doAbtSearch(s, h, Tag<Perfect_Hr>{});
+				return h;
+			}
+			return mDomain.costHeuristic(s);
+		}		
+		
+		void doAbtSearch(State const& s, Cost& h, Tag<false>) {
+			mAbtSearch.doSearch_ParentState(s, h);
+		}
+		
+		void doAbtSearch(State const& s, Cost& h, Tag<true>) {
+			mAbtSearch.doSearch(s, h);
+		}	
 
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
+		AbtSearch mAbtSearch;
+		
 		Node* mGoalNode;
 		double mHrWeight;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
+		
+		std::vector<double> mTest_exp_f;
 	};
 }}

@@ -18,6 +18,7 @@
 #include "util/math.hpp"
 #include "util/json.hpp"
 #include "domain/star_abt.hpp"
+#include "util/hash.hpp"
 
 #include <cstdio>
 
@@ -125,7 +126,6 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			if(pMapFile[0] == '.') {
 				unsigned seed = std::strtol(pMapFile.c_str()+1, nullptr, 10);
 				initRandomMap(seed);
-				logDebug("Random CellMap init");
 			}
 			else {
 				std::ifstream ifs(pMapFile);
@@ -176,6 +176,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			for(unsigned i=0; i<mSize; i++) {
 				mCells[i] = d(gen) <= 0.35 ? Cell_t::Blocked : Cell_t::Open;
 			}
+			
+			logDebugStream() << "Random CellMap init. seed=" << seed << ", blockedprob=0.35" << "\n";
 		}
 		
 		const unsigned mSize;
@@ -577,6 +579,13 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 	};
 	
 	
+	//Params:
+	//	height=[>0], width=[>0]
+	//	map= filename, or ".<n>"
+	//	init=[0 ... height*width-1], or -<n>
+	//	goal=[0 ... height*width-1], or ignored if init is < 0.
+	
+	
 	template<typename CellGraph_t, unsigned Top_Abt>
 	class GridNav_StarAbtStack {
 		public:
@@ -587,17 +596,27 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		
 		static const unsigned Null_Idx = (unsigned)-1;
 		
+		
+		//Abstract domain. For L > mTopUsedAbtLevel, reuse top level state/edges, and have abstractParentState return state as is.
 		template<unsigned L, typename = void>
 		struct Domain : public starabt::StarAbtDomain<BaseDomain_t> {
 			Domain(Stack_t const& pStack) :
-				starabt::StarAbtDomain<BaseDomain_t>(pStack.mAbtEdges.at(L), pStack.abstractBaseState(pStack.mGoalState, L)),
+				starabt::StarAbtDomain<BaseDomain_t>(
+					pStack.mAbtEdges.at(mathutil::min(L, pStack.mTopUsedAbtLevel)), 
+					pStack.abstractBaseState(pStack.mGoalState, mathutil::min(L, pStack.mTopUsedAbtLevel))
+				),
 				mStack(pStack)
 			{}
 			
 			unsigned abstractParentState(unsigned bs) const {
+				if(L > mTopUsedAbtLevel) {
+					logDebug("Warning, abstracted past last used level.");
+					return bs;
+				}
+				
 				if(L == 1)
-					return mStack.abstractBaseState(bs, 1);
-				slow_assert(mStack.mAbtTrns.size() >= L);
+					return mStack.mAbtTrns[0][mBaseTrns[bs]];
+
 				return mStack.mAbtTrns[L-1][bs];
 			}
 			
@@ -621,9 +640,45 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			return s;
 		}
 		
+		bool baseStatesConnected(unsigned a, unsigned b) const {
+			return abstractBaseState(a, mTopUsedAbtLevel) == abstractBaseState(b, mTopUsedAbtLevel);
+		}
+		
 		unsigned getInitState() const {
 			return mInitState;
 		}
+		
+		std::pair<unsigned,unsigned> genRandInitAndGoal(unsigned skip) const {
+			std::mt19937 gen;
+			std::uniform_int_distribution<unsigned> dh(0, mHeight-1), dw(0, mWidth-1);
+			double diagLen = std::hypot(mHeight, mWidth);
+			
+			unsigned skipcount = 0;
+
+			while(true) {
+				unsigned ix = dw(gen), iy = dh(gen), gx = dw(gen), gy = dh(gen);
+				unsigned s0 = ix + iy*mWidth, sg = gx + gy*mWidth;
+				
+				if(std::hypot((double)ix-gx, (double)iy-gy) < diagLen * 0.5) {
+					continue;
+				}
+				
+				if(!mCellGraph.isOpen(s0) || !mCellGraph.isOpen(sg)) {
+					continue;
+				}
+
+				if(!baseStatesConnected(s0, sg)) {
+					continue;
+				}
+				
+				if(skipcount < skip)
+					continue;
+
+				return {s0, sg};
+			}
+			
+		}
+		
 		
 		GridNav_StarAbtStack(Json const& jConfig) :
 			mCellGraph(jConfig.at("height"), jConfig.at("width"), jConfig.at("map")),
@@ -633,7 +688,8 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			mInitState(Null_Idx),
 			mGoalState(Null_Idx),
 			mHeight(jConfig.at("height")),
-			mWidth(jConfig.at("width"))
+			mWidth(jConfig.at("width")),
+			mTopUsedAbtLevel(0)
 		{
 			BaseDomain_t dom(mCellGraph, Null_Idx);
 
@@ -641,105 +697,86 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 			
 			bool isTrivial = false;
 			
-			for(unsigned lvl=0; lvl<=Top_Abstract_Level; lvl++) {
+			//mBaseTrns maps each open base position [between 0 and H*W-1] to a 'normalised' state [0 to (number of open cells)-1].
+			//mAbtEdges[0] specifies the edges for these possible normalised states.
+			//mAbtTrns is currently empty.
+			//Our current TopLevel is 0.
+			
+			//Each round of the below loop prepares mAbtTrns[TopLevel], which is a many-to-one mapping for each State[TopLevel] to 
+			//	a State[TopLevel+1], and prepares mAbtEdges[TopLevel+1].
+			
+			//Break when mAbtEdges[TopLevel][someTopLevelState].size() == 0, for all someTopLevelState.
+			
+			while(true) {
 				std::vector<std::vector<starabt::GroupEdge<BaseDomain_t>>> abtedges;
 				std::vector<unsigned> abttrns;
 				
 				if(isTrivial)
 					logDebug(std::string("Intermediate level is trivial: ") + std::to_string(lvl));
+				
 				isTrivial = starabt::createAbstractLevel(2, mAbtEdges.back(), abttrns, abtedges);
-
+				
 				mAbtEdges.push_back(abtedges);
 				mAbtTrns.push_back(abttrns);
-			}
-			
-			if(!isTrivial)
-				logDebug("Last level is not trivial.");
-			
-			g_logDebugOfs.flush();
-			
-			if(jConfig.count("init") == 0 || jConfig.count("goal") == 0) {
-				std::mt19937 gen;
-				std::uniform_int_distribution<unsigned> dh(0, mHeight-1), dw(0, mWidth-1);
-				double diagLen = std::hypot(mHeight, mWidth);
+				mTopUsedAbtLevel++;
 				
-				while(true) {
-					unsigned ix = dw(gen), iy = dh(gen), gx = dw(gen), gy = dh(gen);
-					unsigned s0 = ix + iy*mWidth, sg = gx + gy*mWidth;
-					
-					if(std::hypot((double)ix-gx, (double)iy-gy) < diagLen * 0.5) {
-						//logDebugStream() << "a " << (double)ix-gx << " "  << (double)iy-gy << " " << diagLen << "\n";
-						continue;
-					}
-					
-					if(!mCellGraph.isOpen(s0) || !mCellGraph.isOpen(sg)) {
-						//logDebug("b");
-						continue;
-					}
-
-					if(abstractBaseState(s0, Top_Abstract_Level) != abstractBaseState(sg, Top_Abstract_Level)) {
-						//logDebug("c");
-						continue;
-					}
-					
-					mInitState = s0;
-					mGoalState = sg;
-					logDebugStream() << "Random init and goal: " << mInitState << " (" << ix << "," << iy << ")" << ", " 
-					<< mGoalState << " (" << gx << "," << gy << ")\n";
+				if(!isTrivial && Top_Abstract_Level == mTopUsedAbtLevel) {
+					logDebug(std::string("Last level is not trivial, but out of abt levels to use. TopLevel=") + 
+								std::to_string(mTopUsedAbtLevel));
 					break;
 				}
+				
+				if(isTrivial) {
+					logDebug(std::string("Finished with trivial level. TopUsedLevel=") + std::to_string(mTopUsedAbtLevel));
+					break;
+				}
+			}
+
+			logDebug(std::string("gridnav abtstack info hash: ") + std::to_string(hashStackInfo()));
+			
+			if(jConfig.at("init") < 0 || jConfig.at("goal") < 0) {
+				unsigned skip = - strtol(jConfig.at("init").c_str(), nullptr, 10)
+				auto genStates = genRandInitAndGoal(skip);
+				
+				mInitState = genStates.first;
+				mGoalState = genStates.second;
+				
+				logDebugStream() << "Random init and goal (skip=" << skip << "): "
+					<< "i: " << dom.prettyPrint(mInitState) << "  "
+					<< "g: " << dom.prettyPrint(mGoalState) << "\n";
 			}
 			else {
 				mInitState = jConfig.at("init");
 				mGoalState = jConfig.at("goal");
-				logDebugStream() << "Supplied init and goal: " << mInitState << ", " << mGoalState << "\n";
+				logDebugStream() << "Supplied init and goal: "
+					<< "i: " << dom.prettyPrint(mInitState) << "  "
+					<< "g: " << dom.prettyPrint(mGoalState) << "\n";
 			}
 			
-
-
-			/*
-			std::cout << mAbtEdges.at(0).size() <<  " " << mBaseTrns.size() << "\n";
-			
-			for(unsigned lvl=0; lvl<mAbtTrns.size(); lvl++) {
-				std::cout << ":: " << lvl << " " << mAbtTrns.at(lvl).size() << "\n";
-
-				for(unsigned i=0; i<mAbtTrns.at(lvl).size(); i++) {
-					std::cout << i << ": " << mAbtTrns.at(lvl).at(i) << "\n";
-				}
-			}
-
-			for(unsigned h=0; h<mCellGraph.getHeight(); h++) {
-				for(unsigned w=0; w<mCellGraph.getWidth(); w++) {
-					if(mCellGraph.isOpen(h*mCellGraph.getWidth()+w))
-						std::cout << " ";
-					else
-						std::cout << "0";
-				}
-				std::cout << "\n";
-			}
-
-			for(unsigned lvl=0; lvl<=softAbstractLimit(); lvl++) {
-				for(unsigned h=0; h<mCellGraph.getHeight(); h++) {
-					for(unsigned w=0; w<mCellGraph.getWidth(); w++) {
-						if(!mCellGraph.isOpen(h*mCellGraph.getWidth()+w))
-							std::cout << " ";
-						else
-							std::cout << abstractBaseState(h*mCellGraph.getWidth()+w, lvl) % 10;
-					}
-					std::cout << "\n";
-				}
-				
-				for(unsigned i=0; i<mAbtEdges.at(lvl).size(); i++) {
-					std::cout << i << ": ";
-					for(unsigned j=0; j<mAbtEdges[lvl][i].size(); j++) {
-						std::cout << "(" << mAbtEdges[lvl][i][j].dst << ", " << mAbtEdges[lvl][i][j].cost << ") ";
-					}
-					std::cout << "\n";
-					
-				}
-			}
-			*/
+			fast_assert(baseStatesConnected(mInitState, mGoalState);
 		}
+		
+		
+		//Hopefully makes a nice hash value for our dynamically created abstract mapping. Just used for debugging.
+		size_t hashStackInfo() const {
+			std::vector<unsigned> hashVals;
+			
+			for(unsigned i=0; i<=mTopUsedAbtLevel; i++)
+				for(unsigned j=0; j<mAbtEdges[i].size(); j++)
+					hashVals.push_back(mAbtEdges[i][j].dst);
+			
+			for(auto it=mBaseTrns.begin(); it!=mBaseTrns.end(); ++it) {
+				hashVals.push_back(it->first);
+				hashVals.push_back(it->second);
+			}
+			
+			for(unsigned i=0; i<mTopUsedAbtLevel; i++)
+				for(unsigned j=0; j<mAbtTrns[i].size(); j++)
+					hashVals.push_back(mAbtTrns[i][j]);
+			
+			return hashfunctions::vec_32(hashVals);
+		}
+		
 		
 		CellGraph_t mCellGraph;
 		std::vector<std::vector<std::vector<starabt::GroupEdge<BaseDomain_t>>>> mAbtEdges;
@@ -747,6 +784,7 @@ namespace mjon661 { namespace gridnav { namespace blocked {
 		std::map<unsigned, unsigned> mBaseTrns;
 		unsigned mInitState, mGoalState;
 		const unsigned mHeight, mWidth;
+		unsigned mTopUsedAbtLevel;
 		
 	};
 }}}

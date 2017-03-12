@@ -2,6 +2,8 @@
 
 #include <string>
 #include <utility>
+#include <vector>
+#include <cmath>
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
 #include "search/nodepool.hpp"
@@ -11,12 +13,14 @@
 #include "util/exception.hpp"
 #include "util/time.hpp"
 
+#include "search/admissible_abtsearch.hpp"
+
 
 namespace mjon661 { namespace algorithm {
 
 
 
-	template<typename D, bool Use_Exp_Time>
+	template<typename D, bool Use_Exp_Time, bool Use_Abstraction_Hr, bool Use_BF_Mod>
 	class BugsyImpl {
 		public:
 
@@ -27,12 +31,15 @@ namespace mjon661 { namespace algorithm {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 		using Edge = typename Domain::Edge;
+		using AbtSearch_cost = AdmissibleAbtSearch<D, 1, D::Top_Abstract_Level+1, true>;
+		using AbtSearch_dist = AdmissibleAbtSearch<D, 1, D::Top_Abstract_Level+1, false>;
 
 
 		struct Node {
 			PackedState pkd;
 			Cost g;
 			double u;
+			Cost f; //......
 			
 			Node *parent;
 			Operator in_op, parent_op;
@@ -88,14 +95,18 @@ namespace mjon661 { namespace algorithm {
 		
 		
 		
-		BugsyImpl(D& pDomStack, Json const& jConfig) :
+		BugsyImpl(D& pDomStack, Json const& jConfig, double pBFmod = 0) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
+			mAbtSearch_cost		(pDomStack, jConfig),
+			mAbtSearch_dist		(pDomStack, jConfig),
 			mParams_wf			(jConfig.at("wf")),
 			mParams_wt			(jConfig.at("wt"))
-		{}
+		{
+			mParams_BFmod = pBFmod;
+		}
 
 		void reset() {
 			mOpenList.clear();
@@ -111,6 +122,9 @@ namespace mjon661 { namespace algorithm {
 			mResort_next = 16;
 			mResort_n = 0;
 			mTimer.start();
+			
+			mTest_exp_f.clear();
+			mTest_exp_u.clear();
 		}
 
 		
@@ -138,7 +152,7 @@ namespace mjon661 { namespace algorithm {
 			}			
 			
 
-			while(true) {				
+			while(true) {
 				Node* n = mOpenList.pop();
 					
 				State s;
@@ -165,18 +179,20 @@ namespace mjon661 { namespace algorithm {
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
 			j["use_exp_time"] = Use_Exp_Time;
+			j["use_abstraction_hr"] = Use_Abstraction_Hr;
+			j["use_bf_mod"] = Use_BF_Mod;
 			j["resort_next"] = mResort_next;
 			j["resort_n"] = mResort_n;
 			j["curExpTime"] = mLog_curExpTime;
 			j["curExpDelay"] = mLog_curExpDelay;
 			j["wf"] = mParams_wf;
 			j["wt"] = mParams_wt;
+			j["bf_mod"] = mParams_BFmod;
 			return j;
 		}
 		
 		
-		private:
-		
+
 		void prepareSolution(Solution<D>& sol, Node* pGoalNode) {
 			std::vector<Node*> reversePath;
 			
@@ -204,6 +220,8 @@ namespace mjon661 { namespace algorithm {
 			mLog_expd++;
 			
 			informExpansion(n);
+			mTest_exp_f.push_back(n->f);
+			mTest_exp_u.push_back(n->u);
 			
 			OperatorSet ops = mDomain.createOperatorSet(s);
 			
@@ -264,12 +282,33 @@ namespace mjon661 { namespace algorithm {
 		}
 		
 		void evalHr(Node* n, State const& s) {
-			std::pair<Cost, Cost> hrvals = mDomain.pairHeuristics(s);
+			Cost h;
+			unsigned d;
 			
-			Cost f = n->g + hrvals.first;
-			double remexp = mLog_curExpDelay * hrvals.second;
+			if(Use_Abstraction_Hr) {
+				mAbtSearch_cost.doSearch_ParentState(s, h);
+				mAbtSearch_dist.doSearch_ParentState(s, d);
+			} else {
+				std::pair<Cost, Cost> hrvals = mDomain.pairHeuristics(s);
+				h = hrvals.first;
+				d = hrvals.second;
+			}
+			
+			Cost f = n->g + h;
+			
+			double remexp;
+			
+			if(Use_BF_Mod) {
+				remexp = 0;
+				for(unsigned i=1; i<=d; i++)
+					remexp += std::pow(mLog_curExpDelay, i);
+			}
+			else
+				remexp = mLog_curExpDelay * d;
 			
 			n->u = mParams_wf * f + mParams_wt * mLog_curExpTime * remexp;
+			
+			n->f = f; //.........
 		}
 		
 		void informExpansion(Node* n) {
@@ -307,8 +346,11 @@ namespace mjon661 { namespace algorithm {
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
 		Node* mGoalNode;
+		AbtSearch_cost mAbtSearch_cost;
+		AbtSearch_dist mAbtSearch_dist;
 		
 		double mParams_wf, mParams_wt;
+		double mParams_BFmod;
 		
 		unsigned mResort_next, mResort_n;
 		
@@ -316,5 +358,7 @@ namespace mjon661 { namespace algorithm {
 		
 		double mLog_curExpDelay, mLog_nextExpDelayAcc, mLog_curExpTime;
 		Timer mTimer; //Should this be walltime or cputime ??
+		
+		std::vector<double> mTest_exp_f, mTest_exp_u;
 	};
 }}

@@ -25,6 +25,8 @@
 #include "search/astar.hpp"
 #include "search/bugsy.hpp"
 
+#include "domain/gridnav/blocked/cubenav.hpp"
+
 
 
 namespace mjon661 {
@@ -183,7 +185,7 @@ namespace mjon661 {
 	}
 	*/
 	
-
+	/*
 	Json run_session1_gridnav() {
 		
 		using D_1000_4_u = gridnav::blocked::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,10>;
@@ -218,8 +220,8 @@ namespace mjon661 {
 		
 		return res;
 	}
-	
-	
+	*/
+
 	/*
 	void run_ugsapure() {
 		Json jDomConfig;
@@ -338,10 +340,12 @@ int main(int argc, const char* argv[]) {
 	
 	//mjon661::run_ugsapure();
 	
-	mjon661::Json res;
-	res["gridnav"] = mjon661::run_session1_gridnav();
+	//mjon661::Json res;
+	//res["gridnav"] = mjon661::run_session1_gridnav();
 	
-	std::cout << res.dump(4);
+	//std::cout << res.dump(4);
+	
+	std::cout << mjon661::gridnav::cube_blocked::test_cubenav_dirs() << "\n";
 	
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";
 }

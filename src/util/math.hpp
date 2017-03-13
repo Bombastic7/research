@@ -8,6 +8,7 @@
 #include <vector>
 #include <array>
 #include <limits>
+#include <type_traits>
 
 //#include <boost/multiprecision/cpp_int.hpp>
 #include "util/debug.hpp"
@@ -162,4 +163,32 @@ namespace mjon661 { namespace mathutil {
 		
 		return {mean, median, stddev};
 	}
+	
+	template<typename U>
+	struct BitIt {
+		static_assert(std::is_unsigned<U>::value, "");
+		
+		BitIt(U u) :
+			val(u),
+			b(val & 1)
+		{}
+		
+		bool operator()() {
+			return b;
+		}
+		
+		BitIt& operator++() {
+			val >>= 1;
+			b = val & 1;
+			return *this;
+		}
+		
+		bool bitsRemaining() {
+			return val != 0;
+		}
+		
+		private:
+		U val;
+		bool b;
+	};
 }}

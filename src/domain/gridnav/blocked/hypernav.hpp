@@ -235,6 +235,112 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 	
 	
 	template<unsigned N>
+	struct AdjStateSet {
+		using State = std::array<unsigned, N>;
+		using PackedState = unsigned;
+		
+		
+		PackedState packState(State const& s) {
+			PackedState pkd = 0;
+			unsigned rdx = 1;
+			
+			for(unsigned i=0; i<N; i++) {
+				pkd += s[i] * rdx;
+				rdx *= mDimSz[i];
+			}
+			
+			return pkd;
+		}
+		
+		State unpackState(PackedState pkd) {
+			State s;
+			
+			rdx = mDimSz[0];
+			
+			for(unsigned i=0; i<N-1; i++) {
+				s[i] = pkd % mDimSz[i+1];
+				pkd /= rmDimSz[i+1];
+			}
+			
+			s[N-1] = pkd;
+			
+			return s;
+		}
+		
+		
+		struct AdjEdgeIterator {
+			
+			AdjEdgeIterator(std::vector<AdjOp> const& pOps, State const& pState) :
+				mOps(pOps),
+				mNextOp(0),
+				mState(pState)
+			{
+				mChangeDims.fill(false);
+			}
+			
+			State& state() {
+				return mAdjState;
+			}
+			
+			
+			private:
+			bool advState() {
+				mAdjState = mState;
+				
+				while(true) {
+					mCurOp++;
+					
+					if(mNextOp == mOps.size())
+						return false;
+				
+					unsigned n = 0;
+					
+					if(!tryApplyOp(n)) {
+						
+						for(unsigned i=0; i<n; i++)
+						
+					}
+					
+					for(unsigned i=0; 
+						
+						
+							break;
+						}
+			}
+			
+			bool tryApplyOp() {				
+				for(unsigned i=0; i<mOps[mCurOpN].size(); i++) {	
+					
+					unsigned tgtDim = mOps[mCurOpN][i].first;
+					bool incr = mOps[mCurOpN][i].second;
+					
+					if((mAdjState[tgtDim] == 0 && !incr) || (mAdjState[tgtDim]+1 == mDomSz[tgtDim] && incr))
+						return false;
+					
+					if(incr)
+						mAdjState[tgtDim] += 1;
+					else
+						mAdjState[tgtDim] -= 1;
+				}
+				return true;
+			}
+			
+			
+			std::vector<AdjOps> const& mOps;
+			unsigned mNextOp;
+			State mState, mAdjState;
+			std::array<bool, N> mChangedDims;
+		};
+		
+		
+		
+		
+		std::vector<unsigned> const& mDimSz;
+	};
+	
+	
+	
+	template<unsigned N>
 	struct CostType {
 		using type = double;
 	};
@@ -253,26 +359,29 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 	
 	
 	
+
+	
+	
+	
 	template<unsigned N>
 	struct CellGraph {
 		
 		static_assert(N > 0, "");
 		
 		using Cost = CostType<N>::type;
-		using State = std::array<unsigned, N>;
+	
 		
 		
 		struct OperatorSet {
 			OperatorSet(CellGraph const& pG, State const& s)
 			{
 				//mValidMvs.resize(pG.mAdjOpSet.size());
-				
-				std::array<bool,N> atEdge;
-				std::fill(atEdge.begin(), atEdge.end(), false);
-				
-				for(unsigned i=0; i<N; i++) {
+
+				std::array<bool,N> dimsAtEdge;
+
+				for(unsigned i=0; i<N; i++)
 					if(s[i] == 0 || s[i] == pG.mDimSz[i]-1)
-						atEdge[i] = true;
+						dimsAtEdge[i] = true;
 				
 				for(unsigned i=0; i<pG.mAdjOpSet.size(); i++) {
 					mValidMvs[i] = pG.mAdjOpSet

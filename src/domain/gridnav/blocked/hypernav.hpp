@@ -149,6 +149,44 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 	
 	
 	
+	
+	
+	template<unsigned N>
+	using StateN = std::array<unsigned, N>;
+	
+	using PackedStateN = unsigned;
+	
+	
+	
+	PackedStateN packState(StateN<N> const& s, std::array<unsigned,N> const& pDimSz) {
+		PackedStateN pkd = 0;
+		unsigned rdx = 1;
+		
+		for(unsigned i=0; i<N; i++) {
+			pkd += s[i] * rdx;
+			rdx *= pDimSz[i];
+		}
+		
+		return pkd;
+	}
+	
+	State<N> unpackState(PackedStateN pkd, std::array<unsigned,N> const& pDimSz) {
+		State<N> s;
+		
+		rdx = mDimSz[0];
+		
+		for(unsigned i=0; i<N-1; i++) {
+			s[i] = pkd % mDimSz[i+1];
+			pkd /= pDimSz[i+1];
+		}
+		
+		s[N-1] = pkd;
+		
+		return s;
+	}
+	
+	
+	
 	template<unsigned N>
 	struct CostType {
 		using type = double;
@@ -172,15 +210,18 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 	
 	
 	template<unsigned N>
-	struct AdjEdgeIterator {
+	struct AdjEdgeIterator_base {
 		
-		AdjEdgeIterator(State const& pState, std::array<unsigned, N> const& pDimsSz) :
+		AdjEdgeIterator(StateN<N> const& pState, std::array<unsigned, N> const& pDimsSz, CellMap<> const& pCellMap) :
 			mAdjState(pState),
 			mK(1),
 			mDimsIncr(0),
 			mCurCost(1),
-			mDimsSz(pDimsSz)
+			mDimsSz(pDimsSz),
+			mCellMap(pCellMap)
 		{
+			slow_assert(mCellMap.isOpen(packState(mAdjState)));
+			
 			resetTgtDims();
 			
 			if(!applyCurOp())
@@ -212,7 +253,7 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 		
 		private:
 		bool adv() {
-			do {
+			while(true) {
 				mDimsIncr++;
 				
 				if(mDimsIncr == 1u << mK) {
@@ -228,9 +269,19 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 						resetTgtDims();
 					}
 				}
+				
+				if(!applyCurOp()) {
+					reverseCurOp();
+					continue;
+				}
+				
+				if(!mCellMap.isOpen(packState(mAdjState))) {
+					reverseCurOp();
+					continue;
+				}
+				
+				return true;
 			}
-			while(!applyCurOp());
-			return true;
 		}
 		
 		void resetTgtDims() {
@@ -303,17 +354,18 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 			return false;
 		}
 		
-		State mAdjState;
+		StateN<N>& mAdjState;
 		unsigned mK;
 		std::array<unsigned, N> mTgtDims;
 		unsigned mDimsIncr;
 		typename CostType::type mCurCost;
 		std::array<unsigned, N> const& mDimsSz;
+		CellMap<> const& mCells;
 		
 	};
 	
 	
-	
+
 	
 
 	
@@ -326,139 +378,76 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 	
 	
 	template<unsigned N>
-	struct CellGraph {
+	struct Domain_base {
 		
 		static_assert(N > 0, "");
 		
 		using Cost = CostType<N>::type;
-		using State = std::array<unsigned, N>;
-		using PackedState = unsigned;
+		using State = StateN<N>;
+		using PackedState = PackedStateN;
+		using AdjEdgeIterator = AdjEdgeIterator_base<N>;
 		
-		
-		PackedState packState(State const& s) {
-			PackedState pkd = 0;
-			unsigned rdx = 1;
-			
-			for(unsigned i=0; i<N; i++) {
-				pkd += s[i] * rdx;
-				rdx *= mDimSz[i];
-			}
-			
-			return pkd;
-		}
-		
-		State unpackState(PackedState pkd) {
-			State s;
-			
-			rdx = mDimSz[0];
-			
-			for(unsigned i=0; i<N-1; i++) {
-				s[i] = pkd % mDimSz[i+1];
-				pkd /= rmDimSz[i+1];
-			}
-			
-			s[N-1] = pkd;
-			
-			return s;
-		}
-		
-		
-		AdjEdgeIterator(
-		
-		
-		struct OperatorSet {
-			OperatorSet(CellGraph const& pG, State const& s)
-			{
-				//mValidMvs.resize(pG.mAdjOpSet.size());
+		static const bool Is_Perfect_Hash = true;
 
-				std::array<bool,N> dimsAtEdge;
-
-				for(unsigned i=0; i<N; i++)
-					if(s[i] == 0 || s[i] == pG.mDimSz[i]-1)
-						dimsAtEdge[i] = true;
-				
-				for(unsigned i=0; i<pG.mAdjOpSet.size(); i++) {
-					mValidMvs[i] = pG.mAdjOpSet
-			}
-			
-			unsigned size() {
-				return mN;
-			}
-			
-			unsigned operator()(unsigned i) {
-				return i;
-			}
-			private:
-			unsigned mN;
-			std::vector<unsigned> mValidMvs;
-		};
 		
 		
-		
-		
-		
-		CellGraph(std::vector<unsigned> const& pDimSz)
+		Domain_base(State const& pGoalState, std::vector<unsigned> const& pDimSz, CellMap<> const& pCellMap) :
+			mGoalState(pGoalState),
+			mDimSz(pDimSz),
+			mCellMap(pCellMap)
 		{
-			for(unsigned i=0; i<N; i++) {
-				mDimSz[i] = pDimSz.at(i);
-				fast_assert(mDimSz[i] > 0);
-			}
+			unsigned acc = 1;
+			for(unsigned sz : mDimSz)
+				acc *= sz;
+			fast_assert(acc == mCellMap.size());
 		}
 		
-		
-		
-		const AdjOpSet<N> mAdjOpSet;
-	};
-	
-	template<bool Use_LifeCost>
-	struct CellGraph_6 {
-		public:
-		using Cost_t = int;
-
-		
-		CellGraph_4(unsigned pHeight, unsigned pWidth, unsigned pDepth, std::string const& pMapFile) :
-			CellMap(pHeight*pWidth*pDepth, pMapFile),
-			mHeight(pHeight),
-			mWidth(pWidth),
-			mDepth(pDepth)
-		{}
-
-		template<unsigned Sz>
-		const AdjacentCells fillAdjacentCells(std::array<unsigned, Sz>& adj) const {
-			AdjacentCells adj{.n=0};
-			
-			Cost_t costMul = Use_LifeCost ? s/mWidth : 1;
-			
-			if(s >= mWidth && this->isOpen(s-mWidth))
-				adj.adjCells[adj.n++] = s-mWidth;
-			if(s < (mHeight-1)*mWidth && this->isOpen(s+mWidth))
-				adj.adjCells[adj.n++] = s+mWidth;
-			if(s%mWidth != 0 && this->isOpen(s-1))
-				adj.adjCells[adj.n++] = s-1;
-			if((s+1)%mWidth != 0 && this->isOpen(s+1))
-				adj.adjCells[adj.n++] = s+1;
-			return adj;
+		void packState(State const& s, PackedState& pkd) const {
+			pkd = packState(s, mDimSz);
 		}
 		
-		Cost_t getMoveCost(unsigned src, unsigned dst) const {
-			return Use_LifeCost ? src/mWidth : 1;
-		}
-
-		unsigned getHeight() const {
-			return mHeight;
+		void unpackState(State& s, PackedState const& pkd) const {
+			s = unpackState(pkd, mDimSz);
 		}
 		
-		unsigned getWidth() const {
-			return mWidth;
+		AdjEdgeIterator getAdjEdges(State& s) const {
+			return AdjEdgeIterator(s, mDimSz, mCellMap);
+		}
+		
+		size_t hash(PackedState pPacked) const {
+			return pPacked;
+		}
+		
+		Cost costHeuristic(State const& pState) const {
+			return 0;
+		}
+		
+		Cost distanceHeuristic(State const& pState) const {
+			return 0;
+		}
+		
+		std::pair<Cost,Cost> pairHeuristics(State const&pState) const {
+			return {0,0};
+		}
+		
+		bool checkGoal(State const& pState) const {
+			return pState == mGoalState;
+		}
+		
+		void prettyPrintState(State const& s, std::ostream& out) const {
+			out << "[ ";
+			for(unsigned i=0; i<N; i++)
+				out << s[i] << " ";
+			out << "]";
 		}
 		
 		private:
-		const unsigned mHeight, mWidth;
 		
+		std::vector<unsigned> const& mDimSz;
+		CellMap<> const& mCellMap;
+		State mGoalState;
 	};
-
-
-
+	
 
 
 

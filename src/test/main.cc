@@ -26,6 +26,7 @@
 #include "search/bugsy.hpp"
 
 #include "domain/gridnav/blocked/hypernav.hpp"
+#include "domain/gridnav/blocked/test_hypernav.hpp"
 #include "search/astar2.hpp"
 
 
@@ -225,7 +226,7 @@ namespace mjon661 {
 	
 	
 	Json test_hypernav() {
-		using D_2 = gridnav::cube_blocked::TestDomainStack<2>;
+		using D_2 = gridnav::hypernav_blocked::TestDomainStack<2>;
 		using Astar2_t = algorithm::Astar2Impl<D_2, algorithm::Astar2SearchMode::Standard, true, false>;
 		
 		Json jConfig;
@@ -369,4 +370,7 @@ int main(int argc, const char* argv[]) {
 	//std::cout << mjon661::gridnav::cube_blocked::test_cubenav_dirs() << "\n";
 	
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";
+	
+	//mjon661::gridnav::hypernav_blocked::test_statepack<2>();
+	
 }

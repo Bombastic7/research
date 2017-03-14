@@ -9,7 +9,7 @@
 #include <cmath>
 
 
-namespace mjon661 { namespace gridnav { namespace cube_blocked {
+namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 
 
 
@@ -469,7 +469,9 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 			mCellMap(mTotCells, jConfig.at("map").get_ref<std::string const&>())
 		{
 			mInitState.fill(0);
-			mGoalState.fill(N-1);
+			
+			for(unsigned i=0; i<N; i++)
+				mGoalState[i] = mDimSz[i]-1;
 		}
 		
 		State getInitState() {

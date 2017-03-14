@@ -80,7 +80,8 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 			unsigned mIdx;
 		};
 		
-		
+
+
 		CellMap(unsigned pSize, std::string const& pMapFile) :
 			mSize(pSize),
 			mCells(mSize)
@@ -89,6 +90,9 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 				unsigned seed = std::strtol(pMapFile.c_str()+1, nullptr, 10);
 				initRandomMap(seed);
 			}
+			else if(pMapFile[0] == '-')
+				std::fill(mCells.begin(), mCells.end(), Cell_t::Open);
+			
 			else {
 				std::ifstream ifs(pMapFile);
 				
@@ -157,7 +161,7 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 	using PackedStateN = unsigned;
 	
 	
-	
+	template<unsigned N>
 	PackedStateN packState(StateN<N> const& s, std::array<unsigned,N> const& pDimSz) {
 		PackedStateN pkd = 0;
 		unsigned rdx = 1;
@@ -170,14 +174,13 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 		return pkd;
 	}
 	
-	State<N> unpackState(PackedStateN pkd, std::array<unsigned,N> const& pDimSz) {
-		State<N> s;
-		
-		rdx = mDimSz[0];
+	template<unsigned N>
+	StateN<N> unpackState(PackedStateN pkd, std::array<unsigned,N> const& pDimSz) {
+		StateN<N> s;
 		
 		for(unsigned i=0; i<N-1; i++) {
-			s[i] = pkd % mDimSz[i+1];
-			pkd /= pDimSz[i+1];
+			s[i] = pkd % pDimSz[i];
+			pkd /= pDimSz[i];
 		}
 		
 		s[N-1] = pkd;
@@ -212,7 +215,8 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 	template<unsigned N>
 	struct AdjEdgeIterator_base {
 		
-		AdjEdgeIterator(StateN<N> const& pState, std::array<unsigned, N> const& pDimsSz, CellMap<> const& pCellMap) :
+		AdjEdgeIterator_base(StateN<N> const& pState, std::array<unsigned, N> const& pDimsSz, CellMap<> const& pCellMap) :
+			mFinished(false),
 			mAdjState(pState),
 			mK(1),
 			mDimsIncr(0),
@@ -243,16 +247,20 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 			return adv();
 		}
 		
-		State& state() {
+		StateN<N>& state() {
 			return mAdjState;
 		}
 		
-		Cost cost() {
+		typename CostType<N>::type cost() {
 			return mCurCost;
 		}
 		
+		bool finished() {
+			return mFinished;
+		}
+		
 		private:
-		bool adv() {
+		void adv() {
 			while(true) {
 				mDimsIncr++;
 				
@@ -260,8 +268,10 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 					mDimsIncr = 0;
 					
 					if(!tryAdvTgtDims()) {
-						if(mK == N)
-							return false;
+						if(mK == N) {
+							mFinished = true;
+							return;
+						}
 						
 						mK++;
 						mCurCost = std::sqrt(mK);
@@ -270,10 +280,8 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 					}
 				}
 				
-				if(!applyCurOp()) {
-					reverseCurOp();
+				if(!applyCurOp())
 					continue;
-				}
 				
 				if(!mCellMap.isOpen(packState(mAdjState))) {
 					reverseCurOp();
@@ -354,23 +362,18 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 			return false;
 		}
 		
+		bool mFinished;
 		StateN<N>& mAdjState;
 		unsigned mK;
 		std::array<unsigned, N> mTgtDims;
 		unsigned mDimsIncr;
-		typename CostType::type mCurCost;
+		typename CostType<N>::type mCurCost;
 		std::array<unsigned, N> const& mDimsSz;
-		CellMap<> const& mCells;
+		CellMap<> const& mCellMap;
 		
 	};
 	
 	
-
-	
-
-	
-	
-
 	
 	
 
@@ -382,16 +385,15 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 		
 		static_assert(N > 0, "");
 		
-		using Cost = CostType<N>::type;
+		using Cost = typename CostType<N>::type;
 		using State = StateN<N>;
 		using PackedState = PackedStateN;
 		using AdjEdgeIterator = AdjEdgeIterator_base<N>;
 		
 		static const bool Is_Perfect_Hash = true;
 
-		
-		
-		Domain_base(State const& pGoalState, std::vector<unsigned> const& pDimSz, CellMap<> const& pCellMap) :
+
+		Domain_base(State const& pGoalState, std::array<unsigned,N> const& pDimSz, CellMap<> const& pCellMap) :
 			mGoalState(pGoalState),
 			mDimSz(pDimSz),
 			mCellMap(pCellMap)
@@ -399,7 +401,7 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 			unsigned acc = 1;
 			for(unsigned sz : mDimSz)
 				acc *= sz;
-			fast_assert(acc == mCellMap.size());
+			fast_assert(acc == mCellMap.cells().size());
 		}
 		
 		void packState(State const& s, PackedState& pkd) const {
@@ -443,12 +445,58 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 		
 		private:
 		
-		std::vector<unsigned> const& mDimSz;
-		CellMap<> const& mCellMap;
 		State mGoalState;
+		std::array<unsigned, N> const& mDimSz;
+		CellMap<> const& mCellMap;
 	};
 	
 
-
+	template<unsigned N>
+	struct TestDomainStack {
+		
+		using State = StateN<N>;
+		
+		static const unsigned Top_Abstract_Level = 0;
+		
+		template<unsigned L>
+		struct Domain : public Domain_base<N> {
+			Domain(TestDomainStack& pStack) :
+				Domain_base<N>(pStack.mGoalState, pStack.mDimSz, pStack.mCellMap)
+			{}
+		};
+		
+		TestDomainStack(Json const& jConfig) :
+			mDimSz(jConfig.at("dimsz")),
+			mCellMap(mTotCells, jConfig.at("map").get_ref<std::string const&>())
+		{
+			mInitState.fill(0);
+			mGoalState.fill(N-1);
+		}
+		
+		State getInitState() {
+			return mInitState;
+		}
+		
+		std::array<unsigned,N> prepDimSz(std::vector<unsigned> const& pDimSz) {
+			std::array<unsigned,N> dimsz;
+			mTotCells = 1;
+			
+			for(unsigned i=0; i<N; i++) {
+				dimsz[i] = pDimSz.at(i);
+				mTotCells *= dimsz[i];
+				fast_assert(dimsz[i] > 0);
+			}
+			
+			return dimsz;
+		}
+		
+		
+		
+		std::array<unsigned,N> mDimSz;
+		unsigned mTotCells;
+		CellMap<> mCellMap;
+		
+		State mInitState, mGoalState;
+	};
 
 }}}

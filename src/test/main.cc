@@ -25,8 +25,8 @@
 #include "search/astar.hpp"
 #include "search/bugsy.hpp"
 
-#include "domain/gridnav/blocked/cubenav.hpp"
-
+#include "domain/gridnav/blocked/hypernav.hpp"
+#include "search/astar2.hpp"
 
 
 namespace mjon661 {
@@ -83,7 +83,9 @@ namespace mjon661 {
 		Solution<D> sol;
 		alg.execute(s0, sol);
 		
-		return alg.report();
+		Json res = alg.report();
+		res["exp_f"] = alg.mTest_exp_f;
+		return res;
 	}
 	
 	
@@ -185,7 +187,7 @@ namespace mjon661 {
 	}
 	*/
 	
-	/*
+	
 	Json run_session1_gridnav() {
 		
 		using D_1000_4_u = gridnav::blocked::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,10>;
@@ -211,16 +213,33 @@ namespace mjon661 {
 			
 			D_1000_4_u d_1000_4_u(jConfig);
 			
-			//res["1000_4_u"][std::to_string(prob)]["astar"] = run_session1_astar(d_1000_4_u, d_1000_4_u.getInitState());
+			res["1000_4_u"][std::to_string(prob)]["astar"] = run_session1_astar(d_1000_4_u, d_1000_4_u.getInitState());
 			//res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,0"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 0);
-			res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,1"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 1);
-			res["1000_4_u"][std::to_string(prob)]["bugsy"]["10,1"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 10, 1);
-			res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,10"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 10);
+			//res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,1"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 1);
+			//res["1000_4_u"][std::to_string(prob)]["bugsy"]["10,1"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 10, 1);
+			//res["1000_4_u"][std::to_string(prob)]["bugsy"]["1,10"] = run_session1_bugsy(d_1000_4_u, d_1000_4_u.getInitState(), 1, 10);
 		}
 		
 		return res;
 	}
-	*/
+	
+	
+	Json test_hypernav() {
+		using D_2 = gridnav::cube_blocked::TestDomainStack<2>;
+		using Astar2_t = algorithm::Astar2Impl<D_2, algorithm::Astar2SearchMode::Standard, true, false>;
+		
+		Json jConfig;
+		jConfig["map"] = "-";
+		jConfig["dimsz"] = std::vector<unsigned>{5,5};
+		
+		D_2 dom(jConfig);
+		
+		Astar2_t astaralg(dom, Json());
+		
+		astaralg.execute(dom.getInitState());
+		
+		return astaralg.report();
+	}
 
 	/*
 	void run_ugsapure() {
@@ -345,7 +364,8 @@ int main(int argc, const char* argv[]) {
 	
 	//std::cout << res.dump(4);
 	
-	std::cout << mjon661::gridnav::cube_blocked::test_cubenav_dirs() << "\n";
+	std::cout << mjon661::test_hypernav().dump(4);
+	//std::cout << mjon661::gridnav::cube_blocked::test_cubenav_dirs() << "\n";
 	
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";
 }

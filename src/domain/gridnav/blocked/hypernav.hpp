@@ -161,8 +161,8 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 	using PackedStateN = unsigned;
 	
 	
-	template<unsigned N>
-	PackedStateN packState(StateN<N> const& s, std::array<unsigned,N> const& pDimSz) {
+	template<long unsigned N>
+	PackedStateN doPackState(StateN<N> const& s, std::array<unsigned,N> const& pDimSz) {
 		PackedStateN pkd = 0;
 		unsigned rdx = 1;
 		
@@ -174,8 +174,8 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 		return pkd;
 	}
 	
-	template<unsigned N>
-	StateN<N> unpackState(PackedStateN pkd, std::array<unsigned,N> const& pDimSz) {
+	template<long unsigned N>
+	StateN<N> doUnpackState(PackedStateN pkd, std::array<unsigned,N> const& pDimSz) {
 		StateN<N> s;
 		
 		for(unsigned i=0; i<N-1; i++) {
@@ -215,7 +215,7 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 	template<unsigned N>
 	struct AdjEdgeIterator_base {
 		
-		AdjEdgeIterator_base(StateN<N> const& pState, std::array<unsigned, N> const& pDimsSz, CellMap<> const& pCellMap) :
+		AdjEdgeIterator_base(StateN<N>& pState, std::array<unsigned, N> const& pDimsSz, CellMap<> const& pCellMap) :
 			mFinished(false),
 			mAdjState(pState),
 			mK(1),
@@ -224,7 +224,7 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 			mDimsSz(pDimsSz),
 			mCellMap(pCellMap)
 		{
-			slow_assert(mCellMap.isOpen(packState(mAdjState)));
+			slow_assert(mCellMap.isOpen(doPackState(mAdjState, mDimsSz)));
 			
 			resetTgtDims();
 			
@@ -242,9 +242,9 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 			}
 		}
 		
-		bool next() {
+		void next() {
 			reverseCurOp(mK);
-			return adv();
+			adv();
 		}
 		
 		StateN<N>& state() {
@@ -283,12 +283,11 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 				if(!applyCurOp())
 					continue;
 				
-				if(!mCellMap.isOpen(packState(mAdjState))) {
-					reverseCurOp();
+				if(!mCellMap.isOpen(doPackState(mAdjState, mDimsSz))) {
+					reverseCurOp(mK);
 					continue;
 				}
-				
-				return true;
+				break;
 			}
 		}
 		
@@ -340,7 +339,7 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 				bool incr = (mDimsIncr >> i) & 1;
 				
 				if(incr) {
-					if(mAdjState.at(mTgtDims.at(i)) == mDimsSz-1) {
+					if(mAdjState.at(mTgtDims.at(i)) == mDimsSz[i]-1) {
 						failed = true;
 						break;
 					}
@@ -405,11 +404,11 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 		}
 		
 		void packState(State const& s, PackedState& pkd) const {
-			pkd = packState(s, mDimSz);
+			pkd = doPackState(s, mDimSz);
 		}
 		
 		void unpackState(State& s, PackedState const& pkd) const {
-			s = unpackState(pkd, mDimSz);
+			s = doUnpackState(pkd, mDimSz);
 		}
 		
 		AdjEdgeIterator getAdjEdges(State& s) const {
@@ -466,7 +465,7 @@ namespace mjon661 { namespace gridnav { namespace cube_blocked {
 		};
 		
 		TestDomainStack(Json const& jConfig) :
-			mDimSz(jConfig.at("dimsz")),
+			mDimSz(prepDimSz(jConfig.at("dimsz"))),
 			mCellMap(mTotCells, jConfig.at("map").get_ref<std::string const&>())
 		{
 			mInitState.fill(0);

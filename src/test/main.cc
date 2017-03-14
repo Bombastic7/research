@@ -241,6 +241,7 @@ namespace mjon661 {
 		return astaralg.report();
 	}
 
+
 	/*
 	void run_ugsapure() {
 		Json jDomConfig;

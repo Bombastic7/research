@@ -226,12 +226,12 @@ namespace mjon661 {
 	
 	
 	Json test_hypernav() {
-		using D_2 = gridnav::hypernav_blocked::TestDomainStack<2>;
+		using D_2 = gridnav::hypernav_blocked::TestDomainStack<2,1>;
 		using Astar2_t = algorithm::Astar2Impl<D_2, algorithm::Astar2SearchMode::Standard, true, false>;
 		
 		Json jConfig;
 		jConfig["map"] = "-";
-		jConfig["dimsz"] = std::vector<unsigned>{5,5};
+		jConfig["dimsz"] = std::vector<unsigned>{1000,1000};
 		
 		D_2 dom(jConfig);
 		

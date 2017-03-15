@@ -190,7 +190,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	
 	
 	
-	template<unsigned N>
+	template<unsigned K>
 	struct CostType {
 		using type = double;
 	};
@@ -198,21 +198,13 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	template<>
 	struct CostType<1> {
 		using type = unsigned;
-	};
-	
-	
-	template<>
-	struct CostType<2> {
-		using type = unsigned;
-	};
+	};	
 	
 	
 	
 	
 	
-	
-	
-	template<unsigned N>
+	template<unsigned N, unsigned MaxK>
 	struct AdjEdgeIterator_base {
 		
 		AdjEdgeIterator_base(StateN<N>& pState, std::array<unsigned, N> const& pDimsSz, CellMap<> const& pCellMap) :
@@ -251,7 +243,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			return mAdjState;
 		}
 		
-		typename CostType<N>::type cost() {
+		typename CostType<MaxK>::type cost() {
 			return mCurCost;
 		}
 		
@@ -268,7 +260,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 					mDimsIncr = 0;
 					
 					if(!tryAdvTgtDims()) {
-						if(mK == N) {
+						if(mK == MaxK) {
 							mFinished = true;
 							return;
 						}
@@ -366,7 +358,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		unsigned mK;
 		std::array<unsigned, N> mTgtDims;
 		unsigned mDimsIncr;
-		typename CostType<N>::type mCurCost;
+		typename CostType<MaxK>::type mCurCost;
 		std::array<unsigned, N> const& mDimsSz;
 		CellMap<> const& mCellMap;
 		
@@ -379,15 +371,16 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	
 	
 	
-	template<unsigned N>
+	template<unsigned N, unsigned MaxK>
 	struct Domain_base {
 		
 		static_assert(N > 0, "");
+		static_assert(N >= MaxK, "");
 		
-		using Cost = typename CostType<N>::type;
+		using Cost = typename CostType<MaxK>::type;
 		using State = StateN<N>;
 		using PackedState = PackedStateN;
-		using AdjEdgeIterator = AdjEdgeIterator_base<N>;
+		using AdjEdgeIterator = AdjEdgeIterator_base<N, MaxK>;
 		
 		static const bool Is_Perfect_Hash = true;
 
@@ -450,7 +443,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	};
 	
 
-	template<unsigned N>
+	template<unsigned N, unsigned MaxK>
 	struct TestDomainStack {
 		
 		using State = StateN<N>;
@@ -458,9 +451,9 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		static const unsigned Top_Abstract_Level = 0;
 		
 		template<unsigned L>
-		struct Domain : public Domain_base<N> {
+		struct Domain : public Domain_base<N, MaxK> {
 			Domain(TestDomainStack& pStack) :
-				Domain_base<N>(pStack.mGoalState, pStack.mDimSz, pStack.mCellMap)
+				Domain_base<N, MaxK>(pStack.mGoalState, pStack.mDimSz, pStack.mCellMap)
 			{}
 		};
 		

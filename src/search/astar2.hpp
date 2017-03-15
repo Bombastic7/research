@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <tuple>
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
 #include "search/nodepool.hpp"
@@ -119,7 +120,9 @@ namespace mjon661 { namespace algorithm {
 
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			
-			mTest_exp_f.clear();			
+			mGoalNode = nullptr;
+			
+			mTest_exp_f.clear();
 		}
 
 		
@@ -171,6 +174,45 @@ namespace mjon661 { namespace algorithm {
 			if(Search_Mode == Astar2SearchMode::Weighted)
 				j["hr_weight"] = mHrWeight;
 
+			if(mGoalNode) {
+				j["goal_g"] = mGoalNode->g;
+				j["goal_f"] = mGoalNode->f;
+				
+				unsigned goal_depth = 0;
+				for(Node* m = mGoalNode->parent; m; m=m->parent) {
+					goal_depth++;
+				}
+				
+				j["goal_depth"] = goal_depth;
+			}
+			
+			
+			std::vector<Cost> flevel_cost;
+			std::vector<unsigned> flevel_n;
+			std::vector<double> flevel_bf;
+			
+			
+
+			for(auto it = mTest_exp_f.begin(); it!=mTest_exp_f.end(); ++it) {
+				flevel_cost.push_back(it->first);
+				flevel_n.push_back(it->second);
+			}
+			
+
+			{
+				auto it = mTest_exp_f.begin(), itprev = mTest_exp_f.begin();
+				++it;
+				
+				for(; it!=mTest_exp_f.end(); ++it, ++itprev)
+					flevel_bf.push_back((double)it->second / itprev->second);
+			}
+			
+			fast_assert(flevel_bf.size() + 1 == mTest_exp_f.size());
+			
+			j["f_exp_n"] = flevel_n;
+			j["f_exp_cost"] = flevel_cost;
+			j["f_exp_bf"] = flevel_bf;
+			
 			return j;
 		}
 		
@@ -182,7 +224,7 @@ namespace mjon661 { namespace algorithm {
 		void expand(Node* n, State& s) {
 			mLog_expd++;
 			
-			mTest_exp_f.push_back(n->f);
+			mTest_exp_f[n->f]++;
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
@@ -275,6 +317,6 @@ namespace mjon661 { namespace algorithm {
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
 		
-		std::vector<double> mTest_exp_f;
+		std::map<Cost, unsigned> mTest_exp_f;
 	};
 }}

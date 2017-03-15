@@ -15,7 +15,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	template<unsigned N>
 	void test_statepack() {
 		
-		using D_2 = gridnav::hypernav_blocked::TestDomainStack<2>;
+		using D_2 = gridnav::hypernav_blocked::TestDomainStack<2,2>;
 		
 		Json jConfig;
 		jConfig["map"] = "-";

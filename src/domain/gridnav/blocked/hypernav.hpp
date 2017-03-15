@@ -151,14 +151,21 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	};
 	
 	
-	
-	
-	
-	
+		
 	template<unsigned N>
 	using StateN = std::array<unsigned, N>;
 	
 	using PackedStateN = unsigned;
+	
+	
+	template<long unsigned N>
+	void doPrettyPrintState(StateN<N> const& s, std::ostream& out) {
+			out << "[ ";
+			for(unsigned i=0; i<N; i++)
+				out << s[i] << " ";
+			out << "]";
+	}
+
 	
 	
 	template<long unsigned N>
@@ -178,12 +185,10 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	StateN<N> doUnpackState(PackedStateN pkd, std::array<unsigned,N> const& pDimSz) {
 		StateN<N> s;
 		
-		for(unsigned i=0; i<N-1; i++) {
+		for(unsigned i=0; i<N; i++) {
 			s[i] = pkd % pDimSz[i];
 			pkd /= pDimSz[i];
 		}
-		
-		s[N-1] = pkd;
 		
 		return s;
 	}
@@ -275,10 +280,27 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 				if(!applyCurOp())
 					continue;
 				
-				if(!mCellMap.isOpen(doPackState(mAdjState, mDimsSz))) {
+				PackedStateN pkd = doPackState(mAdjState, mDimsSz);
+				
+				bool isOpen;
+				try {
+					isOpen = mCellMap.isOpen(pkd);
+				} catch(AssertException const& e) {
+					prettyPrint(std::cout);
+					std::cout << "\n";
+					doPrettyPrintState(mAdjState, std::cout);
+					std::cout << "\n";
+					for(auto ds : mDimsSz)
+						std::cout << ds << " ";
+					std::cout << "\n";
+					throw;
+				}
+				
+				if(!isOpen) {
 					reverseCurOp(mK);
 					continue;
 				}
+				
 				break;
 			}
 		}
@@ -329,20 +351,21 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			
 			for(; i<mK; i++) {
 				bool incr = (mDimsIncr >> i) & 1;
+				unsigned tgtDim = mTgtDims.at(i);
 				
 				if(incr) {
-					if(mAdjState.at(mTgtDims.at(i)) == mDimsSz[i]-1) {
+					if(mAdjState.at(tgtDim) == mDimsSz[tgtDim]-1) {
 						failed = true;
 						break;
 					}
-					mAdjState.at(mTgtDims.at(i)) += 1;
+					mAdjState.at(tgtDim) += 1;
 				}
 				else {
-					if(mAdjState.at(mTgtDims.at(i)) == 0) {
+					if(mAdjState.at(tgtDim) == 0) {
 						failed = true;
 						break;
 					}
-					mAdjState.at(mTgtDims.at(i)) -= 1;
+					mAdjState.at(tgtDim) -= 1;
 				}
 			}
 			
@@ -429,10 +452,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		}
 		
 		void prettyPrintState(State const& s, std::ostream& out) const {
-			out << "[ ";
-			for(unsigned i=0; i<N; i++)
-				out << s[i] << " ";
-			out << "]";
+			doPrettyPrintState(s, out);
 		}
 		
 		private:

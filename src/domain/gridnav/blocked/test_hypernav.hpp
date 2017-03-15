@@ -15,46 +15,40 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	template<unsigned N>
 	void test_statepack() {
 		
-		using D_2 = gridnav::hypernav_blocked::TestDomainStack<2,2>;
+		using D_3 = gridnav::hypernav_blocked::TestDomainStack<3,1>;
 		
+		std::array<unsigned, 3> dimSz{30, 60, 90};
 		Json jConfig;
 		jConfig["map"] = "-";
-		jConfig["dimsz"] = std::vector<unsigned>{5,5};
+		jConfig["dimsz"] = dimSz;
 		
-		D_2 domStack(jConfig);
+		D_3 domStack(jConfig);
 		
-		typename D_2::template Domain<0> dom(domStack);
+		typename D_3::template Domain<0> dom(domStack);
 		
 		
 		
-		for(unsigned i=0; i<5; i++) {
-			for(unsigned j=0; j<5; j++) {
-				StateN<2> s_in{i,j};
+		for(unsigned i=0; i<dimSz[0]; i++) {
+			for(unsigned j=0; j<dimSz[1]; j++) {
+			for(unsigned m=0; m<dimSz[2]; m++) {
+				StateN<3> s_in{i,j,m}, s_out;
 				
-				dom.prettyPrintState(s_in, std::cout);
-				std::cout << " " << dom.checkGoal(s_in) << "\n";
 				
-				auto edgeIt = dom.getAdjEdges(s_in);
-
-			
-
-				unsigned n=0;
-				while(!edgeIt.finished()) {
-					std::cout << n << " ";
-					edgeIt.prettyPrint(std::cout);
-					std::cout << " " << edgeIt.cost() << " ";
-					dom.prettyPrintState(edgeIt.state(), std::cout);
-					std::cout << " " << dom.checkGoal(edgeIt.state());
-					edgeIt.next();
+				PackedStateN pkd = doPackState<3>(s_in, dimSz);
+				s_out = doUnpackState<3>(pkd, dimSz);
+				
+				
+				if(s_in != s_out) {
+					typename D_3::template Domain<0> dom(domStack);
 					
+					dom.prettyPrintState(s_in, std::cout);
+					std::cout << " " << pkd << " ";
+					dom.prettyPrintState(s_out, std::cout);
 					std::cout << "\n";
+					gen_assert(false);
 				}
-				
-				std::cout << "Finished. s=";
-				dom.prettyPrintState(s_in, std::cout);
-				std::cout << "\n\n\n";
-					
 			}
+		}
 		}
 		
 		

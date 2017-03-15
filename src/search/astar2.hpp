@@ -147,9 +147,15 @@ namespace mjon661 { namespace algorithm {
 			}			
 			
 
-			while(true) {				
-				Node* n = mOpenList.pop();
-					
+			while(true) {
+				Node* n = nullptr;
+				try {
+					n = mOpenList.pop();
+				}
+				catch(AssertException const& e) {
+					std::cerr << mLog_expd << "\n";
+					throw;
+				}
 				State s;
 				mDomain.unpackState(s, n->pkd);
 

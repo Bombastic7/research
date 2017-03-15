@@ -32,7 +32,7 @@
 
 namespace mjon661 {
 	
-	
+	/*
 	template<typename D>
 	void run_session1_minvals(	D& domStack, 
 								typename D::template Domain<0>::State const& s0, 
@@ -112,7 +112,7 @@ namespace mjon661 {
 		res["hr_abt_delay_weight"] = alg2.report();
 		return res;
 	}
-	
+	*/
 	/*
 	template<typename D>
 	Json run_session1_bugsy_bfmod(D& domStack, typename D::template Domain<0>::State const& s0, double wf, double wt, double bfmod) {
@@ -188,7 +188,7 @@ namespace mjon661 {
 	}
 	*/
 	
-	
+	/*
 	Json run_session1_gridnav() {
 		
 		using D_1000_4_u = gridnav::blocked::GridNav_StarAbtStack<gridnav::blocked::CellGraph_4_hr<false,false>,10>;
@@ -223,25 +223,31 @@ namespace mjon661 {
 		
 		return res;
 	}
-	
+	*/
 	
 	Json test_hypernav() {
-		using D_2 = gridnav::hypernav_blocked::TestDomainStack<2,1>;
-		using Astar2_t = algorithm::Astar2Impl<D_2, algorithm::Astar2SearchMode::Standard, true, false>;
+		using D_3 = gridnav::hypernav_blocked::TestDomainStack<3,1>;
+		using Astar2_t = algorithm::Astar2Impl<D_3, algorithm::Astar2SearchMode::Standard, true, false>;
 		
 		Json jConfig;
 		jConfig["map"] = "-";
-		jConfig["dimsz"] = std::vector<unsigned>{1000,1000};
+		jConfig["dimsz"] = std::vector<unsigned>{100,99,100};
 		
-		D_2 dom(jConfig);
+		D_3 domStack(jConfig);
+		typename D_3::template Domain<0> dom(domStack);
 		
-		Astar2_t astaralg(dom, Json());
+		dom.prettyPrintState(domStack.getInitState(), std::cout);
+		std::cout << "  ";
+		dom.prettyPrintState(domStack.mGoalState, std::cout);
+		std::cout << "\n";
 		
-		astaralg.execute(dom.getInitState());
+		Astar2_t astaralg(domStack, Json());
+		
+		astaralg.execute(domStack.getInitState());
 		
 		return astaralg.report();
 	}
-
+	
 
 	/*
 	void run_ugsapure() {
@@ -371,6 +377,6 @@ int main(int argc, const char* argv[]) {
 	
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";
 	
-	//mjon661::gridnav::hypernav_blocked::test_statepack<2>();
+	//mjon661::gridnav::hypernav_blocked::test_statepack<3>();
 	
 }

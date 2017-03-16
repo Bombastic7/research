@@ -20,10 +20,12 @@ namespace mjon661 { namespace algorithm {
 	
 	//Call execute(initState, minCost), then getGoalState().
 	
-	//This a best-first algorithm which maximises node g (partial path cost). Duplicate nodes with non-maximum g are pruned.
-	//Generated states are push onto the openlist in non-deterministic order, to avoid operator-ordering causing issues.
+	//This a best-first algorithm which maximises node.g, which is set by calling CompSep::operator(pInitState, node.state).
+	//Algorithm breaks for the first node expanded which has g >= pMinCost.
+	//Duplicate nodes with lower g are pruned.
+	//Generated states are pushed onto the openlist in non-deterministic order.
 	
-	template<typename D>
+	template<typename D, typename CompSep>
 	class MakeGoalStateAlg {
 		public:
 
@@ -85,15 +87,18 @@ namespace mjon661 { namespace algorithm {
 		
 		
 		
-		MakeGoalStateAlg(D& pDomStack, Json const& jConfig) :
+		MakeGoalStateAlg(D& pDomStack, CompSep const& pCompSep = CompSep()) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mRandDev			(),
-			mRandGen			(mRandDev())
+			mRandGen			(mRandDev()),
+			mCompSep			(pCompSep)
 		{}
+			
 
+			
 		void reset() {
 			mOpenList.clear();
 			mClosedList.clear();
@@ -102,9 +107,7 @@ namespace mjon661 { namespace algorithm {
 			mGoalNode = nullptr;
 		}
 		
-		State getGoalState() {
-			fast_assert(mGoalNode);
-			
+		State getGoalState() {			
 			State s;
 			mDomain.unpackState(s, mGoalNode->pkd);
 			return s;
@@ -117,10 +120,11 @@ namespace mjon661 { namespace algorithm {
 		
 		void doSearch(State const& s0, Cost const& pMinCost) {
 			reset();
+			mInitState = s0;
 			{
 				Node* n0 = mNodePool.construct();
 
-				n0->g = 		Cost(0);
+				n0->g =			mCompSep(s0, s0);
 				n0->parent = 	nullptr;
 
 				mDomain.packState(s0, n0->pkd);
@@ -171,7 +175,7 @@ namespace mjon661 { namespace algorithm {
 				
 				mLog_gend++;
 				
-				Cost kid_g = n->g + e.second;
+				Cost kid_g = mCompSep(mInitState, e.first);
 
 				Node* kid_dup = mClosedList.find(kid_pkd);
 
@@ -209,9 +213,12 @@ namespace mjon661 { namespace algorithm {
 		NodePool_t mNodePool;
 		
 		Node* mGoalNode;
+		State mInitState;
 		
 		std::random_device mRandDev;
 		std::mt19937 mRandGen;
+		
+		CompSep mCompSep;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
 

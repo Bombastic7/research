@@ -203,15 +203,19 @@ namespace mjon661 { namespace algorithm {
 			}
 			
 
-			{
+			if(mTest_exp_f.size() >= 1) {
 				auto it = mTest_exp_f.begin(), itprev = mTest_exp_f.begin();
+
 				++it;
-				
+					
 				for(; it!=mTest_exp_f.end(); ++it, ++itprev)
 					flevel_bf.push_back((double)it->second / itprev->second);
+				
+				fast_assert(flevel_bf.size() + 1 == mTest_exp_f.size());
+			
 			}
 			
-			fast_assert(flevel_bf.size() + 1 == mTest_exp_f.size());
+			
 			
 			j["f_exp_n"] = flevel_n;
 			j["f_exp_cost"] = flevel_cost;

@@ -225,6 +225,31 @@ namespace mjon661 {
 		return res;
 	}
 	*/
+	//> 0.6 0 [ 91 50 33 ] [ 17 5 36 ]
+	Json test_hypernav2() {
+		
+		using D_3 = gridnav::hypernav_blocked::TestDomainStack<3,1>;
+		using Astar2_t = algorithm::Astar2Impl<D_3, algorithm::Astar2SearchMode::Standard, false, false>;
+		
+		Json jConfig;
+		
+		jConfig["map"] = std::string(",1,0.6");
+		jConfig["dimsz"] = std::vector<unsigned>{100,99,100};
+			
+		D_3 domStack(jConfig);
+		typename D_3::template Domain<0> dom(domStack);
+		using State = typename decltype(dom)::State;
+		
+		domStack.assignInitGoalStates(std::pair<State, State>({91,50,33},{17,5,36}));
+		
+		Astar2_t astaralg(domStack, Json());
+		
+		astaralg.execute(domStack.getInitState());
+		
+		return astaralg.report();
+		
+	}
+	
 	
 	Json test_hypernav() {
 		using D_3 = gridnav::hypernav_blocked::TestDomainStack<3,1>;
@@ -240,12 +265,12 @@ namespace mjon661 {
 			D_3 domStack(jConfig);
 			typename D_3::template Domain<0> dom(domStack);
 		
-			dom.prettyPrintState(domStack.getInitState(), std::cout);
-			std::cout << "  ";
-			dom.prettyPrintState(domStack.mGoalState, std::cout);
-			std::cout << "\n";
+			//~ dom.prettyPrintState(domStack.getInitState(), std::cout);
+			//~ std::cout << "  ";
+			//~ dom.prettyPrintState(domStack.mGoalState, std::cout);
+			//~ std::cout << "\n";
 			
-			Astar2_t astaralg(domStack, Json());
+			
 		
 			using State = typename decltype(dom)::State;
 			
@@ -253,14 +278,31 @@ namespace mjon661 {
 			
 			double mindist = 86; // sqrt(100**2 + 99**2 + 100**2) / 2
 			
-			for(unsigned i=0; i<3; i++)
-				genInitGoal.push_back(domStack.genRandInitGoal(mindist));
-			
-			for(auto& sp : genInitGoal) {
+			for(unsigned i=0; i<3; i++) {
+				std::pair<State, State> sp;
+				
+				try {
+					sp = domStack.genRandInitGoal(mindist);
+				} catch(std::exception&) {
+					res[jConfig["map"].get_ref<std::string&>()][std::to_string(i)] = "Failed to generate states.";
+					continue;
+				}
+					
 				domStack.assignInitGoalStates(sp);
-				astaralg.execute(domStack.getInitState());
-				res[jConfig["map"].get_ref<std::string&>()] = astaralg.report();
-			} 
+				Astar2_t astaralg(domStack, Json());
+				
+				try {
+					astaralg.execute(domStack.getInitState());
+				}
+				catch(NoSolutionException const&) {
+					std::cout << "> " << blockedprob << " " << i << " ";
+					dom.prettyPrintState(sp.first, std::cout);
+					std::cout << " ";
+					dom.prettyPrintState(sp.second, std::cout);
+					std::cout << "\n";
+				}
+				res[jConfig["map"].get_ref<std::string&>()][std::to_string(i)] = astaralg.report();
+			}
 			
 		}
 	

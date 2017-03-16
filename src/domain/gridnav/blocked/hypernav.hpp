@@ -224,6 +224,17 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	}
 	
 	
+	template<long unsigned N>
+	inline double euclid_dist(StateN<N> const& s, StateN<N> const& g) {
+		double acc = 0;
+		
+		for(unsigned i=0; i<N; i++)
+			acc += std::pow((double)s[i] - g[i], 2);
+		
+		return std::sqrt(acc);
+	}
+	
+	
 	template<unsigned K>
 	struct CostType {
 		using type = double;
@@ -598,12 +609,19 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			g_logDebugOfs.flush();
 		}
 		
+		
+		struct CompDistSeparation {
+			typename CostType<MaxK>::type operator()(StateN<N> const& a, StateN<N> const& b) {
+				return euclid_dist(a, b);
+			}
+		};
+		
 		std::pair<StateN<N>, StateN<N>> genRandInitGoal(typename CostType<MaxK>::type pMinCost) {
 			std::random_device rd;
 			std::mt19937 randgen(rd());
 			std::uniform_int_distribution<> ud(0, mTotCells-1);
 			
-			algorithm::MakeGoalStateAlg<TestDomainStack<N,MaxK>> makeGoalStateAlg(*this, Json());
+			algorithm::MakeGoalStateAlg<TestDomainStack<N,MaxK>, CompDistSeparation> makeGoalStateAlg(*this);
 
 			
 			for(unsigned ntries = 0; ; ntries++) {
@@ -624,6 +642,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 				try {
 					makeGoalStateAlg.execute(initState, pMinCost);
 					goalState = makeGoalStateAlg.getGoalState();
+					
 				} catch(NoSolutionException const&) {
 					continue;
 				}

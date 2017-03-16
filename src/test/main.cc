@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <vector>
 #include <string>
+#include <utility>
 #include "domain/gridnav/blocked/graph.hpp"
 //#include "domain/pancake/fwd.hpp"
 //#include "domain/tiles/fwd.hpp"
@@ -246,13 +247,21 @@ namespace mjon661 {
 			
 			Astar2_t astaralg(domStack, Json());
 		
-			try {
+			using State = typename decltype(dom)::State;
+			
+			std::vector<std::pair<State, State>> genInitGoal;
+			
+			double mindist = 86; // sqrt(100**2 + 99**2 + 100**2) / 2
+			
+			for(unsigned i=0; i<3; i++)
+				genInitGoal.push_back(domStack.genRandInitGoal(mindist));
+			
+			for(auto& sp : genInitGoal) {
+				domStack.assignInitGoalStates(sp);
 				astaralg.execute(domStack.getInitState());
-			} catch(NoSolutionException const&) {
 				res[jConfig["map"].get_ref<std::string&>()] = astaralg.report();
-				res[jConfig["map"].get_ref<std::string&>()]["no_solution"] = true;
-			}
-			res[jConfig["map"].get_ref<std::string&>()] = astaralg.report();
+			} 
+			
 		}
 	
 		return res;

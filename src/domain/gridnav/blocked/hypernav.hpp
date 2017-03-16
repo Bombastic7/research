@@ -8,6 +8,10 @@
 #include <sstream>
 #include <random>
 #include <cmath>
+#include <random>
+#include <utility>
+
+#include "search/make_goal_state.hpp"
 
 
 namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
@@ -232,29 +236,46 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	
 	
 	
-
+	
+	//Iterates through adjacent states, a state being a position in the N-dimensional cellmap.
+	//MaxK is the maximum number of dimensions that can be moved through in a single move. That is, 1 to N inclusive.
+	//New states are prepared inplace using the State provided to the ctor. This state cannot be used until finished() returns true,
+	//	or dtor called.
+	
+	//state(), cost() - returns current edge info. Only valid when finished() returns false.
+	//finished() - returns false if more adjacent edges can be generated with next().
+	//next() - tries to advance to the next adjacent edge. If current edge is the last, instead sets finished() true and restores
+	// state given in ctor.
+	
+	
+	//Each move affects [1..MaxK] dimensions, those dimensions can be any combination of [0,1,..,N-1], and the dimensions selected can 
+	//	each be either increased or decreased. The maximum possible number of moves a state can have is:
+	//SUM{k=1..MaxK} NumMovesK(k),  where NumMovesK(k) = N!/(k!(N-k)!) * 2**k
+	
+	//The real number of moves is this, less the number of off-the-map positions, and positions corresponding to blocked cells.
 
 	template<unsigned N, unsigned MaxK>
-	struct AdjStateIterator {
-		AdjStateIterator(	StateN<N>& pState,
-							std::array<unsigned,N> const& pDimsSz, 
-							CellMap<> const& pCellMap) :
-			mCurState(pState),
+	struct AdjEdgeIterator_base {
+		AdjEdgeIterator_base(	StateN<N>& pState,
+								std::array<unsigned,N> const& pDimsSz, 
+								CellMap<> const& pCellMap) :
 			mDimsSz(pDimsSz),
 			mCellMap(pCellMap),
+			mCurState(pState),
 			mFinished(true)
 		{
-			
+			mCurK = 1;
 			mMaxIncrDim = 2;
+			mCurCost = 1;
 			
-			for(unsigned i=0; i<K; i++)
+			for(unsigned i=0; i<mCurK; i++)
 				mTgtDims[i] = i;
 			
 			mIncrDim = 0;
 			
 			while(true) {
 				if(applyMv()) {
-					if(!mCellMap.isOpen(doPackState(mCurState))) {
+					if(!mCellMap.isOpen(doPackState(mCurState, mDimsSz))) {
 						undoMv();
 					} else {
 						mFinished = false;
@@ -267,7 +288,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			}
 		}
 		
-		~AdjStateIterator() {
+		~AdjEdgeIterator_base() {
 			if(!mFinished)
 				undoMv();
 		}
@@ -275,6 +296,14 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		
 		bool finished() {
 			return mFinished;
+		}
+		
+		StateN<N>& state() {
+			return mCurState;
+		}
+		
+		typename CostType<MaxK>::type cost() {
+			return mCurCost;
 		}
 		
 		void next() {
@@ -289,7 +318,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 				}
 				
 				if(applyMv()) {
-					if(mCellMap.isOpen(doPackState(mCurState)))
+					if(mCellMap.isOpen(doPackState(mCurState, mDimsSz)))
 						return;
 					else
 						undoMv();
@@ -302,7 +331,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			unsigned i = 0;
 			bool oob = false;
 			
-			for(; i<K; i++) {
+			for(; i<mCurK; i++) {
 				bool incr = (mIncrDim >> i) & 1;
 				
 				if(incr) {
@@ -323,26 +352,28 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			
 			if(oob) {
 				for(unsigned j=0; j<i; j++) {
-					bool incr = (mIncrDim >> i) & 1;
+					bool incr = (mIncrDim >> j) & 1;
 					
 					if(incr)
-						mCurState[mTgtDims[i]]--;
+						mCurState[mTgtDims[j]]--;
 					else
-						mCurState[mTgtDims[i]]++;
+						mCurState[mTgtDims[j]]++;
 				}
 				return false;
 			}
+			
+			return true;
 		}
 		
 		
 		void undoMv() {
-			for(unsigned j=0; j<K; j++) {
-				bool incr = (mIncrDim >> i) & 1;
+			for(unsigned j=0; j<mCurK; j++) {
+				bool incr = (mIncrDim >> j) & 1;
 				
 				if(incr)
-					mCurState[mTgtDims[i]]--;
+					mCurState[mTgtDims[j]]--;
 				else
-					mCurState[mTgtDims[i]]++;
+					mCurState[mTgtDims[j]]++;
 			}
 		}
 		
@@ -355,7 +386,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 				
 				bool foundMid = false;
 		
-				for(unsigned i=1; i<K; i++) {
+				for(unsigned i=1; i<mCurK; i++) {
 					if(mTgtDims[i] >= mTgtDims[i-1]+2) {
 						foundMid = true;
 						mTgtDims[i-1]++;
@@ -368,10 +399,17 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 				}
 				
 				if(!foundMid) {
-					if(mTgtDims[K-1] == N-1)
-						return false;
+					if(mTgtDims[mCurK-1] == N-1) {
+						if(mCurK == MaxK)
+							return false;
+						mCurK++;
+						mMaxIncrDim = 1 << mCurK;
+						for(unsigned i=0; i<mCurK; i++)
+							mTgtDims[i] = i;
+						mCurCost = std::sqrt(mCurK);
+					}
 					else
-						mTgtDims[K-1]++;
+						mTgtDims[mCurK-1]++;
 				}
 			}
 			
@@ -383,194 +421,19 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		std::array<unsigned,N> const& mDimsSz;
 		CellMap<> const& mCellMap;
 		
-		
 		StateN<N>& mCurState;
-		std::array<unsigned, K> mTgtDims;
+		unsigned mCurK;
+		std::array<unsigned, MaxK> mTgtDims;
 		unsigned mMaxIncrDim;
 		unsigned mIncrDim;
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	template<unsigned N, unsigned MaxK>
-	struct AdjEdgeIterator_base {
-		template<unsigned> struct Tag;
-		
-		
-		template<unsigned K>
-		struct IteratorSet : public IteratorSet<K-1> {
-			
-		
-		
-		AdjEdgeIterator_base(	StateN<N> const& pState,
-								std::array<unsigned,N> const& pDimsSz, 
-								CellMap<> const& pCellMap) :
-			mFinished(false),
-			mPos(0)
-		{
-			doFindAdjState_rec(pState, pDimSz, pCellMap, Tag<0>{});
-				
-			slow_assert(mAdjStates.size() == mEdgeCosts.size());
-			
-			if(mAdjStates.size() == 0)
-				mFinished = true;
-		}
-		
-		bool finished() {
-			return mFinished;
-		}
-		
-		void next() {
-			slow_assert(!mFinished);
-			mPos++;
-			if(mPos == mAdjStates.size())
-				mFinished = true;
-		}
-		
-		StateN<N> const& state() {
-			return mAdjStates[mPos];
-		}
-		
-		typename CostType::type cost() {
-			return mEdgeCosts[mPos];
-		}
-
-		private:
-		
-		
-		
-		template<unsigned
-		void adv() {
-			
-			
-			while(true) {
-			
-				bool oob = false;
-				unsigned i = 0;
-				
-				for(; i<K; i++) {
-					bool incr = (incrDim >> i) & 1;
-					
-					if(incr) {
-						if(s[tgtDims[i]] == pDimsSz[tgtDims[i]]-1) {
-							oob = true;
-							break;
-						}
-						s[tgtDims[i]]++;
-					}
-					else {
-						if(s[tgtDims[i]] == 0) {
-							oob = true;
-							break;
-						}
-						s[tgtDims[i]]--;
-					}
-				}
-				
-				if(oob) {
-					for(unsigned j=0; j<i; j++) {
-						bool incr = (incrDim >> i) & 1;
-						
-						if(incr)
-							s[tgtDims[i]]--;
-						else
-							s[tgtDims[i]]++;
-					}
-					continue;
-				}
-
-				if(pCellMap.isOpen(doPackState(s, pDimsSz))
-					mAdjStates.push_back(s);
-				
-				for(unsigned i=0; i<K; i++) {
-					bool incr = (incrDim >> i) & 1;
-				
-					if(incr)
-						s[tgtDims[i]]--;
-					else
-						s[tgtDims[i]]++;
-				}
-				
-				
-				incrDim++;
-				
-				if(incrDim == maxIncrDim) {
-					incrDim = 0;
-					
-					bool foundMid = false;
-			
-					for(unsigned i=1; i<K; i++) {
-						if(mTgtDims[i] >= mTgtDims[i-1]+2) {
-							foundMid = true;
-							mTgtDims[i-1]++;
-							
-							for(unsigned j=0; j<i-1; j++)
-								mTgtDims[j] = j;
-							
-							break;
-						}
-					}
-					
-					if(!foundMid) {
-						if(mTgtDims[K-1] == N-1)
-							break;
-						else
-							mTgtDims[K-1]++;
-					}
-				}
-			}
-			
-			
-			
-		}
-		
-		
-		
-		
-		
-		
-		void doFindAdjState_rec(StateN<N> const& pState,
-								std::array<unsigned,N> const& pDimsSz, 
-								CellMap<> const& pCellMap,
-								Tag<MaxK>)
-		{
-			unsigned prevSz = mEdgeCosts.size();
-			findAdjStates<N,MaxK>(pState, mEdgeCosts, pDimsSz, pCellMap);
-			mEdgeCosts.resize(mAdjStates.size());
-			std::fill(mEdgeCosts.begin() + prevSz, mEdgeCosts.end(), std::sqrt(K));
-			
-		}
-		
-		template<unsigned K>
-		void doFindAdjState_rec(StateN<N> const& pState,
-								std::array<unsigned,N> const& pDimsSz, 
-								CellMap<> const& pCellMap,
-								Tag<K>)
-		{
-			unsigned prevSz = mEdgeCosts.size();
-			findAdjStates<N,K>(pState, mAdjStates, pDimsSz, pCellMap);
-			mEdgeCosts.resize(mAdjStates.size());
-			std::fill(mEdgeCosts.begin() + prevSz, mEdgeCosts.end(), std::sqrt(K));
-			doFindAdjState_rec(pState, pDimsSz, pCellMap, Tag<K+1>);
-			
-		}
-		
-		
-		const unsigned mMaxIncrDim;
-		std::array<unsigned, K> mTgtDims;
-		unsigned mIncrDim;
-		
-		
-		std::vector<StateN<N>> mAdjStates;
-		std::vector<typename CostType<MaxK>::type> mEdgeCosts;
 		bool mFinished;
-		unsigned mPos;
+		typename CostType<MaxK>::type mCurCost;
 	};
+	
+	
+	
+	
+
 
 
 
@@ -719,7 +582,56 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			return dimsz;
 		}
 		
+
 		
+		void assignInitGoalStates(std::pair<StateN<N>, StateN<N>> const& s) {
+			mInitState = s.first;
+			mGoalState = s.second;
+			fast_assert(mCellMap.isOpen(doPackState(mInitState, mDimSz)));
+			fast_assert(mCellMap.isOpen(doPackState(mGoalState, mDimSz)));
+			
+			logDebugStream() << "Assigned. Init: ";
+			doPrettyPrintState(mInitState, g_logDebugOfs);
+			g_logDebugOfs << " Goal: ";
+			doPrettyPrintState(mGoalState, g_logDebugOfs);
+			g_logDebugOfs << "\n";
+			g_logDebugOfs.flush();
+		}
+		
+		std::pair<StateN<N>, StateN<N>> genRandInitGoal(typename CostType<MaxK>::type pMinCost) {
+			std::random_device rd;
+			std::mt19937 randgen(rd());
+			std::uniform_int_distribution<> ud(0, mTotCells-1);
+			
+			algorithm::MakeGoalStateAlg<TestDomainStack<N,MaxK>> makeGoalStateAlg(*this, Json());
+
+			
+			for(unsigned ntries = 0; ; ntries++) {
+				fast_assert(ntries < 100);
+				
+				StateN<N> initState, goalState;
+				
+				while(true) {
+					PackedStateN initPkd = ud(randgen);
+					if(!mCellMap.isOpen(initPkd))
+						continue;
+					
+					initState = doUnpackState(initPkd, mDimSz);
+					break;
+				}
+			
+				
+				try {
+					makeGoalStateAlg.execute(initState, pMinCost);
+					goalState = makeGoalStateAlg.getGoalState();
+				} catch(NoSolutionException const&) {
+					continue;
+				}
+				
+				return {initState, goalState};
+			}
+		}
+
 		
 		std::array<unsigned,N> mDimSz;
 		unsigned mTotCells;
@@ -727,5 +639,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		
 		State mInitState, mGoalState;
 	};
+	
+
 
 }}}

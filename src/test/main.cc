@@ -227,27 +227,36 @@ namespace mjon661 {
 	
 	Json test_hypernav() {
 		using D_3 = gridnav::hypernav_blocked::TestDomainStack<3,1>;
-		using Astar2_t = algorithm::Astar2Impl<D_3, algorithm::Astar2SearchMode::Standard, true, false>;
+		using Astar2_t = algorithm::Astar2Impl<D_3, algorithm::Astar2SearchMode::Standard, false, false>;
 		
-		Json jConfig;
-		jConfig["map"] = "-";
-		jConfig["dimsz"] = std::vector<unsigned>{100,99,100};
+		Json res;
 		
-		D_3 domStack(jConfig);
-		typename D_3::template Domain<0> dom(domStack);
+		for(auto blockedprob : {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}) {
+			Json jConfig;
+			jConfig["map"] = std::string(",1,") + std::to_string(blockedprob);
+			jConfig["dimsz"] = std::vector<unsigned>{100,99,100};
 		
-		dom.prettyPrintState(domStack.getInitState(), std::cout);
-		std::cout << "  ";
-		dom.prettyPrintState(domStack.mGoalState, std::cout);
-		std::cout << "\n";
+			D_3 domStack(jConfig);
+			typename D_3::template Domain<0> dom(domStack);
 		
-		Astar2_t astaralg(domStack, Json());
+			dom.prettyPrintState(domStack.getInitState(), std::cout);
+			std::cout << "  ";
+			dom.prettyPrintState(domStack.mGoalState, std::cout);
+			std::cout << "\n";
+			
+			Astar2_t astaralg(domStack, Json());
 		
-		astaralg.execute(domStack.getInitState());
-		
-		return astaralg.report();
-	}
+			try {
+				astaralg.execute(domStack.getInitState());
+			} catch(NoSolutionException const&) {
+				res[jConfig["map"].get_ref<std::string&>()] = astaralg.report();
+				res[jConfig["map"].get_ref<std::string&>()]["no_solution"] = true;
+			}
+			res[jConfig["map"].get_ref<std::string&>()] = astaralg.report();
+		}
 	
+		return res;
+	}
 
 	/*
 	void run_ugsapure() {

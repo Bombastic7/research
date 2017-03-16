@@ -5,6 +5,7 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <random>
 #include <cmath>
 
@@ -18,6 +19,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	};
 
 
+	
 
 	template<typename = void>
 	class CellMap {
@@ -86,13 +88,13 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			mSize(pSize),
 			mCells(mSize)
 		{
-			if(pMapFile[0] == '.') {
-				unsigned seed = std::strtol(pMapFile.c_str()+1, nullptr, 10);
-				initRandomMap(seed);
+			if(pMapFile[0] == ',') {
+				initRandomMap(pMapFile);
 			}
-			else if(pMapFile[0] == '-')
+			else if(pMapFile[0] == '-') {
 				std::fill(mCells.begin(), mCells.end(), Cell_t::Open);
-			
+				logDebug("CellMap set to all open.");
+			}
 			else {
 				std::ifstream ifs(pMapFile);
 				
@@ -135,15 +137,29 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		
 		private:
 		
-		void initRandomMap(unsigned seed) {
+		void initRandomMap(std::string const& mapSeedStr) {
+			unsigned seed;
+			double prob;
+			
+			std::stringstream ss(mapSeedStr);
+			std::string t;
+			
+			std::getline(ss, t, ',');
+			std::getline(ss, t, ',');
+			seed = std::stoul(t);
+			std::getline(ss, t, ',');
+			prob = std::stod(t);
+			
+			fast_assert(prob >= 0 && prob <= 1);
+			
 			std::mt19937 gen(5489u + seed);
 			std::uniform_real_distribution<double> d(0.0,1.0);
 			
 			for(unsigned i=0; i<mSize; i++) {
-				mCells[i] = d(gen) <= 0.35 ? Cell_t::Blocked : Cell_t::Open;
+				mCells[i] = d(gen) < prob ? Cell_t::Blocked : Cell_t::Open;
 			}
 			
-			logDebugStream() << "Random CellMap init. seed=" << seed << ", blockedprob=0.35" << "\n";
+			logDebugStream() << "Random CellMap init. seed=" << seed << ", blockedprob=" << prob << "\n";
 		}
 		
 		const unsigned mSize;
@@ -193,6 +209,15 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		return s;
 	}
 	
+	template<long unsigned N>
+	inline unsigned manhat(StateN<N> const& s, StateN<N> const& g) {
+		unsigned d = 0;
+		
+		for(unsigned i=0; i<N; i++)
+			d += std::abs((int)s[i] - (int)g[i]);
+		
+		return d;
+	}
 	
 	
 	template<unsigned K>
@@ -207,193 +232,348 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 	
 	
 	
+
+
+	template<unsigned N, unsigned MaxK>
+	struct AdjStateIterator {
+		AdjStateIterator(	StateN<N>& pState,
+							std::array<unsigned,N> const& pDimsSz, 
+							CellMap<> const& pCellMap) :
+			mCurState(pState),
+			mDimsSz(pDimsSz),
+			mCellMap(pCellMap),
+			mFinished(true)
+		{
+			
+			mMaxIncrDim = 2;
+			
+			for(unsigned i=0; i<K; i++)
+				mTgtDims[i] = i;
+			
+			mIncrDim = 0;
+			
+			while(true) {
+				if(applyMv()) {
+					if(!mCellMap.isOpen(doPackState(mCurState))) {
+						undoMv();
+					} else {
+						mFinished = false;
+						break;
+					}
+				}
+				
+				if(!adv())
+					break;
+			}
+		}
+		
+		~AdjStateIterator() {
+			if(!mFinished)
+				undoMv();
+		}
+		
+		
+		bool finished() {
+			return mFinished;
+		}
+		
+		void next() {
+			slow_assert(!mFinished);
+			
+			undoMv();
+			
+			while(true) {
+				if(!adv()) {
+					mFinished = true;
+					break;
+				}
+				
+				if(applyMv()) {
+					if(mCellMap.isOpen(doPackState(mCurState)))
+						return;
+					else
+						undoMv();
+				}
+			}
+		}
+		
+		
+		bool applyMv() {
+			unsigned i = 0;
+			bool oob = false;
+			
+			for(; i<K; i++) {
+				bool incr = (mIncrDim >> i) & 1;
+				
+				if(incr) {
+					if(mCurState[mTgtDims[i]] == mDimsSz[mTgtDims[i]]-1) {
+						oob = true;
+						break;
+					}
+					mCurState[mTgtDims[i]]++;
+				}
+				else {
+					if(mCurState[mTgtDims[i]] == 0) {
+						oob = true;
+						break;
+					}
+					mCurState[mTgtDims[i]]--;
+				}
+			}
+			
+			if(oob) {
+				for(unsigned j=0; j<i; j++) {
+					bool incr = (mIncrDim >> i) & 1;
+					
+					if(incr)
+						mCurState[mTgtDims[i]]--;
+					else
+						mCurState[mTgtDims[i]]++;
+				}
+				return false;
+			}
+		}
+		
+		
+		void undoMv() {
+			for(unsigned j=0; j<K; j++) {
+				bool incr = (mIncrDim >> i) & 1;
+				
+				if(incr)
+					mCurState[mTgtDims[i]]--;
+				else
+					mCurState[mTgtDims[i]]++;
+			}
+		}
+		
+		
+		bool adv() {
+			mIncrDim++;
+			
+			if(mIncrDim == mMaxIncrDim) {
+				mIncrDim = 0;
+				
+				bool foundMid = false;
+		
+				for(unsigned i=1; i<K; i++) {
+					if(mTgtDims[i] >= mTgtDims[i-1]+2) {
+						foundMid = true;
+						mTgtDims[i-1]++;
+						
+						for(unsigned j=0; j<i-1; j++)
+							mTgtDims[j] = j;
+						
+						break;
+					}
+				}
+				
+				if(!foundMid) {
+					if(mTgtDims[K-1] == N-1)
+						return false;
+					else
+						mTgtDims[K-1]++;
+				}
+			}
+			
+			return true;
+		}
+		
+		
+		
+		std::array<unsigned,N> const& mDimsSz;
+		CellMap<> const& mCellMap;
+		
+		
+		StateN<N>& mCurState;
+		std::array<unsigned, K> mTgtDims;
+		unsigned mMaxIncrDim;
+		unsigned mIncrDim;
+	}
+	
+	
+	
+	
+	
+	
 	
 	
 	template<unsigned N, unsigned MaxK>
 	struct AdjEdgeIterator_base {
+		template<unsigned> struct Tag;
 		
-		AdjEdgeIterator_base(StateN<N>& pState, std::array<unsigned, N> const& pDimsSz, CellMap<> const& pCellMap) :
+		
+		template<unsigned K>
+		struct IteratorSet : public IteratorSet<K-1> {
+			
+		
+		
+		AdjEdgeIterator_base(	StateN<N> const& pState,
+								std::array<unsigned,N> const& pDimsSz, 
+								CellMap<> const& pCellMap) :
 			mFinished(false),
-			mAdjState(pState),
-			mK(1),
-			mDimsIncr(0),
-			mCurCost(1),
-			mDimsSz(pDimsSz),
-			mCellMap(pCellMap)
+			mPos(0)
 		{
-			slow_assert(mCellMap.isOpen(doPackState(mAdjState, mDimsSz)));
+			doFindAdjState_rec(pState, pDimSz, pCellMap, Tag<0>{});
+				
+			slow_assert(mAdjStates.size() == mEdgeCosts.size());
 			
-			resetTgtDims();
-			
-			if(!applyCurOp())
-				adv();
-		}
-		
-		void prettyPrint(std::ostream& out) {
-			for(unsigned i=0; i<mK; i++) {
-				out << mTgtDims[i];
-				if((mDimsIncr >> i) & 1)
-					out << "+ ";
-				else
-					out << "- ";
-			}
-		}
-		
-		void next() {
-			reverseCurOp(mK);
-			adv();
-		}
-		
-		StateN<N>& state() {
-			return mAdjState;
-		}
-		
-		typename CostType<MaxK>::type cost() {
-			return mCurCost;
+			if(mAdjStates.size() == 0)
+				mFinished = true;
 		}
 		
 		bool finished() {
 			return mFinished;
 		}
 		
+		void next() {
+			slow_assert(!mFinished);
+			mPos++;
+			if(mPos == mAdjStates.size())
+				mFinished = true;
+		}
+		
+		StateN<N> const& state() {
+			return mAdjStates[mPos];
+		}
+		
+		typename CostType::type cost() {
+			return mEdgeCosts[mPos];
+		}
+
 		private:
+		
+		
+		
+		template<unsigned
 		void adv() {
+			
+			
 			while(true) {
-				mDimsIncr++;
+			
+				bool oob = false;
+				unsigned i = 0;
 				
-				if(mDimsIncr == 1u << mK) {
-					mDimsIncr = 0;
+				for(; i<K; i++) {
+					bool incr = (incrDim >> i) & 1;
 					
-					if(!tryAdvTgtDims()) {
-						if(mK == MaxK) {
-							mFinished = true;
-							return;
+					if(incr) {
+						if(s[tgtDims[i]] == pDimsSz[tgtDims[i]]-1) {
+							oob = true;
+							break;
 						}
-						
-						mK++;
-						mCurCost = std::sqrt(mK);
-						
-						resetTgtDims();
+						s[tgtDims[i]]++;
+					}
+					else {
+						if(s[tgtDims[i]] == 0) {
+							oob = true;
+							break;
+						}
+						s[tgtDims[i]]--;
 					}
 				}
 				
-				if(!applyCurOp())
-					continue;
-				
-				PackedStateN pkd = doPackState(mAdjState, mDimsSz);
-				
-				bool isOpen;
-				try {
-					isOpen = mCellMap.isOpen(pkd);
-				} catch(AssertException const& e) {
-					prettyPrint(std::cout);
-					std::cout << "\n";
-					doPrettyPrintState(mAdjState, std::cout);
-					std::cout << "\n";
-					for(auto ds : mDimsSz)
-						std::cout << ds << " ";
-					std::cout << "\n";
-					throw;
-				}
-				
-				if(!isOpen) {
-					reverseCurOp(mK);
+				if(oob) {
+					for(unsigned j=0; j<i; j++) {
+						bool incr = (incrDim >> i) & 1;
+						
+						if(incr)
+							s[tgtDims[i]]--;
+						else
+							s[tgtDims[i]]++;
+					}
 					continue;
 				}
-				
-				break;
-			}
-		}
-		
-		void resetTgtDims() {
-			for(unsigned i=0; i<mK; i++)
-				mTgtDims[i] = i;
-		}
-		
-		bool tryAdvTgtDims() {
-			bool foundMid = false;
-			
-			for(unsigned i=1; i<mK; i++) {
-				if(mTgtDims[i] >= mTgtDims[i-1]+2) {
-					foundMid = true;
-					mTgtDims[i-1]++;
-					
-					for(unsigned j=0; j<i-1; j++)
-						mTgtDims[j] = j;
-					
-					break;
-				}
-			}
-			
-			if(!foundMid) {
-				if(mTgtDims[mK-1] < N-1)
-					mTgtDims[mK-1]++;
-				else
-					return false;
-			}
-			return true;
-		}
-		
-		void reverseCurOp(unsigned n) {			
-			for(unsigned i=0; i<n; i++) {
-				bool incr = (mDimsIncr >> i) & 1;
 
-				if(incr)
-					mAdjState.at(mTgtDims[i]) -= 1;
-				else
-					mAdjState.at(mTgtDims[i]) += 1;
-			}
-		}
-		
-		bool applyCurOp() {
-			unsigned i=0;
-			bool failed = false;
-			
-			for(; i<mK; i++) {
-				bool incr = (mDimsIncr >> i) & 1;
-				unsigned tgtDim = mTgtDims.at(i);
+				if(pCellMap.isOpen(doPackState(s, pDimsSz))
+					mAdjStates.push_back(s);
 				
-				if(incr) {
-					if(mAdjState.at(tgtDim) == mDimsSz[tgtDim]-1) {
-						failed = true;
-						break;
-					}
-					mAdjState.at(tgtDim) += 1;
+				for(unsigned i=0; i<K; i++) {
+					bool incr = (incrDim >> i) & 1;
+				
+					if(incr)
+						s[tgtDims[i]]--;
+					else
+						s[tgtDims[i]]++;
 				}
-				else {
-					if(mAdjState.at(tgtDim) == 0) {
-						failed = true;
-						break;
+				
+				
+				incrDim++;
+				
+				if(incrDim == maxIncrDim) {
+					incrDim = 0;
+					
+					bool foundMid = false;
+			
+					for(unsigned i=1; i<K; i++) {
+						if(mTgtDims[i] >= mTgtDims[i-1]+2) {
+							foundMid = true;
+							mTgtDims[i-1]++;
+							
+							for(unsigned j=0; j<i-1; j++)
+								mTgtDims[j] = j;
+							
+							break;
+						}
 					}
-					mAdjState.at(tgtDim) -= 1;
+					
+					if(!foundMid) {
+						if(mTgtDims[K-1] == N-1)
+							break;
+						else
+							mTgtDims[K-1]++;
+					}
 				}
 			}
 			
-			if(!failed)
-				return true;
-
-			reverseCurOp(i);
-			return false;
+			
+			
 		}
 		
+		
+		
+		
+		
+		
+		void doFindAdjState_rec(StateN<N> const& pState,
+								std::array<unsigned,N> const& pDimsSz, 
+								CellMap<> const& pCellMap,
+								Tag<MaxK>)
+		{
+			unsigned prevSz = mEdgeCosts.size();
+			findAdjStates<N,MaxK>(pState, mEdgeCosts, pDimsSz, pCellMap);
+			mEdgeCosts.resize(mAdjStates.size());
+			std::fill(mEdgeCosts.begin() + prevSz, mEdgeCosts.end(), std::sqrt(K));
+			
+		}
+		
+		template<unsigned K>
+		void doFindAdjState_rec(StateN<N> const& pState,
+								std::array<unsigned,N> const& pDimsSz, 
+								CellMap<> const& pCellMap,
+								Tag<K>)
+		{
+			unsigned prevSz = mEdgeCosts.size();
+			findAdjStates<N,K>(pState, mAdjStates, pDimsSz, pCellMap);
+			mEdgeCosts.resize(mAdjStates.size());
+			std::fill(mEdgeCosts.begin() + prevSz, mEdgeCosts.end(), std::sqrt(K));
+			doFindAdjState_rec(pState, pDimsSz, pCellMap, Tag<K+1>);
+			
+		}
+		
+		
+		const unsigned mMaxIncrDim;
+		std::array<unsigned, K> mTgtDims;
+		unsigned mIncrDim;
+		
+		
+		std::vector<StateN<N>> mAdjStates;
+		std::vector<typename CostType<MaxK>::type> mEdgeCosts;
 		bool mFinished;
-		StateN<N>& mAdjState;
-		unsigned mK;
-		std::array<unsigned, N> mTgtDims;
-		unsigned mDimsIncr;
-		typename CostType<MaxK>::type mCurCost;
-		std::array<unsigned, N> const& mDimsSz;
-		CellMap<> const& mCellMap;
-		
+		unsigned mPos;
 	};
-	
-	
-	
-	
 
-	
-	
-	
+
+
 	template<unsigned N, unsigned MaxK>
 	struct Domain_base {
 		
@@ -420,14 +600,17 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		}
 		
 		void packState(State const& s, PackedState& pkd) const {
+			slow_assert(mCellMap.isOpen(doPackState(s, mDimSz)));
 			pkd = doPackState(s, mDimSz);
 		}
 		
 		void unpackState(State& s, PackedState const& pkd) const {
 			s = doUnpackState(pkd, mDimSz);
+			slow_assert(mCellMap.isOpen(doPackState(s, mDimSz)));
 		}
 		
 		AdjEdgeIterator getAdjEdges(State& s) const {
+			
 			return AdjEdgeIterator(s, mDimSz, mCellMap);
 		}
 		
@@ -436,15 +619,19 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		}
 		
 		Cost costHeuristic(State const& pState) const {
+			if(MaxK == 1)
+				return manhat(pState, mGoalState);
 			return 0;
 		}
 		
 		Cost distanceHeuristic(State const& pState) const {
+			if(MaxK == 1)
+				return manhat(pState, mGoalState);
 			return 0;
 		}
 		
-		std::pair<Cost,Cost> pairHeuristics(State const&pState) const {
-			return {0,0};
+		std::pair<Cost,Cost> pairHeuristics(State const& pState) const {
+			return {costHeuristic(pState), distanceHeuristic(pState)};
 		}
 		
 		bool checkGoal(State const& pState) const {
@@ -481,10 +668,38 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			mDimSz(prepDimSz(jConfig.at("dimsz"))),
 			mCellMap(mTotCells, jConfig.at("map").get_ref<std::string const&>())
 		{
-			mInitState.fill(0);
+			PackedStateN initpkd = 0;
+			while(true) {
+				if(mCellMap.isOpen(initpkd))
+					break;
+				initpkd++;
+				if(initpkd == mTotCells)
+					gen_assert(false);
+			}
 			
-			for(unsigned i=0; i<N; i++)
-				mGoalState[i] = mDimSz[i]-1;
+			mInitState = doUnpackState(initpkd, mDimSz);
+			
+			PackedStateN goalpkd = mTotCells-1;
+			
+			while(true) {
+				if(mCellMap.isOpen(goalpkd))
+					break;
+				if(goalpkd == 0)
+					gen_assert(false);
+				goalpkd--;
+			}
+			
+			mGoalState = doUnpackState(goalpkd, mDimSz);
+			
+			logDebugStream() << "Init: ";
+			doPrettyPrintState(mInitState, g_logDebugOfs);
+			g_logDebugOfs << " Goal: ";
+			doPrettyPrintState(mGoalState, g_logDebugOfs);
+			g_logDebugOfs << "\n";
+			g_logDebugOfs.flush();
+			
+			fast_assert(mCellMap.isOpen(doPackState(mInitState, mDimSz)));
+			fast_assert(mCellMap.isOpen(doPackState(mGoalState, mDimSz)));
 		}
 		
 		State getInitState() {

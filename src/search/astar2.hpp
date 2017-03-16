@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <tuple>
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
 #include "search/nodepool.hpp"
@@ -153,8 +152,7 @@ namespace mjon661 { namespace algorithm {
 					n = mOpenList.pop();
 				}
 				catch(AssertException const& e) {
-					std::cerr << mLog_expd << "\n";
-					throw;
+					throw NoSolutionException("");
 				}
 				State s;
 				mDomain.unpackState(s, n->pkd);

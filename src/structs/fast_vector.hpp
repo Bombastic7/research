@@ -1,9 +1,62 @@
 #pragma once
 
 #include <algorithm>
+#include <vector>
 #include "util/debug.hpp"
 
 namespace mjon661 {
+	
+	//Wrapper around a std::vector. Keeps track of used entries, so clear() returns all entries to be used, without 
+	//	calling clear() on/deallocating the backing vector (which can be terribly slow.)
+	template<typename Elm_t>
+	class FastVector {
+	
+		public:
+		static const unsigned Grow_Fact = 2;
+		static const unsigned Def_Cap_Hint = 1024;
+
+		FastVector(unsigned capHint = Def_Cap_Hint) : mSoftSize(0) {
+			mData.resize(capHint);
+		}
+		
+		void push_back(Elm_t const& e) {
+			if(mSoftSize == mData.size())
+				mData.resize(mData.size()*Grow_Fact);
+			
+			mData[mSoftSize++] = e;
+		}
+		
+		Elm_t operator[](unsigned i) const {
+			slow_assert(i < mSoftSize);
+			return mData[i];
+		}
+		
+		void clear() {
+			mSoftSize = 0;
+		}
+		
+		unsigned size() {
+			return mSoftSize;
+		}
+		
+		unsigned capacity() {
+			return mData.size();
+		}
+		
+		void swap(FastVector<Elm_t>& o) {
+			mData.swap(o.mData);
+			unsigned tempSize = o.mSoftSize;
+			o.mSoftSize = mSoftSize;
+			mSoftSize = tempSize;
+		}
+		
+		private:
+		
+		std::vector<Elm_t> mData;
+		unsigned mSoftSize;
+	};
+	
+	/*
 	template<typename Elm_t>
 	class FastVector {
 	
@@ -79,4 +132,5 @@ namespace mjon661 {
 		Elm_t* mVec;
 		unsigned mSize, mCap;
 	};
+	* */
 }

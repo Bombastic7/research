@@ -10,9 +10,11 @@
 #include <cmath>
 #include <random>
 #include <utility>
+#include <tuple>
+#include <algorithm>
 
 #include "search/make_goal_state.hpp"
-
+#include "util/math.hpp"
 
 namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 
@@ -92,14 +94,9 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			mSize(pSize),
 			mCells(mSize)
 		{
-			if(pMapFile[0] == ',') {
-				initRandomMap(pMapFile);
-			}
-			else if(pMapFile[0] == '-') {
-				std::fill(mCells.begin(), mCells.end(), Cell_t::Open);
-				logDebug("CellMap set to all open.");
-			}
-			else {
+			fast_assert(pMapFile.size() > 0);
+			
+			if(pMapFile[0] != ',') {
 				std::ifstream ifs(pMapFile);
 				
 				if(!ifs)
@@ -114,7 +111,187 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 					gen_assert(c == Cell_t::Open || c == Cell_t::Blocked);
 					mCells[i] = c;
 				}
+				return;
+			} 
+			
+			std::stringstream ss(pMapFile);
+			std::string funcStr, t;
+			
+			std::getline(ss, funcStr, ',');
+			std::getline(ss, funcStr, ',');
+			
+			if(funcStr == "fill") {
+				std::fill(mCells.begin(), mCells.end(), Cell_t::Open);
+				logDebug("CellMap set to all open.");
 			}
+			
+			else if(funcStr == "random") {
+				unsigned seed;
+				double prob;
+				std::getline(ss, t, ',');
+				seed = std::stoul(t);
+				std::getline(ss, t, ',');
+				prob = std::stod(t);
+			
+				fast_assert(prob >= 0 && prob <= 1);
+				
+				initRandomMap(seed, prob);
+				logDebugStream() << "Random CellMap init. seed=" << seed << ", blockedprob=" << prob << "\n";
+			}
+			
+			else if(funcStr == "portals") {
+				std::getline(ss, t, ',');
+				unsigned height = std::stoul(t);
+				std::getline(ss, t, ',');
+				unsigned width = std::stoul(t);
+				std::getline(ss, t, ',');
+				unsigned wallInterval = std::stoul(t);
+
+				fast_assert(mSize == height*width);
+				
+				std::fill(mCells.begin(), mCells.end(), Cell_t::Open);
+
+				std::mt19937 randgen;
+				std::uniform_int_distribution<unsigned> ud(0, wallInterval-2);
+
+				for(unsigned x = wallInterval-1; x<width; x+=wallInterval) {
+					for(unsigned y=0; y<height; y++)
+						mCells.at(x+width*y) = Cell_t::Blocked;
+					
+					for(unsigned y=0; y<height; y+=wallInterval) {
+						unsigned portal_y = y + (ud(randgen) % (height-y));
+					
+						mCells.at(x+width*portal_y) = Cell_t::Open;
+					}
+				}
+				
+				for(unsigned y = wallInterval-1; y<height; y+=wallInterval) {
+					for(unsigned x=0; x<width; x++)
+						mCells.at(x+width*y) = Cell_t::Blocked;
+					
+					for(unsigned x=0; x<width; x+=wallInterval) {
+						unsigned portal_x = x + (ud(randgen) % (width-x));
+					
+						mCells.at(portal_x+width*y) = Cell_t::Open;
+					}
+				}
+				
+				logDebugStream() << "Portal CellMap init. h=" << height << ", w=" << width << ", wallInterval=" << wallInterval << "\n";
+				
+			}
+			else if(funcStr == "portalsSpanningTree") {
+				std::getline(ss, t, ',');
+				unsigned height = std::stoul(t);
+				std::getline(ss, t, ',');
+				unsigned width = std::stoul(t);
+				std::getline(ss, t, ',');
+				unsigned wallInterval = std::stoul(t);
+
+				fast_assert(mSize == height*width);
+				
+				std::fill(mCells.begin(), mCells.end(), Cell_t::Open);
+				
+				for(unsigned x = wallInterval-1; x<width; x+=wallInterval) {
+					for(unsigned y=0; y<height; y++)
+						mCells.at(x+width*y) = Cell_t::Blocked;
+				}
+				
+				for(unsigned y = wallInterval-1; y<height; y+=wallInterval) {
+					for(unsigned x=0; x<width; x++)
+						mCells.at(x+width*y) = Cell_t::Blocked;
+				}
+				
+				std::mt19937 randgen;
+				std::uniform_int_distribution<unsigned> ud(0, wallInterval-2);
+				std::uniform_real_distribution<> edgeCostDist(0, 1);
+				
+				
+				
+				
+				unsigned spacesX = width/(wallInterval), spacesY = height/(wallInterval);
+				if(width % wallInterval != 0)
+					spacesX++;
+				if(height % wallInterval != 0)
+					spacesY++;
+					
+				logDebug(std::string("spacesX: ") + std::to_string(spacesX) + " spacesY: " + std::to_string(spacesY));
+				
+				
+				using Edge_t = std::tuple<unsigned, unsigned, double>;
+				std::vector<Edge_t> spaceEdges;
+				
+				for(unsigned i=0; i<spacesX*spacesY; i++) {
+					unsigned x = i % spacesX, y = i / spacesY;
+					
+					if(y > 0)
+						spaceEdges.push_back(Edge_t(i, i-spacesX, edgeCostDist(randgen)));;
+					if(y < spacesY-1)
+						spaceEdges.push_back(Edge_t(i, i+spacesX, edgeCostDist(randgen)));
+					if(x != 0)
+						spaceEdges.push_back(Edge_t(i, i-1, edgeCostDist(randgen)));
+					if(x < spacesX-1)
+						spaceEdges.push_back(Edge_t(i, i+1, edgeCostDist(randgen)));
+				}
+				
+				std::shuffle(spaceEdges.begin(), spaceEdges.end(), randgen);
+				
+				for(auto& e : spaceEdges) {
+					unsigned src = std::get<0>(e);
+					unsigned dst = std::get<1>(e);
+					
+					unsigned x = (src % spacesX) * wallInterval;
+					unsigned y = (src / spacesX) * wallInterval;
+					unsigned px = (dst % spacesX) * wallInterval;
+					unsigned py = (dst / spacesX) * wallInterval;
+					logDebugStream() << "x=" << x << " y=" << y << " px=" << px << " py=" << py << "\n";
+				}
+				
+			
+				
+				std::vector<std::tuple<unsigned, unsigned, double>> stedges = mathutil::minSpanningTreePrims<double>(spacesX*spacesY, spaceEdges);
+				
+
+				for(auto& e : stedges) {
+					
+					unsigned src = std::get<0>(e);
+					unsigned dst = std::get<1>(e);
+					
+					unsigned x = src % spacesX;
+					unsigned y = src / spacesX;
+					unsigned px = dst % spacesX;
+					unsigned py = dst / spacesX;
+					
+					logDebugStream() << "x=" << x << " y=" << y << " px=" << px << " py=" << py << "\n";
+					g_logDebugOfs.flush();
+					
+					unsigned wally, wallx;
+					wally = wallx = (unsigned)-1;
+					
+					if(y == py - 1 || y == py + 1) {
+						do {
+							wallx = x*wallInterval + ud(randgen);
+						} while(wallx >= width);
+					}
+					
+					if(x == px - 1 || x == px + 1) {
+						do {
+							wally = y*wallInterval + ud(randgen);
+						} while(wally >= height);
+					}
+					
+					if(y == py - 1) wally = py*wallInterval-1;
+					if(y == py + 1) wally = y*wallInterval-1;
+					if(x == px - 1) wallx = px*wallInterval-1;
+					if(x == px + 1) wallx = x*wallInterval-1;
+				
+					logDebugStream() << "wallx=" << wallx << " wally=" << wally << "\n";
+					mCells.at(wallx + wally*width) = Cell_t::Open;
+				}
+
+				logDebugStream() << "PortalMST CellMap init. h=" << height << ", w=" << width << ", wallInterval=" << wallInterval << "\n";
+			}
+			else
+				gen_assert(false);
 		}
 		
 		
@@ -141,19 +318,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		
 		private:
 		
-		void initRandomMap(std::string const& mapSeedStr) {
-			unsigned seed;
-			double prob;
-			
-			std::stringstream ss(mapSeedStr);
-			std::string t;
-			
-			std::getline(ss, t, ',');
-			std::getline(ss, t, ',');
-			seed = std::stoul(t);
-			std::getline(ss, t, ',');
-			prob = std::stod(t);
-			
+		void initRandomMap(unsigned seed, double prob) {
 			fast_assert(prob >= 0 && prob <= 1);
 			
 			std::mt19937 gen(5489u + seed);
@@ -162,8 +327,6 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 			for(unsigned i=0; i<mSize; i++) {
 				mCells[i] = d(gen) < prob ? Cell_t::Blocked : Cell_t::Open;
 			}
-			
-			logDebugStream() << "Random CellMap init. seed=" << seed << ", blockedprob=" << prob << "\n";
 		}
 		
 		const unsigned mSize;

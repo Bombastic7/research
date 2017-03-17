@@ -9,6 +9,7 @@
 #include <array>
 #include <limits>
 #include <type_traits>
+#include <tuple>
 
 //#include <boost/multiprecision/cpp_int.hpp>
 #include "util/debug.hpp"
@@ -191,4 +192,85 @@ namespace mjon661 { namespace mathutil {
 		U val;
 		bool b;
 	};
+	
+	
+	
+	//Quick and dirty implementation of Prim's algorithm for generating a MST.
+	//There are pNnodes, labeled [0..pNnodes-1].
+	//Edges have form {source, destination, cost}.
+	//Edges forming the spanning tree are returned.
+	template<typename Cost>
+	std::vector<std::tuple<unsigned, unsigned, Cost>> minSpanningTreePrims(	unsigned pNnodes, 
+																			std::vector<std::tuple<unsigned, unsigned, Cost>>& pEdges)
+	{	
+		using Edge_t = std::tuple<unsigned, unsigned, Cost>;
+		
+		std::mt19937 randgen;
+		
+		std::vector<Cost> bestCost(pNnodes, std::numeric_limits<Cost>::max());
+		std::vector<unsigned> bestEdge(pNnodes, -1);
+		
+		std::vector<bool> nodeInForest(pNnodes, false);
+
+		std::vector<Edge_t> edgesIn;
+		
+
+		
+		while(true) {
+			
+			std::vector<unsigned> nodesOut;
+			
+			for(unsigned i=0; i<pNnodes; i++)
+				if(!nodeInForest[i])
+					nodesOut.push_back(i);
+			
+			if(nodesOut.size() == 0)
+				break;
+			
+			std::shuffle(nodesOut.begin(), nodesOut.end(), randgen);
+			
+			unsigned bestOutNode = nodesOut[0];
+			Cost costOutNode = bestCost[bestOutNode];
+
+			for(unsigned outn : nodesOut) {
+				if(costOutNode > bestCost[outn]) {
+					bestOutNode = outn;
+					costOutNode = bestCost[outn];
+				}
+			}
+			
+			
+			nodeInForest[bestOutNode] = true;
+			
+			if(bestEdge[bestOutNode] != (unsigned)-1)
+				edgesIn.push_back(pEdges[bestEdge[bestOutNode]]);
+			
+			for(unsigned i=0; i<pEdges.size(); i++) {
+				unsigned src = std::get<0>(pEdges[i]);
+				unsigned dst = std::get<1>(pEdges[i]);
+				unsigned cst = std::get<2>(pEdges[i]);
+				
+				if(src != bestOutNode)
+					continue;
+				
+				if(!nodeInForest[dst] && cst < bestCost[dst]) {
+					bestCost[dst] = cst;
+					bestEdge[dst] = i;
+				}
+			}
+		}
+		
+		
+		std::vector<bool> testseen(pNnodes, false);
+		
+		for(auto& e : edgesIn) {
+			testseen.at(std::get<0>(e)) = true;
+			testseen.at(std::get<1>(e)) = true;
+		}
+		
+		for(bool b : testseen)
+			fast_assert(b);
+		
+		return edgesIn;
+	}
 }}

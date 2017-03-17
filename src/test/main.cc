@@ -228,19 +228,39 @@ namespace mjon661 {
 	//> 0.6 0 [ 91 50 33 ] [ 17 5 36 ]
 	Json test_hypernav2() {
 		
-		using D_3 = gridnav::hypernav_blocked::TestDomainStack<3,1>;
-		using Astar2_t = algorithm::Astar2Impl<D_3, algorithm::Astar2SearchMode::Standard, false, false>;
+		using D_2 = gridnav::hypernav_blocked::TestDomainStack<2,1>;
+		using Astar2_t = algorithm::Astar2Impl<D_2, algorithm::Astar2SearchMode::Uninformed, false, false>;
 		
 		Json jConfig;
 		
-		jConfig["map"] = std::string(",1,0.6");
-		jConfig["dimsz"] = std::vector<unsigned>{100,99,100};
-			
-		D_3 domStack(jConfig);
-		typename D_3::template Domain<0> dom(domStack);
-		using State = typename decltype(dom)::State;
+		jConfig["map"] = std::string(",portalsSpanningTree,100,100,10");
+		jConfig["dimsz"] = std::vector<unsigned>{100,100};
 		
-		domStack.assignInitGoalStates(std::pair<State, State>({91,50,33},{17,5,36}));
+		D_2 domStack(jConfig);
+		typename D_2::template Domain<0> dom(domStack);
+		//using State = typename decltype(dom)::State;
+		
+		//domStack.assignInitGoalStates(std::pair<State, State>({0,0},{99,99}));
+
+
+		
+		
+		
+		std::ofstream dumpCellMapOfs("dump.txt");
+		
+		fast_assert(dumpCellMapOfs);
+		
+		for(unsigned h=0; h<100; h++) {
+			for(unsigned w=0; w<100; w++) {
+				if(domStack.mCellMap.cells().at(w+h*100) == gridnav::hypernav_blocked::Cell_t::Blocked)
+					dumpCellMapOfs << "O";
+				else
+					dumpCellMapOfs << " ";
+			}
+			dumpCellMapOfs << "\n";
+		}
+		
+		dumpCellMapOfs.flush();
 		
 		Astar2_t astaralg(domStack, Json());
 		
@@ -259,7 +279,7 @@ namespace mjon661 {
 		
 		for(auto blockedprob : {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}) {
 			Json jConfig;
-			jConfig["map"] = std::string(",1,") + std::to_string(blockedprob);
+			jConfig["map"] = std::string(",random,1,") + std::to_string(blockedprob);
 			jConfig["dimsz"] = std::vector<unsigned>{100,99,100};
 		
 			D_3 domStack(jConfig);
@@ -432,7 +452,7 @@ int main(int argc, const char* argv[]) {
 	
 	//std::cout << res.dump(4);
 	
-	std::cout << mjon661::test_hypernav().dump(4);
+	std::cout << mjon661::test_hypernav2().dump(4);
 	//std::cout << mjon661::gridnav::cube_blocked::test_cubenav_dirs() << "\n";
 	
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";

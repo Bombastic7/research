@@ -107,7 +107,7 @@ namespace mjon661 { namespace pancake {
 		}
 		
 		Cost distanceHeuristic(State const& pState) const {
-			return heuristicValue(pState);
+			return costHeuristic(pState);
 		}
 		
 		std::pair<Cost,Cost> pairHeuristics(State const& pState) {
@@ -145,8 +145,8 @@ namespace mjon661 { namespace pancake {
 	struct BaseDomain<N, true, Use_Weight> : public BaseDomain<N, false, Use_Weight> {
 		static_assert(!Use_Weight, "");
 		
-		using base_t = Domain_NoH<N, false>;
-		using base_t::Cost;
+		using base_t = BaseDomain<N, false, Use_Weight>;
+		using Cost = cost_t;
 		using base_t::PackedState;
 		
 		
@@ -161,12 +161,15 @@ namespace mjon661 { namespace pancake {
 				bool b = *this == o;
 				if(b) slow_assert(hrVal == o.hrVal);
 				return b;
+			}
 			
-			Cost hrVal;
+			typename base_t::Cost hrVal;
 		};
 
 
 		struct AdjEdgeIterator {
+			using Cost = typename base_t::Cost;
+			
 			AdjEdgeIterator(State& pState) :
 				mAdjState(pState),
 				mLastOp(1),
@@ -185,7 +188,7 @@ namespace mjon661 { namespace pancake {
 			
 			~AdjEdgeIterator() {
 				if(!finished()) {
-					mAdjState.hrVal = mOldHrVal;
+					mAdjState.hrVal = mLastHrVal;
 					mAdjState.flip(mLastOp);
 				}
 					
@@ -236,12 +239,12 @@ namespace mjon661 { namespace pancake {
 
 		
 		void initialiseState(State& s) const {
-			s0.hVal = computeGapHeuristic(s);
+			s.hrVal = computeGapHeuristic(s);
 		}
 		
 		void unpackState(State& pState, typename base_t::PackedState& pPacked) const {
 			base_t::unpackState(pState, pPacked);
-			pState.hVal = computeGapHeuristic(pState);
+			pState.hrVal = computeGapHeuristic(pState);
 		}
 
 		
@@ -369,7 +372,7 @@ namespace mjon661 { namespace pancake {
 		}
 
 		AdjEdgeIterator getAdjEdges(State& pState) const {
-			return AdjEdgeIterator(pState)
+			return AdjEdgeIterator(pState);
 		}
 		
 
@@ -390,12 +393,8 @@ namespace mjon661 { namespace pancake {
 			return a == b;
 		}
 		
-		void prettyPrint(State const& s, std::ostream& out) const {
+		void prettyPrintState(State const& s, std::ostream& out) const {
 			s.prettyPrint(out);
-		}
-		
-		void prettyPrint(Operator const& op, std::ostream &out) const {
-			out << op << "\n";
 		}
 
 		const IgnoreCakesAbt<N, Sz> mAbtor;

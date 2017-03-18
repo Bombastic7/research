@@ -8,7 +8,7 @@
 #include <string>
 #include <utility>
 #include "domain/gridnav/blocked/graph.hpp"
-//#include "domain/pancake/fwd.hpp"
+#include "domain/pancake/fwd.hpp"
 //#include "domain/tiles/fwd.hpp"
 //#include "domain/star_abt.hpp"
 
@@ -229,7 +229,7 @@ namespace mjon661 {
 	Json test_hypernav2() {
 		
 		using D_2 = gridnav::hypernav_blocked::TestDomainStack<2,1>;
-		using Astar2_t = algorithm::Astar2Impl<D_2, algorithm::Astar2SearchMode::Uninformed, false, false>;
+		using Astar2_t = algorithm::Astar2Impl<D_2, algorithm::Astar2SearchMode::Uninformed>;
 		
 		Json jConfig;
 		
@@ -273,7 +273,7 @@ namespace mjon661 {
 	
 	Json test_hypernav() {
 		using D_3 = gridnav::hypernav_blocked::TestDomainStack<3,1>;
-		using Astar2_t = algorithm::Astar2Impl<D_3, algorithm::Astar2SearchMode::Standard, false, false>;
+		using Astar2_t = algorithm::Astar2Impl<D_3, algorithm::Astar2SearchMode::Standard>;
 		
 		Json res;
 		
@@ -447,10 +447,19 @@ namespace mjon661 {
 		using DomStack_t = pancake::Pancake_DomainStack_IgnoreAbt<10, 5, 1, false, false>;
 		
 		DomStack_t domStack(jDomConfig);
+		typename DomStack_t::template Domain<0> dom(domStack);
 		
-		algorithm::Astar2Impl<DomStack_t> astaralg(domStack, Json());
+		algorithm::Astar2Impl<DomStack_t, algorithm::Astar2SearchMode::Uninformed> astaralg(domStack, Json());
 		
 		astaralg.execute(domStack.getInitState());
+		
+		for(auto* n = astaralg.mGoalNode; n; n=n->parent) {
+			decltype(dom)::State s;
+			dom.unpackState(s, n->pkd);
+			
+			dom.prettyPrintState(s, std::cout);
+			std::cout << "\n";
+		}
 		
 		return astaralg.report();		
 	}

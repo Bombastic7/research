@@ -31,7 +31,7 @@ namespace mjon661 { namespace algorithm {
 	}
 
 
-	template<typename D, Astar2SearchMode Search_Mode, bool Use_Abstraction_Hr, bool Perfect_Hr>
+	template<typename D, Astar2SearchMode Search_Mode>
 	class Astar2Impl {
 		public:
 
@@ -39,13 +39,7 @@ namespace mjon661 { namespace algorithm {
 		using Cost = typename Domain::Cost;
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
-		
-		static const unsigned Abt_Working_Level = Perfect_Hr ? 0 : 1;
-		
-		using AbtSearch = AdmissibleAbtSearch<D, Abt_Working_Level, D::Top_Abstract_Level+1, true>;
-		
-		static_assert(!Use_Abstraction_Hr || Search_Mode!=Astar2SearchMode::Speedy, "");
-		static_assert(!Perfect_Hr || Use_Abstraction_Hr, "");
+
 		
 		struct Node {
 			Cost g, f;
@@ -105,8 +99,7 @@ namespace mjon661 { namespace algorithm {
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
-			mNodePool			(),
-			mAbtSearch			(pDomStack, jConfig)
+			mNodePool			()
 		{
 			if(Search_Mode == Astar2SearchMode::Weighted)
 				mHrWeight = jConfig.at("weight");
@@ -294,31 +287,15 @@ namespace mjon661 { namespace algorithm {
 				n->f = n->g;
 		}
 		
-		
-		template<bool> struct Tag{};
-		
 		Cost getCostHr(State const& s) {
-			if(Use_Abstraction_Hr) {
-				Cost h;
-				doAbtSearch(s, h, Tag<Perfect_Hr>{});
-				return h;
-			}
 			return mDomain.costHeuristic(s);
 		}		
 		
-		void doAbtSearch(State const& s, Cost& h, Tag<false>) {
-			mAbtSearch.doSearch_ParentState(s, h);
-		}
-		
-		void doAbtSearch(State const& s, Cost& h, Tag<true>) {
-			mAbtSearch.doSearch(s, h);
-		}	
 
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
-		AbtSearch mAbtSearch;
 		
 		Node* mGoalNode;
 		double mHrWeight;

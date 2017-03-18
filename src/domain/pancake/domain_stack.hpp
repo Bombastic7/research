@@ -45,7 +45,7 @@ namespace mjon661 { namespace pancake {
 		template<unsigned L, typename = void>
 		struct Domain : public AbtDomain<N, cakesPerLevel(L), Use_Weight> {
 			Domain(domStack_t const& pStack) :
-				Domain_NoH_Relaxed<N, cakesPerLevel(L), Use_Weight>(pStack.mCakeDropLevel, L)
+				AbtDomain<N, cakesPerLevel(L), Use_Weight>(pStack.mCakeDropLevel, L)
 			{}
 		};
 		 
@@ -54,7 +54,7 @@ namespace mjon661 { namespace pancake {
 		struct Domain<0, Ign> : BaseDomain<N, Use_H, Use_Weight> {
 
 			Domain(domStack_t const& pStack) :
-				Pancake_Domain<N, Use_H, Use_Weight>(pStack.mInitState)
+				BaseDomain<N, Use_H, Use_Weight>()
 			{}
 		};
 		

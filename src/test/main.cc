@@ -233,8 +233,8 @@ namespace mjon661 {
 		
 		Json jConfig;
 		
-		jConfig["map"] = std::string(",portalsSpanningTree,100,100,10");
-		jConfig["dimsz"] = std::vector<unsigned>{100,100};
+		jConfig["map"] = std::string(",portalsSpanningTree,2000,2000,10");
+		jConfig["dimsz"] = std::vector<unsigned>{2000,2000};
 		
 		D_2 domStack(jConfig);
 		typename D_2::template Domain<0> dom(domStack);
@@ -250,9 +250,9 @@ namespace mjon661 {
 		
 		fast_assert(dumpCellMapOfs);
 		
-		for(unsigned h=0; h<100; h++) {
-			for(unsigned w=0; w<100; w++) {
-				if(domStack.mCellMap.cells().at(w+h*100) == gridnav::hypernav_blocked::Cell_t::Blocked)
+		for(unsigned h=0; h<2000; h++) {
+			for(unsigned w=0; w<2000; w++) {
+				if(domStack.mCellMap.cells().at(w+h*2000) == gridnav::hypernav_blocked::Cell_t::Blocked)
 					dumpCellMapOfs << "O";
 				else
 					dumpCellMapOfs << " ";
@@ -436,6 +436,24 @@ namespace mjon661 {
 		
 	}
 	*/
+	
+	
+	Json test_pancake() {
+		
+		Json jDomConfig;
+		jDomConfig["init"] = {8, 9, 4 ,3 ,7 ,0, 5, 2, 1, 6};
+		jDomConfig["kept"] = {1, 1, 1, 1, 1, 2, 3, 4, 5, 6};
+		
+		using DomStack_t = pancake::Pancake_DomainStack_IgnoreAbt<10, 5, 1, false, false>;
+		
+		DomStack_t domStack(jDomConfig);
+		
+		algorithm::Astar2Impl<DomStack_t> astaralg(domStack, Json());
+		
+		astaralg.execute(domStack.getInitState());
+		
+		return astaralg.report();		
+	}
 }
 
 int main(int argc, const char* argv[]) {
@@ -452,7 +470,9 @@ int main(int argc, const char* argv[]) {
 	
 	//std::cout << res.dump(4);
 	
-	std::cout << mjon661::test_hypernav2().dump(4);
+	//std::cout << mjon661::test_hypernav2().dump(4);
+	std::cout << mjon661::test_pancake().dump(4);
+	
 	//std::cout << mjon661::gridnav::cube_blocked::test_cubenav_dirs() << "\n";
 	
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";

@@ -20,13 +20,17 @@ namespace mjon661 { namespace pancake {
 		IgnoreCakesAbt(std::array<cake_t, N> const& pCakeDropLevel, unsigned pLevel) :
 			mKeptCakesTable{}
 		{
+			unsigned nKept = 0;
 			
 			for(unsigned i=0; i<N; i++) {
-				if(pCakeDropLevel[i] <= (int)pLevel)
+				if(pCakeDropLevel.at(i) <= (int)pLevel)
 					continue;
 				
+				nKept++;
 				mKeptCakesTable[i] = true;
 			}
+			
+			fast_assert(nKept == AbtSz);
 		}
 		
 		template<int BaseSz>

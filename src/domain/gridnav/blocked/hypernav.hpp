@@ -234,18 +234,6 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 				}
 				
 				std::shuffle(spaceEdges.begin(), spaceEdges.end(), randgen);
-				
-				for(auto& e : spaceEdges) {
-					unsigned src = std::get<0>(e);
-					unsigned dst = std::get<1>(e);
-					
-					unsigned x = (src % spacesX) * wallInterval;
-					unsigned y = (src / spacesX) * wallInterval;
-					unsigned px = (dst % spacesX) * wallInterval;
-					unsigned py = (dst / spacesX) * wallInterval;
-					logDebugStream() << "x=" << x << " y=" << y << " px=" << px << " py=" << py << "\n";
-				}
-				
 			
 				
 				std::vector<std::tuple<unsigned, unsigned, double>> stedges = mathutil::minSpanningTreePrims<double>(spacesX*spacesY, spaceEdges);
@@ -260,9 +248,6 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 					unsigned y = src / spacesX;
 					unsigned px = dst % spacesX;
 					unsigned py = dst / spacesX;
-					
-					logDebugStream() << "x=" << x << " y=" << y << " px=" << px << " py=" << py << "\n";
-					g_logDebugOfs.flush();
 					
 					unsigned wally, wallx;
 					wally = wallx = (unsigned)-1;
@@ -283,8 +268,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 					if(y == py + 1) wally = y*wallInterval-1;
 					if(x == px - 1) wallx = px*wallInterval-1;
 					if(x == px + 1) wallx = x*wallInterval-1;
-				
-					logDebugStream() << "wallx=" << wallx << " wally=" << wally << "\n";
+
 					mCells.at(wallx + wally*width) = Cell_t::Open;
 				}
 

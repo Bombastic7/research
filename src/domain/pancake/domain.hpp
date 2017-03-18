@@ -6,6 +6,7 @@
 #include <iostream>
 #include <limits>
 #include <vector>
+#include <utility>
 
 #include "util/debug.hpp"
 #include "util/permutation.hpp"
@@ -21,76 +22,69 @@ namespace mjon661 { namespace pancake {
 	
 	//Pancake domain, No heuristics
 
-	template<unsigned N, bool Use_Weight>
-	class Domain_NoH {
+	template<unsigned N, bool Use_Hr, bool Use_Weight>
+	class BaseDomain {
 		
 		public:
 		
 		using Cost = cost_t;
-		using Operator = int;
 		
 		using State = PancakeStack<N>;
 		using PackedState = typename State::packed_t;
 		
-		
 		static const unsigned Npancakes = N;
-		
 		static const bool Is_Perfect_Hash = false;
 		
+		
+		struct AdjEdgeIterator {
+			
+			AdjEdgeIterator(State& pState) :
+				mAdjState(pState),
+				mLastOp(1),
+				mTest_origState(pState)
+			{
+				mAdjState.flip(1);
+			}
+			
+			~AdjEdgeIterator() {
+				if(!finished())
+					mAdjState.flip(mLastOp);
+					
+				slow_assert(mAdjState == mTest_origState);
+			}
+			
+			State& state() const {
+				slow_assert(!finished());
+				return mAdjState;
+			}
+			
+			Cost cost() const {
+				slow_assert(!finished());
+				return Use_Weight ? mLastOp : 1;
+			}
+			
+			bool finished() const {
+				return mLastOp == (unsigned)-1;
+			}
+			
+			void next() {
+				slow_assert(!finished());
+				mAdjState.flip(mLastOp);
+				mLastOp++;
+				if(mLastOp == N) {
+					mLastOp = (unsigned)-1;
+					slow_assert(mTest_origState == mAdjState);
+					return;
+				}
+				mAdjState.flip(mLastOp);
+			}
+			
+			State& mAdjState;
+			unsigned mLastOp;
+			
+			const State mTest_origState;
+		};
 
-		
-		struct OperatorSet {
-		
-			unsigned size() const {
-				return N-1;
-			}
-		
-			Operator operator[](unsigned i) const {
-				return i+1;
-			}
-		};
-	
-		struct Edge {
-			Edge(Cost pCost, State& pState, Operator pParentOp) :
-				mCost(pCost), mState(pState), mParentOp(pParentOp) {}
-				
-			State& state() {
-				return mState;
-			}
-			
-			Cost cost() {
-				return mCost;
-			}
-			
-			Operator parentOp() {
-				return mParentOp;
-			}
-			
-			Cost mCost;
-			State& mState;
-			Operator mParentOp;
-		};
-		
-		
-		
-		
-		Domain_NoH() :
-			mHasInitState(false)
-		{}
-		
-		Domain_NoH(PancakeStack<N> const& pInit) :
-			mHasInitState(true),
-			mInitState(pInit)
-		{}
-		
-		int getNoOp() const {
-			return -1;
-		}
-		
-		State createState() const {
-			fast_assert(mHasInitState);
-			return mInitState;
-		}
 			
 		void packState(State const& pState, PackedState& pPacked) const {
 			pPacked = pState.getPacked();
@@ -100,34 +94,25 @@ namespace mjon661 { namespace pancake {
 			pState.fromPacked(pPacked);
 		}
 		
-		
-		Edge createEdge(State& pState, Operator op) const {
-			pState.flip(op);
-			return Edge( (Use_Weight ? op : 1) , pState, op);
+		AdjEdgeIterator getAdjEdges(State& pState) const {
+			return AdjEdgeIterator(pState);
 		}
-		
-		void destroyEdge(Edge& pEdge) const {
-			pEdge.mState.flip(pEdge.mParentOp);
-		}
-		
-		
-		OperatorSet createOperatorSet(State const&) const {
-			return OperatorSet();
-		}
-		
+
 		size_t hash(PackedState const& pPacked) const {
 			return State::doHash(pPacked);
 		}
-		
-		
-		Cost heuristicValue(State const& pState) const {
+
+		Cost costHeuristic(State const& pState) const {
 			return 0;
 		}
 		
-		Cost distanceValue(State const& pState) const {
+		Cost distanceHeuristic(State const& pState) const {
 			return heuristicValue(pState);
 		}
 		
+		std::pair<Cost,Cost> pairHeuristics(State const& pState) {
+			return {costHeuristic(pState), distanceHeuristic(pState)};
+		}
 		
 		bool checkGoal(State const& pState) const {
 			return pState.isSorted();
@@ -141,18 +126,11 @@ namespace mjon661 { namespace pancake {
 			return a == b;
 		}
 		
-		void prettyPrint(State const& s, std::ostream& out) const {
+		void prettyPrintState(State const& s, std::ostream& out) const {
 			s.prettyPrint(out);
 		}
 		
-		void prettyPrint(Operator const& op, std::ostream &out) const {
-			out << op << "\n";
-		}
-		
-		private:
-
-		const bool mHasInitState;
-		PancakeStack<N> mInitState;
+		void initialiseState(State& s) const {}
 	};
 	
 	
@@ -163,54 +141,102 @@ namespace mjon661 { namespace pancake {
 	
 	//Pancake domain, gap heuristic
 	
-	template<unsigned N>
-	struct Domain_GapH : public Domain_NoH<N, false> {
+	template<unsigned N, bool Use_Weight>
+	struct BaseDomain<N, true, Use_Weight> : public BaseDomain<N, false, Use_Weight> {
+		static_assert(!Use_Weight, "");
 		
 		using base_t = Domain_NoH<N, false>;
 		using base_t::Cost;
-		using base_t::Operator;
 		using base_t::PackedState;
 		
 		
 		struct State : public base_t::State {
-			
 			State() = default;
 			
 			State(typename base_t::State const& o) :
 				base_t::State(o)
 			{}
 			
-			typename base_t::Cost hVal;
+			bool operator==(State const& o) const {
+				bool b = *this == o;
+				if(b) slow_assert(hrVal == o.hrVal);
+				return b;
+			
+			Cost hrVal;
+		};
+
+
+		struct AdjEdgeIterator {
+			AdjEdgeIterator(State& pState) :
+				mAdjState(pState),
+				mLastOp(1),
+				mLastHrVal(pState.hrVal),
+				mTest_origState(pState)
+			{
+				bool gap_before = hasGap(mAdjState, mLastOp);
+				mAdjState.flip(mLastOp);
+				bool gap_after = hasGap(mAdjState, mLastOp);
+		
+				if (gap_before && !gap_after)
+					mAdjState.hrVal--;
+				else if (!gap_before && gap_after)
+					mAdjState.hrVal++;
+			}
+			
+			~AdjEdgeIterator() {
+				if(!finished()) {
+					mAdjState.hrVal = mOldHrVal;
+					mAdjState.flip(mLastOp);
+				}
+					
+				slow_assert(mAdjState == mTest_origState);
+			}
+			
+			State& state() const {
+				slow_assert(!finished());
+				return mAdjState;
+			}
+			
+			Cost cost() const {
+				slow_assert(!finished());
+				return Use_Weight ? mLastOp : 1;
+			}
+			
+			bool finished() const {
+				return mLastOp == (unsigned)-1;
+			}
+			
+			void next() {
+				slow_assert(!finished());
+				mAdjState.flip(mLastOp);
+				mAdjState.hrVal = mLastHrVal;
+				mLastOp++;
+				if(mLastOp == N) {
+					mLastOp = (unsigned)-1;
+					slow_assert(mTest_origState == mAdjState);
+					return;
+				}
+				mAdjState.flip(mLastOp);
+				bool gap_before = hasGap(mAdjState, mLastOp);
+				mAdjState.flip(mLastOp);
+				bool gap_after = hasGap(mAdjState, mLastOp);
+		
+				if (gap_before && !gap_after)
+					mAdjState.hrVal--;
+				else if (!gap_before && gap_after)
+					mAdjState.hrVal++;
+			}
+			
+			State& mAdjState;
+			unsigned mLastOp;
+			unsigned mLastHrVal;
+			
+			const State mTest_origState;
 		};
 
 		
-		struct Edge : public base_t::Edge {
-			
-			Edge(typename base_t::Cost pCost, State& pState, typename base_t::Operator pParentOp, typename base_t::Cost pOldH ) :
-				base_t::Edge(pCost, pState, pParentOp),
-				mOldH(pOldH),
-				mState(pState)
-			{}
-			
-			State& state() {
-				return mState;
-			}
-			
-			typename base_t::Cost mOldH;
-			State& mState;
-		};
-		
-		Domain_GapH() = default;
-		
-		Domain_GapH(PancakeStack<N> const& pInit) :
-			base_t(pInit)
-		{}
-		
-		
-		State createState() const {
-			State s0(base_t::createState());
-			s0.hVal = computeGapHeuristic(s0);
-			return s0;
+		void initialiseState(State& s) const {
+			s0.hVal = computeGapHeuristic(s);
 		}
 		
 		void unpackState(State& pState, typename base_t::PackedState& pPacked) const {
@@ -219,40 +245,17 @@ namespace mjon661 { namespace pancake {
 		}
 
 		
-		Edge createEdge(State& pState, typename base_t::Operator op) const {
-			
-			cost_t oldH = pState.hVal;
-			
-			bool gap_before = hasGap(pState, op);
-			pState.flip(op);
-
-			bool gap_after = hasGap(pState, op);
-		
-			if (gap_before && !gap_after)
-				pState.hVal--;
-			
-			else if (!gap_before && gap_after)
-				pState.hVal++;
-			
-			return Edge(1, pState, op, oldH);
-		}
-		
-		
-		void destroyEdge(Edge& pEdge) const {
-			pEdge.mState.flip(pEdge.mParentOp);
-			pEdge.mState.hVal = pEdge.mOldH;
-		}
-		
-		
-		
-		cost_t heuristicValue(State const& pState) const {
+		Cost costHeuristic(State const& pState) const {
 			return pState.hVal;
 		}
 		
-		cost_t distanceValue(State const& pState) const {
+		Cost distanceHeuristic(State const& pState) const {
 			return pState.hVal;
 		}
 		
+		std::pair<Cost,Cost> pairHeuristics(State const& pState) const {
+			return {pState.hval, pState.hval};
+		}
 		
 		static int computeGapHeuristic(PancakeStack<N> const& pState) {
 			int n = 0;
@@ -282,83 +285,76 @@ namespace mjon661 { namespace pancake {
 	};
 	
 	
-	template<unsigned N, bool Use_H, bool Use_Weight>
-	struct Pancake_Domain;
 	
-	template<unsigned N, bool Use_Weight>
-	struct Pancake_Domain<N, false, Use_Weight> : public Domain_NoH<N, Use_Weight> {
-		using Domain_NoH<N, Use_Weight>::Domain_NoH;
-	};
-	
-	template<unsigned N>
-	struct Pancake_Domain<N, true, false> : public Domain_GapH<N> {
-		using Domain_GapH<N>::Domain_GapH;
-	};
-	
-	
-	
-	
-	
-	
+	//Domain for abstract space, N cakes, Sz which are not ignored.
 	template<unsigned N, unsigned Sz, bool Use_Weight>
-	struct Domain_NoH_Relaxed {
+	struct AbtDomain {
 		
 		public:
 		
-		using Cost = cost_t;
-		using Operator = int;
-		
+		using Cost = cost_t;		
 		using State = PartialPancakeStack<N, Sz>;
 		using PackedState = typename State::packed_t;
 		
 		
 		static const unsigned Npancakes = N, NKeptPancakes = Sz;
-		
 		static const bool Is_Perfect_Hash = false;
 		
 
-		
-		struct OperatorSet {
-		
-			unsigned size() const {
-				return N-1;
+		struct AdjEdgeIterator {
+			
+			AdjEdgeIterator(State& pState) :
+				mAdjState(pState),
+				mLastOp(1),
+				mTest_origState(pState)
+			{
+				mAdjState.flip(1);
 			}
-		
-			Operator operator[](unsigned i) const {
-				return i+1;
+			
+			~AdjEdgeIterator() {
+				if(!finished())
+					mAdjState.flip(mLastOp);
+					
+				slow_assert(mAdjState == mTest_origState);
 			}
+			
+			State& state() const {
+				slow_assert(!finished());
+				return mAdjState;
+			}
+			
+			Cost cost() const {
+				slow_assert(!finished());
+				return Use_Weight ? mLastOp : 1;
+			}
+			
+			bool finished() const {
+				return mLastOp == (unsigned)-1;
+			}
+			
+			void next() {
+				slow_assert(!finished());
+				mAdjState.flip(mLastOp);
+				mLastOp++;
+				if(mLastOp == N) {
+					mLastOp = (unsigned)-1;
+					slow_assert(mTest_origState == mAdjState);
+					return;
+				}
+				mAdjState.flip(mLastOp);
+			}
+			
+			State& mAdjState;
+			unsigned mLastOp;
+			
+			const State mTest_origState;
 		};
-	
-		struct Edge {
-			Edge(Cost pCost, State& pState, Operator pParentOp) :
-				mCost(pCost), mState(pState), mParentOp(pParentOp) {}
-				
-			State& state() {
-				return mState;
-			}
-			
-			Cost cost() {
-				return mCost;
-			}
-			
-			Operator parentOp() {
-				return mParentOp;
-			}
-			
-			Cost mCost;
-			State& mState;
-			Operator mParentOp;
-		};
 		
-
-		Domain_NoH_Relaxed(std::array<cake_t, N> const& pCakeDropLevel, unsigned pLevel) :
+		
+		AbtDomain(std::array<cake_t, N> const& pCakeDropLevel, unsigned pLevel) :
 			mAbtor(pCakeDropLevel, pLevel)
 		{}
 
-		int getNoOp() const {
-			return -1;
-		}
-		
 		template<typename BS>
 		State abstractParentState(BS const& bs) const {
 			return mAbtor(bs);
@@ -371,35 +367,16 @@ namespace mjon661 { namespace pancake {
 		void unpackState(State& pState, PackedState const& pPacked) const {
 			pState.fromPacked(pPacked);
 		}
-		
-		
-		Edge createEdge(State& pState, Operator op) const {
-			pState.flip(op);
-			return Edge( (Use_Weight ? op : 1), pState, op);
+
+		AdjEdgeIterator getAdjEdges(State& pState) const {
+			return AdjEdgeIterator(pState)
 		}
 		
-		void destroyEdge(Edge& pEdge) const {
-			pEdge.mState.flip(pEdge.mParentOp);
-		}
-		
-		
-		OperatorSet createOperatorSet(State const&) const {
-			return OperatorSet();
-		}
-		
+
 		size_t hash(PackedState const& pPacked) const {
 			return State::doHash(pPacked);
 		}
-		
-		
-		Cost heuristicValue(State const& pState) const {
-			return 0;
-		}
-		
-		Cost distanceValue(State const& pState) const {
-			return heuristicValue(pState);
-		}
-		
+
 		
 		bool checkGoal(State const& pState) const {
 			return pState.isSorted();

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <vector>
+#include <utility>
 
 #include "util/json.hpp"
 #include "util/math.hpp"
@@ -13,6 +14,14 @@
 
 namespace mjon661 { namespace pancake {
 	 
+	 
+	 //N= number of cakes in base domain.
+	 //Abt1Sz= number of cakes in first abstract domain (L = 1).
+	 //AbtStep= number of cakes that are removed when abstracting from L>=1 to the next level.
+	 //Use_H= if true, base domain provides the gap heuristic. Else no heuristic is provided.
+	 //Use_Weight= if true, cost of operator equals positions of last affected cake (i.e. cost = [1..N-1]). Else all operator costs are 1.
+	 
+	 //The highest level domain has at least two cakes.
 	 
 	 template<unsigned N, unsigned Abt1Sz, unsigned AbtStep, bool Use_H, bool Use_Weight>
 	 struct Pancake_DomainStack_IgnoreAbt {
@@ -34,16 +43,15 @@ namespace mjon661 { namespace pancake {
 		 
 		 
 		template<unsigned L, typename = void>
-		struct Domain : public Domain_NoH_Relaxed<N, cakesPerLevel(L), Use_Weight> {
+		struct Domain : public AbtDomain<N, cakesPerLevel(L), Use_Weight> {
 			Domain(domStack_t const& pStack) :
 				Domain_NoH_Relaxed<N, cakesPerLevel(L), Use_Weight>(pStack.mCakeDropLevel, L)
 			{}
 		};
 		 
-		 
 
 		template<typename Ign>
-		struct Domain<0, Ign> : Pancake_Domain<N, Use_H, Use_Weight> {
+		struct Domain<0, Ign> : BaseDomain<N, Use_H, Use_Weight> {
 
 			Domain(domStack_t const& pStack) :
 				Pancake_Domain<N, Use_H, Use_Weight>(pStack.mInitState)
@@ -64,7 +72,12 @@ namespace mjon661 { namespace pancake {
 		}
 
 		typename Domain<0>::State getInitState() {
-			return mInitState;
+			auto s = mInitState;
+			
+			Domain<0> dom(*this);
+			dom.initialiseState(s);
+			
+			return s;
 		}
 
 

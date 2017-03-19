@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <cmath>
+#include <algorithm>
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
 #include "search/nodepool.hpp"
@@ -20,10 +21,147 @@
 
 namespace mjon661 { namespace algorithm {
 
+	enum struct BugsySearchMode {
+		Delay, BranchingFactor
+	};
+	
+	std::string BugsySearchModeStr(BugsySearchMode m) {
+		if(m == BugsySearchMode::Delay)
+			return "Delay";
+		else if(m == BugsySearchMode::BranchingFactor)
+			return "BranchingFactor";
+		
+		gen_assert(false);
+		return "";
+	}
+	
+	
+	template<typename, BugsySearchMode>
+	struct CompRemExpansions;
+	
+	
+	
+	template<typename D>
+	struct CompRemExpansions<D, BugsySearchMode::Delay> {
+		
+		
+		void reset() {
+			mLog_nextExpDelayAcc = 0;
+			mLog_curExpDelay = 1;
+			mLog_pastExpDelays.clear();
+			mLog_pastExpDelays.push_back(mLog_curExpDelay);
+		}
+		
+		template<typename Node>
+		void informExpansion(Node* n, unsigned pExpDelay) {
+			mLog_nextExpDelayAcc += pExpDelay;
+		}
+		
+		void update(unsigned pExpSinceLast) {
+			mLog_curExpDelay = (double)mLog_nextExpDelayAcc / pExpSinceLast;
+			mLog_nextExpDelayAcc = 0;
+			mLog_pastExpDelays.push_back(mLog_curExpDelay);
+		}
+		
+		template<typename Cost>
+		double eval(Cost d) {
+			return d * mLog_curExpDelay;
+		}
+		
+		Json report() {
+			Json j;
+			j["past_delays"] = mLog_pastExpDelays;
+			return j;
+		}
+
+		unsigned mLog_nextExpDelayAcc;
+		double mLog_curExpDelay;
+		
+		std::vector<double> mLog_pastExpDelays;
+	};
+	
+	
+	
+	template<typename D>
+	struct CompRemExpansions<D, BugsySearchMode::BranchingFactor> {
+		
+		using Cost = typename D::template Domain<0>::Cost;
+		
+		void reset() {
+			mLog_fexp.clear();
+			mLog_curBF = 1;
+			mLog_pastBFs.clear();
+			mLog_pastBFs.push_back(mLog_curBF);
+		}
+		
+		template<typename Node>
+		void informExpansion(Node* n, unsigned) {
+			mLog_fexp[n->f]++;
+		}
+		
+		void update(unsigned pExpSinceLast) {
+			logDebug("update bf start");//.........
+			logDebug(std::to_string(mLog_fexp.size()));
+			if(mLog_fexp.size() < 2)
+				return;
+		
+			std::vector<double> bfsamples;
+						
+			auto it = mLog_fexp.begin(), itprev = mLog_fexp.begin();
+			++it;
+			
+			for(; it!=mLog_fexp.end(); ++it, ++itprev)
+				bfsamples.push_back((double)it->second/itprev->second);
+			
+			std::sort(bfsamples.begin(), bfsamples.end());
+			
+			double acc = 0;
+			unsigned nused = 0;
+			
+			if(bfsamples.size() >= 3) {
+				for(unsigned i=1; i<bfsamples.size()-1; i++)
+					acc += bfsamples[i];
+				nused = bfsamples.size()-2;
+			}
+			else if(bfsamples.size() == 2) {
+				acc = bfsamples[0] + bfsamples[1];
+				nused = 2;
+			}
+			else {
+				acc = bfsamples[0];
+				nused = 1;
+			}
+			
+			acc /= nused;
+			
+			if(acc > 5)
+				acc = 5;
+			
+			mLog_curBF = acc;
+			mLog_pastBFs.push_back(mLog_curBF);
+			logDebugStream() << "update. new bf=" << mLog_curBF << "\n";
+		}
+
+		double eval(Cost d) {
+			return std::pow(mLog_curBF, d);
+		}
+		
+		Json report() {
+			Json j;
+			j["used_bf"] = mLog_pastBFs;
+			return j;
+		}
+		
+
+		std::map<Cost, unsigned> mLog_fexp;
+		double mLog_curBF;
+		
+		std::vector<double> mLog_pastBFs;
+	};
+	
 
 
-
-	template<typename D, bool Use_Exp_Time>
+	template<typename D, bool Use_Exp_Time, BugsySearchMode Search_Mode>
 	class BugsyImpl {
 		public:
 
@@ -105,14 +243,12 @@ namespace mjon661 { namespace algorithm {
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
+			mCompRemExp.reset();
 
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
-			
-			mLog_curExpDelay = 1;
-			mLog_nextExpDelayAcc = 0;
 			mLog_curExpTime = Use_Exp_Time ? 0 : 1;
-			mLog_curDistFact = mLog_curExpDelay * mLog_curExpTime * mParams_wt;
-
+			mLog_curDistFact = mLog_curExpTime * mParams_wt;
+			
 			mGoalNode = nullptr;
 			
 			mResort_next = 16;
@@ -172,9 +308,9 @@ namespace mjon661 { namespace algorithm {
 			j["resort_next"] = mResort_next;
 			j["resort_n"] = mResort_n;
 			j["curExpTime"] = mLog_curExpTime;
-			j["curExpDelay"] = mLog_curExpDelay;
 			j["wf"] = mParams_wf;
 			j["wt"] = mParams_wt;
+			j["comp_remexp"] = mCompRemExp.report();
 			
 			if(mGoalNode) {
 				j["goal_g"] = mGoalNode->g;
@@ -219,8 +355,8 @@ namespace mjon661 { namespace algorithm {
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
-			
 			mTest_exp_f[n->f]++;
+			informExpansion(n);
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
@@ -243,6 +379,7 @@ namespace mjon661 { namespace algorithm {
 					if(kid_dup->g > kid_g) {
 						kid_dup->g			= kid_g;
 						kid_dup->parent		= n;
+						kid_dup->expdGen	= mLog_expd;
 						
 						evalHr(kid_dup, edgeIt.state());
 						
@@ -259,6 +396,7 @@ namespace mjon661 { namespace algorithm {
 					kid_node->g 		= kid_g;
 					kid_node->pkd 		= kid_pkd;
 					kid_node->parent	= n;
+					kid_node->expdGen	= mLog_expd;
 					
 					evalHr(kid_node, edgeIt.state());
 
@@ -273,11 +411,11 @@ namespace mjon661 { namespace algorithm {
 			std::pair<Cost, Cost> hrvals = mDomain.pairHeuristics(s);
 
 			n->f = n->g + hrvals.first;
-			n->u = mParams_wf * n->f + mLog_curDistFact * hrvals.second;
+			n->u = mParams_wf * n->f + mLog_curDistFact * mCompRemExp.eval(hrvals.second);
 		}
 		
 		void informExpansion(Node* n) {
-			mLog_nextExpDelayAcc += mLog_expd - n->expdGen;
+			mCompRemExp.informExpansion(n, mLog_expd - n->expdGen);
 		}
 		
 		void doResort() {
@@ -289,8 +427,8 @@ namespace mjon661 { namespace algorithm {
 				mLog_curExpTime = mTimer.seconds() / expThisPhase;
 			}
 			
-			mLog_curExpDelay = mLog_nextExpDelayAcc / expThisPhase;
-			mLog_nextExpDelayAcc = 0;
+			logDebug(std::to_string(expThisPhase));//.......
+			mCompRemExp.update(expThisPhase);
 			
 			for(unsigned i=0; i<mOpenList.size(); i++) {
 				State s;
@@ -303,7 +441,7 @@ namespace mjon661 { namespace algorithm {
 			mResort_n++;
 			mResort_next *= 2;
 			
-			mLog_curDistFact = mLog_curExpDelay * mLog_curExpTime * mParams_wt;
+			mLog_curDistFact = mLog_curExpTime * mParams_wt;
 		}
 		
 
@@ -313,6 +451,7 @@ namespace mjon661 { namespace algorithm {
 		NodePool_t mNodePool;
 		Node* mGoalNode;
 		Timer mTimer; //Should this be walltime or cputime ??
+		CompRemExpansions<D, Search_Mode> mCompRemExp;
 		
 		const double mParams_wf, mParams_wt;
 		
@@ -320,8 +459,7 @@ namespace mjon661 { namespace algorithm {
 
 		unsigned mResort_next, mResort_n;
 		
-		double mLog_curExpDelay, mLog_curExpTime, mLog_curDistFact;
-		unsigned mLog_nextExpDelayAcc;
+		double mLog_curExpTime, mLog_curDistFact;
 		
 		std::map<Cost, unsigned> mTest_exp_f;
 	};

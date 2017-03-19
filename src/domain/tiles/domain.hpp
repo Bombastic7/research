@@ -94,7 +94,7 @@ namespace mjon661 { namespace tiles {
 			
 			Cost cost() const {
 				slow_assert(!finished());
-				return Use_Weight ? mOrigBlankPos : 1;
+				return Use_Weight ? 1 + mOrigBlankPos / W : 1;
 			}
 			
 			void next() {
@@ -257,7 +257,7 @@ namespace mjon661 { namespace tiles {
 			
 			Cost cost() const {
 				slow_assert(!finished());
-				return Use_Weight ? mOrigBlankPos : 1;
+				return Use_Weight ? 1 + mOrigBlankPos / W : 1;
 			}
 			
 			void next() {
@@ -395,7 +395,7 @@ namespace mjon661 { namespace tiles {
 			
 			Cost cost() const {
 				slow_assert(!finished());
-				return Use_Weight ? mOrigBlankPos : 1;
+				return Use_Weight ? 1 + mOrigBlankPos / W : 1;
 			}
 			
 			void next() {

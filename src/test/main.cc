@@ -496,7 +496,7 @@ namespace mjon661 {
 		
 		
 
-		using DomStack_t = tiles::TilesGeneric_DomainStack<H, W, true, false, 1>;
+		using DomStack_t = tiles::TilesGeneric_DomainStack<H, W, true, true, 1>;
 		using Alg_t = Alg_t_D<DomStack_t>;
 		
 		
@@ -546,28 +546,39 @@ namespace mjon661 {
 		return jRes;
 	}
 	
-	
+
 	
 	
 	template<typename D> using AstarAlg_t_D = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>;
-	template<typename D> using BugsyAlg_t_D = algorithm::BugsyImpl<D, false>;
+	template<typename D> using BugsyAlgDelay_t_D = algorithm::BugsyImpl<D, false, algorithm::BugsySearchMode::Delay>;
+	template<typename D> using BugsyAlgBf_t_D = algorithm::BugsyImpl<D, false, algorithm::BugsySearchMode::BranchingFactor>;
 	
 	Json run_tiles_44() {
 
 		Json jRes;
 		
-		std::vector<std::pair<double,double>> weights = {{1,1}, {1,0}, {10,1}, {100,1}, {1000,1}};
+		std::vector<std::pair<double,double>> weights = {{1,0}, {1000,1}, {10000,1}, {100000,1}, {200000,1}, {300000,1}};
 		
 		for(unsigned i=0; i<3; i++) {
 			jRes[std::to_string(i)]["astar"] = run_tiles_hr<4,4, AstarAlg_t_D>(i);
 			
 			for(auto& w : weights) {
-				std::string algStr = std::string("bugsy_") +  std::to_string(w.first) + "_" + std::to_string(w.second);
+				std::string algStr_delay = std::string("bugsyDelay_") +  std::to_string(w.first) + "_" + std::to_string(w.second);
+				std::string algStr_bf = std::string("bugsyBF_") +  std::to_string(w.first) + "_" + std::to_string(w.second);
 				
 				Json jAlgConfig;
 				jAlgConfig["wf"] = w.first;
 				jAlgConfig["wt"] = w.second;
-				jRes[std::to_string(i)][algStr] = run_tiles_hr<4,4, BugsyAlg_t_D>(i, jAlgConfig);
+				
+				jRes[std::to_string(i)][algStr_delay] = run_tiles_hr<4,4, BugsyAlgDelay_t_D>(i, jAlgConfig);
+				jRes[std::to_string(i)][algStr_delay]["utility"] = 
+					w.first * jRes[std::to_string(i)][algStr_delay]["goal_g"].get<double>() +
+					w.second * jRes[std::to_string(i)][algStr_delay]["wall_time"].get<double>();
+
+				jRes[std::to_string(i)][algStr_bf] = run_tiles_hr<4,4, BugsyAlgBf_t_D>(i, jAlgConfig);
+				jRes[std::to_string(i)][algStr_bf]["utility"] = 
+					w.first * jRes[std::to_string(i)][algStr_bf]["goal_g"].get<double>() +
+					w.second * jRes[std::to_string(i)][algStr_bf]["wall_time"].get<double>();
 			}
 		}
 		

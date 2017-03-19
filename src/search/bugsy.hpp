@@ -3,6 +3,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <map>
 #include <cmath>
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
@@ -20,39 +21,16 @@
 namespace mjon661 { namespace algorithm {
 
 
-	
-	enum struct BugsyHrMode {
-		Abt_min, Abt_delayweight, Dom
-	};
-	
-	std::string bugsyHrModeStr(BugsyHrMode m) {
-		if(m == BugsyHrMode::Abt_min)
-			return "Abt_min";
-		else if(m == BugsyHrMode::Abt_delayweight)
-			return "Abt_delayweight";
-		else if(m == BugsyHrMode::Dom)
-			return "Dom";
-		else
-			gen_assert(false);
-		return "";
-	}
 
 
-
-	template<typename D, bool Use_Exp_Time, BugsyHrMode Hr_Mode>
+	template<typename D, bool Use_Exp_Time>
 	class BugsyImpl {
 		public:
 
 		using Domain = typename D::template Domain<0>;
 		using Cost = typename Domain::Cost;
-		using Operator = typename Domain::Operator;
-		using OperatorSet = typename Domain::OperatorSet;
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
-		using Edge = typename Domain::Edge;
-		using AbtSearch_cost = AdmissibleAbtSearch<D, 1, D::Top_Abstract_Level+1, true>;
-		using AbtSearch_dist = AdmissibleAbtSearch<D, 1, D::Top_Abstract_Level+1, false>;
-		using AbtSearch_util = AdmissibleAbtSearch_Util<D, 1, D::Top_Abstract_Level+1>;
 		
 
 		struct Node {
@@ -62,7 +40,6 @@ namespace mjon661 { namespace algorithm {
 			Cost f; //......
 			
 			Node *parent;
-			Operator in_op, parent_op;
 			
 			unsigned expdGen;
 		};
@@ -120,9 +97,6 @@ namespace mjon661 { namespace algorithm {
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
-			mAbtSearch_cost		(pDomStack, jConfig),
-			mAbtSearch_dist		(pDomStack, jConfig),
-			mAbtSearch_util		(pDomStack, jConfig),
 			mParams_wf			(jConfig.at("wf")),
 			mParams_wt			(jConfig.at("wt"))
 		{}
@@ -137,29 +111,26 @@ namespace mjon661 { namespace algorithm {
 			mLog_curExpDelay = 1;
 			mLog_nextExpDelayAcc = 0;
 			mLog_curExpTime = Use_Exp_Time ? 0 : 1;
-			mLog_curDepthWeight = mLog_curExpDelay * mLog_curExpTime * mParams_wt;
+			mLog_curDistFact = mLog_curExpDelay * mLog_curExpTime * mParams_wt;
 
+			mGoalNode = nullptr;
+			
 			mResort_next = 16;
 			mResort_n = 0;
 			mTimer.start();
-			
-			mTest_exp_f.clear();
-			mTest_exp_u.clear();
 		}
 
 		
-		void execute(State const& s0, Solution<D>& pSolution) {
-			doSearch(s0, pSolution);
+		void execute(State const& s0) {
+			doSearch(s0);
 		}
 		
-		void doSearch(State const& s0, Solution<D>& pSolution) {
+		void doSearch(State const& s0) {
 			reset();
 			{
 				Node* n0 = mNodePool.construct();
 
 				n0->g = 		Cost(0);
-				n0->in_op = 	mDomain.getNoOp();
-				n0->parent_op = mDomain.getNoOp();
 				n0->parent = 	nullptr;
 				n0->expdGen =	0;
 				
@@ -179,7 +150,6 @@ namespace mjon661 { namespace algorithm {
 				mDomain.unpackState(s, n->pkd);
 
 				if(mDomain.checkGoal(s)) {
-					prepareSolution(pSolution, n);
 					mGoalNode = n;
 					break;
 				}
@@ -199,137 +169,115 @@ namespace mjon661 { namespace algorithm {
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
 			j["use_exp_time"] = Use_Exp_Time;
-			j["hr_mode"] = bugsyHrModeStr(Hr_Mode);
 			j["resort_next"] = mResort_next;
 			j["resort_n"] = mResort_n;
 			j["curExpTime"] = mLog_curExpTime;
 			j["curExpDelay"] = mLog_curExpDelay;
 			j["wf"] = mParams_wf;
 			j["wt"] = mParams_wt;
+			
+			if(mGoalNode) {
+				j["goal_g"] = mGoalNode->g;
+				j["goal_f"] = mGoalNode->f;
+				
+				unsigned goal_depth = 0;
+				for(Node* m = mGoalNode->parent; m; m=m->parent) {
+					goal_depth++;
+				}
+				
+				j["goal_depth"] = goal_depth;
+			}
+			
+			std::vector<Cost> flevel_cost;
+			std::vector<unsigned> flevel_n;
+			std::vector<double> flevel_bf;
+
+			for(auto it = mTest_exp_f.begin(); it!=mTest_exp_f.end(); ++it) {
+				flevel_cost.push_back(it->first);
+				flevel_n.push_back(it->second);
+			}
+			
+
+			if(mTest_exp_f.size() >= 1) {
+				auto it = mTest_exp_f.begin(), itprev = mTest_exp_f.begin();
+
+				++it;
+					
+				for(; it!=mTest_exp_f.end(); ++it, ++itprev)
+					flevel_bf.push_back((double)it->second / itprev->second);
+				
+				fast_assert(flevel_bf.size() + 1 == mTest_exp_f.size());
+			}
+
+			j["f_exp_n"] = flevel_n;
+			j["f_exp_cost"] = flevel_cost;
+			j["f_exp_bf"] = flevel_bf;
+			
 			return j;
 		}
-		
-		
 
-		void prepareSolution(Solution<D>& sol, Node* pGoalNode) {
-			std::vector<Node*> reversePath;
-			
-			for(Node *n = pGoalNode; n != nullptr; n = static_cast<Node*>(n->parent))
-				reversePath.push_back(n);
-			
-			sol.states.clear();
-			sol.operators.clear();
-			
-			for(unsigned i=reversePath.size()-1; i!=(unsigned)-1; i--) {
-				State s;
-				mDomain.unpackState(s, reversePath[i]->pkd);
-				
-				sol.states.push_back(s);
-				
-				if(i != reversePath.size()-1)
-					sol.operators.push_back(reversePath[i]->in_op);	
-				else
-					fast_assert(reversePath[i]->in_op == mDomain.getNoOp());
-			}
-		}
-		
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
 			
-			informExpansion(n);
-			mTest_exp_f.push_back(n->f);
-			mTest_exp_u.push_back(n->u);
+			mTest_exp_f[n->f]++;
 			
-			OperatorSet ops = mDomain.createOperatorSet(s);
+			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
-			for(unsigned i=0; i<ops.size(); i++) {
-				if(ops[i] == n->parent_op)
+			for(; !edgeIt.finished(); edgeIt.next()) {
+				
+				PackedState kid_pkd;
+				mDomain.packState(edgeIt.state(), kid_pkd);
+								
+				if(n->pkd == kid_pkd)
 					continue;
-
+				
 				mLog_gend++;
-				considerkid(n, s, ops[i]);
-			}
-		}
-		
+				
+				Cost kid_g = n->g + edgeIt.cost();
 
-		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
-			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
-			Cost 		kid_g   = pParentNode->g + edge.cost();
-			
-			PackedState kid_pkd;
-			mDomain.packState(edge.state(), kid_pkd);
+				Node* kid_dup = mClosedList.find(kid_pkd);
 
-			Node* kid_dup = mClosedList.find(kid_pkd);
+				if(kid_dup) {
+					mLog_dups++;
+					if(kid_dup->g > kid_g) {
+						kid_dup->g			= kid_g;
+						kid_dup->parent		= n;
+						
+						evalHr(kid_dup, edgeIt.state());
+						
+						if(!mOpenList.contains(kid_dup)) {
+							mLog_reopnd++;
+						}
 
-			if(kid_dup) {
-				mLog_dups++;
-				if(kid_dup->g > kid_g) {
-					kid_dup->g			= kid_g;
-					kid_dup->in_op		= pInOp;
-					kid_dup->parent_op	= edge.parentOp();
-					kid_dup->parent		= pParentNode;
-					kid_dup->expdGen	= mLog_expd;
-					
-					evalHr(kid_dup, edge.state());
-					
-					if(!mOpenList.contains(kid_dup)) {
-						mLog_reopnd++;
+						mOpenList.pushOrUpdate(kid_dup);
 					}
+				}
+				else {
+					Node* kid_node 		= mNodePool.construct();
 
-					mOpenList.pushOrUpdate(kid_dup);
+					kid_node->g 		= kid_g;
+					kid_node->pkd 		= kid_pkd;
+					kid_node->parent	= n;
+					
+					evalHr(kid_node, edgeIt.state());
+
+					mOpenList.push(kid_node);
+					mClosedList.add(kid_node);
 				}
 			}
-			else {
-				Node* kid_node 		= mNodePool.construct();
-
-				kid_node->g 		= kid_g;
-				kid_node->pkd 		= kid_pkd;
-				kid_node->in_op 	= pInOp;
-				kid_node->parent_op = edge.parentOp();
-				kid_node->parent	= pParentNode;
-				kid_node->expdGen	= mLog_expd;
-				
-				evalHr(kid_node, edge.state());
-
-				mOpenList.push(kid_node);
-				mClosedList.add(kid_node);
-			}
-			
-			mDomain.destroyEdge(edge);
 		}
 		
-		void evalHr(Node* n, State const& s) {
-			if(Hr_Mode == BugsyHrMode::Abt_delayweight) {
-				mAbtSearch_util.doSearch_ParentState(s, n->u);
-				n->u += n->g * mParams_wf;
-				n->f = 0;
-				return;
-			}
-			
-			Cost h;
-			unsigned d;
-			
-			if(Hr_Mode == BugsyHrMode::Dom) {
-				std::pair<Cost, Cost> hrvals = mDomain.pairHeuristics(s);
-				h = hrvals.first;
-				d = hrvals.second;
-			} else if(Hr_Mode == BugsyHrMode::Abt_min) {
-				mAbtSearch_cost.doSearch_ParentState(s, h);
-				mAbtSearch_dist.doSearch_ParentState(s, d);
-			} else
-				gen_assert(false);
 
-			
-			Cost f = n->g + h;
-			
-			n->u = mParams_wf * f + mLog_curDepthWeight * d;
-			n->f = f; //.........
+		void evalHr(Node* n, State const& s) {
+			std::pair<Cost, Cost> hrvals = mDomain.pairHeuristics(s);
+
+			n->f = n->g + hrvals.first;
+			n->u = mParams_wf * n->f + mLog_curDistFact * hrvals.second;
 		}
 		
 		void informExpansion(Node* n) {
-			double expDelay = mLog_expd - n->expdGen;
-			mLog_nextExpDelayAcc += expDelay;
+			mLog_nextExpDelayAcc += mLog_expd - n->expdGen;
 		}
 		
 		void doResort() {
@@ -355,10 +303,7 @@ namespace mjon661 { namespace algorithm {
 			mResort_n++;
 			mResort_next *= 2;
 			
-			mLog_curDepthWeight = mLog_curExpDelay * mLog_curExpTime * mParams_wt;
-			
-			if(Hr_Mode == BugsyHrMode::Abt_delayweight)
-				mAbtSearch_util.setWeights(mParams_wf, mLog_curDepthWeight);
+			mLog_curDistFact = mLog_curExpDelay * mLog_curExpTime * mParams_wt;
 		}
 		
 
@@ -367,19 +312,17 @@ namespace mjon661 { namespace algorithm {
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
 		Node* mGoalNode;
-		AbtSearch_cost mAbtSearch_cost;
-		AbtSearch_dist mAbtSearch_dist;
-		AbtSearch_util mAbtSearch_util;
-		
-		double mParams_wf, mParams_wt;
-		
-		unsigned mResort_next, mResort_n;
-		
-		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
-		
-		double mLog_curExpDelay, mLog_nextExpDelayAcc, mLog_curExpTime, mLog_curDepthWeight;
 		Timer mTimer; //Should this be walltime or cputime ??
 		
-		std::vector<double> mTest_exp_f, mTest_exp_u;
+		const double mParams_wf, mParams_wt;
+		
+		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
+
+		unsigned mResort_next, mResort_n;
+		
+		double mLog_curExpDelay, mLog_curExpTime, mLog_curDistFact;
+		unsigned mLog_nextExpDelayAcc;
+		
+		std::map<Cost, unsigned> mTest_exp_f;
 	};
 }}

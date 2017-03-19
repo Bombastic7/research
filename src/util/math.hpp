@@ -10,6 +10,7 @@
 #include <limits>
 #include <type_traits>
 #include <tuple>
+#include <random>
 
 //#include <boost/multiprecision/cpp_int.hpp>
 #include "util/debug.hpp"

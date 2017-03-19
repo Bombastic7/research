@@ -5,7 +5,6 @@
 #include <iostream>
 #include <vector>
 #include "domain/tiles/defs.hpp"
-#include "domain/tiles/index_map.hpp"
 #include "util/debug.hpp"
 #include "util/permutation.hpp"
 
@@ -91,6 +90,8 @@ namespace mjon661 { namespace tiles {
 		idx_t mBlankPos;
 	};
 	
+	
+	//Keeps a specification of how tiles are to be eliminated during abstraction.
 	template<unsigned N>
 	struct TilesAbtSpec {
 		

@@ -9,7 +9,7 @@
 #include <utility>
 #include "domain/gridnav/blocked/graph.hpp"
 #include "domain/pancake/fwd.hpp"
-//#include "domain/tiles/fwd.hpp"
+#include "domain/tiles/fwd.hpp"
 //#include "domain/star_abt.hpp"
 
 #include "util/debug.hpp"
@@ -463,6 +463,116 @@ namespace mjon661 {
 		
 		return astaralg.report();		
 	}
+	
+	
+	
+	
+	
+	template<int H, int W, template<typename> typename Alg_t_D>
+	Json run_tiles_hr(unsigned pInitSeed, Json const& jAlgConfig = Json()) {
+		
+		Json jDomConfig;
+		//jDomConfig["goal"] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+		//jDomConfig["kept"] = {   5, 4, 3, 2, 1, 1, 1, 1};
+		
+		//jDomConfig["goal"] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+		//jDomConfig["kept"] = {   7, 6, 5, 4, 3, 2, 1, 1, 1, 1,  1};
+		
+		//jDomConfig["goal"] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+		//jDomConfig["kept"] = {   8, 7, 6, 5, 4, 3, 2, 1, 1, 1,  1,  1,  1,  1,  1};
+		
+		std::vector<int> goalState, tilesDropLevel;
+		std::string initStateStr = "[";
+		
+		for(unsigned i=0; i<H*W; i++) {
+			goalState.push_back(i);
+			if(i != 0)
+				tilesDropLevel.push_back(1);
+		}
+		
+		
+		jDomConfig["goal"] = goalState;
+		jDomConfig["kept"] = tilesDropLevel;
+		
+		
+
+		using DomStack_t = tiles::TilesGeneric_DomainStack<H, W, true, false, 1>;
+		using Alg_t = Alg_t_D<DomStack_t>;
+		
+		
+		DomStack_t domStack(jDomConfig);
+		domStack.setInitState(domStack.randInitState(pInitSeed));
+		
+		{
+			auto initState = domStack.getInitState();
+			
+			for(unsigned i=0; i<H*W; i++)
+				initStateStr += std::to_string(initState[i]) + ",";
+			
+			initStateStr += "]";
+		}
+		
+		
+		//typename DomStack_t::template Domain<0> dom(domStack);
+		
+		//algorithm::Astar2Impl<DomStack_t, algorithm::Astar2SearchMode::Standard> astaralg(domStack, Json());
+		Alg_t alg(domStack, jAlgConfig);
+
+		
+		bool failed = false;
+		Timer timer;
+		timer.start();
+		
+		try {	
+			alg.execute(domStack.getInitState());
+		/*
+			for(auto* n = astaralg.mGoalNode; n; n=n->parent) {
+				decltype(dom)::State s;
+				dom.unpackState(s, n->pkd);
+				
+				dom.prettyPrintState(s, std::cout);
+				std::cout << "\n\n";
+			}
+		*/
+		} catch(std::exception const&) {
+			failed = true;
+		}
+		timer.stop();
+		
+		Json jRes = alg.report();
+		jRes["init_state_str"] = initStateStr;
+		jRes["failed"] = failed;
+		jRes["wall_time"] = timer.seconds();
+		return jRes;
+	}
+	
+	
+	
+	
+	template<typename D> using AstarAlg_t_D = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>;
+	template<typename D> using BugsyAlg_t_D = algorithm::BugsyImpl<D, false>;
+	
+	Json run_tiles_44() {
+
+		Json jRes;
+		
+		std::vector<std::pair<double,double>> weights = {{1,1}, {1,0}, {10,1}, {100,1}, {1000,1}};
+		
+		for(unsigned i=0; i<3; i++) {
+			jRes[std::to_string(i)]["astar"] = run_tiles_hr<4,4, AstarAlg_t_D>(i);
+			
+			for(auto& w : weights) {
+				std::string algStr = std::string("bugsy_") +  std::to_string(w.first) + "_" + std::to_string(w.second);
+				
+				Json jAlgConfig;
+				jAlgConfig["wf"] = w.first;
+				jAlgConfig["wt"] = w.second;
+				jRes[std::to_string(i)][algStr] = run_tiles_hr<4,4, BugsyAlg_t_D>(i, jAlgConfig);
+			}
+		}
+		
+		return jRes;
+	}
 }
 
 int main(int argc, const char* argv[]) {
@@ -480,7 +590,8 @@ int main(int argc, const char* argv[]) {
 	//std::cout << res.dump(4);
 	
 	//std::cout << mjon661::test_hypernav2().dump(4);
-	std::cout << mjon661::test_pancake().dump(4);
+	//std::cout << mjon661::test_pancake().dump(4);
+	std::cout << mjon661::run_tiles_44().dump(4);
 	
 	//std::cout << mjon661::gridnav::cube_blocked::test_cubenav_dirs() << "\n";
 	

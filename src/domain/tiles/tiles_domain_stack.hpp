@@ -18,13 +18,13 @@
 namespace mjon661 { namespace tiles { 
 	
 
-	template<unsigned Height, unsigned Width, bool Use_Weight, bool Use_H, unsigned Abt1Sz>
+	template<unsigned Height, unsigned Width, bool Use_H, bool Use_Weight, unsigned Abt1Sz>
 	struct TilesGeneric_DomainStack {
 		
 		static_assert(Abt1Sz < Height*Width, "");
 		static_assert(Height > 1 && Width > 1, "");
 		
-		using domStack_t = TilesGeneric_DomainStack<Height, Width, Use_Weight, Use_H, Abt1Sz>;
+		using domStack_t = TilesGeneric_DomainStack<Height, Width, Use_H, Use_Weight, Abt1Sz>;
 
 		static const unsigned Top_Abstract_Level = Abt1Sz;
 		
@@ -41,16 +41,23 @@ namespace mjon661 { namespace tiles {
 		};
 		
 		template<typename Ign>
-		struct Domain<0, Ign> : public CompleteTilesDomain<Height, Width, Use_Weight, Use_H> {
+		struct Domain<0, Ign> : public CompleteTilesDomain<Height, Width, Use_H, Use_Weight> {
 			
 			Domain(domStack_t const& pStack) :
-				CompleteTilesDomain<Height, Width, Use_Weight, Use_H>(pStack.mGoalState)
+				CompleteTilesDomain<Height, Width, Use_H, Use_Weight>(pStack.mGoalState)
 			{}
 		};
 		
 		
-		BoardState<Height, Width> getInitState() const {
-			return mInitState;
+		typename Domain<0>::State getInitState() const {
+			typename Domain<0>::State s = mInitState;
+			Domain<0> dom(*this);
+			dom.initialiseState(s);
+			return s;
+		}
+		
+		void setInitState(BoardState<Height,Width> const& pState) {
+			mInitState = pState;
 		}
 		
 		BoardState<Height, Width> randInitState(unsigned pN) const {

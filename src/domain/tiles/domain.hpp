@@ -17,7 +17,6 @@
 #include "domain/tiles/common.hpp"
 #include "domain/tiles/defs.hpp"
 #include "domain/tiles/mdist.hpp"
-#include "domain/tiles/index_map.hpp"
 #include "domain/tiles/mdist.hpp"
 #include "domain/tiles/board_state.hpp"
 
@@ -25,14 +24,16 @@
 
 namespace mjon661 { namespace tiles {
 
+	template<unsigned H, unsigned W, bool Use_Hr, bool Use_Weight>
+	struct CompleteTilesDomain;
+
 	
 	template<unsigned H, unsigned W, bool Use_Weight>
-	struct CompleteTilesDomain_Manhat {
+	struct CompleteTilesDomain<H,W,true,Use_Weight> {
 
 		using Cost = cost_t;
-		using Operator = unsigned;
 		
-		static const bool Is_Perfect_Hash = true;
+		static const bool Is_Perfect_Hash = H*W <= 11; //11! ~= 40e6
 
 
 		struct State : public BoardState<H,W> {
@@ -42,126 +43,135 @@ namespace mjon661 { namespace tiles {
 				BoardState<H,W>(o)
 			{}
 			
-			cost_t get_h() const {return h;} 
-			cost_t get_d() const {return d;} 
-			void set_h(cost_t ph) {h=ph;} 
-			void set_d(cost_t pd) {d=pd;}
+			bool operator==(State const& o) {
+				bool b = *this == o;
+				if(b) slow_assert(h == o.h && d == o.d);
+				return b;
+			}
 			
 			cost_t h, d;
 		};
 
 		using PackedState = typename State::packed_t;
 		
-		struct OperatorSet {
-			OperatorSet(unsigned i) :
-				n(0),
-				mvs()
+		
+		
+		struct AdjEdgeIterator {
+			
+			enum {
+				Op_Start, Op_Up, Op_Down, Op_Left, Op_Right, Op_Null
+			};
+			
+			AdjEdgeIterator(State& pState, Manhattan<H,W,Use_Weight> const& pManhat) :
+				mAdjState(pState),
+				mManhat(pManhat),
+				mLastOp(Op_Start),
+				mOrigBlankPos(pState.getBlankPos()),
+				mOrig_h(pState.h),
+				mOrig_d(pState.d),
+				mTest_origState(pState)
 			{
-				if(i >= W) mvs[n++] = i - W;
-				if(i < (H-1)*W) mvs[n++] = i + W;
-				if(i % W != 0) mvs[n++] = i-1;
-				if((i+1) % W != 0) mvs[n++] = i+1;
+				next();
 			}
 			
-			unsigned size() {
-				return n;
+			~AdjEdgeIterator() {
+				if(!finished()) {
+					mAdjState.moveBlank(mOrigBlankPos);
+					mAdjState.h = mOrig_h;
+					mAdjState.d = mOrig_d;
+				}
+				slow_assert(mTest_origState == mAdjState);
 			}
 			
-			unsigned operator[](unsigned i) {
-				return mvs[i];
+			bool finished() const {
+				return mLastOp == Op_Null;
 			}
 			
-			private:
-			unsigned n;
-			std::array<unsigned, 4> mvs;
+			State& state() const {
+				slow_assert(!finished());
+				return mAdjState;
+			}
+			
+			Cost cost() const {
+				slow_assert(!finished());
+				return Use_Weight ? mOrigBlankPos : 1;
+			}
+			
+			void next() {
+				slow_assert(!finished());
+				
+				if(mLastOp != Op_Start) {
+					mAdjState.moveBlank(mOrigBlankPos);
+					mAdjState.h = mOrig_h;
+					mAdjState.d = mOrig_d;
+				}
+				
+				mLastOp++;
+				
+				for(int op = mLastOp; op<Op_Null; op++) {
+					if(tryOp(op))
+						break;
+					mLastOp++;
+				}
+			}
+			
+			bool tryOp(int op) {
+				idx_t newBlankPos = -1;
+				
+				if(op == Op_Up && mOrigBlankPos >= W) 					newBlankPos = mOrigBlankPos - W;
+				else if(op == Op_Down && mOrigBlankPos < (H-1)*W) 		newBlankPos	= mOrigBlankPos + W;
+				else if(op == Op_Left && mOrigBlankPos % W != 0)		newBlankPos	= mOrigBlankPos - 1;
+				else if(op == Op_Right && (mOrigBlankPos+1) % W != 0)	newBlankPos = mOrigBlankPos + 1;
+
+				if(newBlankPos == -1)
+					return false;
+				
+				Cost dh, dd;
+				mManhat.increment(newBlankPos, mOrigBlankPos, mAdjState[newBlankPos], dh, dd);
+				
+				mAdjState.moveBlank(newBlankPos);
+				mAdjState.h += dh;
+				mAdjState.d += dd;
+				
+				return true;
+			}
+			
+			
+			State& mAdjState;
+			Manhattan<H,W,Use_Weight> const& mManhat;
+			int mLastOp;
+			const unsigned mOrigBlankPos;
+			const Cost mOrig_h, mOrig_d;
+			const State mTest_origState;
 		};
 		
-		struct Edge {
-			Edge(State& pState, Cost pCost, Operator pParentOp, Cost dh, Cost dd) :
-				mState(pState), mCost(pCost), mParentOp(pParentOp), mdh(dh), mdd(dd)
-			{}
-				
-			State& state() {
-				return mState;
-			}
-			
-			Cost cost() {
-				return mCost;
-			}
-			
-			Operator parentOp() {
-				return mParentOp;
-			}
-			
-			State& mState;
-			Cost mCost;
-			Operator mParentOp;
-			Cost mdh, mdd;
-		};
 		
 
-		CompleteTilesDomain_Manhat(BoardState<H,W> const& pGoalState) :
+		CompleteTilesDomain(BoardState<H,W> const& pGoalState) :
 			mManhattan(pGoalState),
 			mGoalState(pGoalState)
 		{
-			cost_t cst_h, cst_d;
-			mManhattan.eval(mGoalState, cst_h, cst_d);
-			mGoalState.set_h(cst_h);
-			mGoalState.set_d(cst_d);
-			
-			fast_assert(cst_h == cst_d  && cst_d == 0);
+			mManhattan.eval(mGoalState, mGoalState.h, mGoalState.d);
 		}
-		
-		
-		Operator getNoOp() const {
-			return -1;
-		}
-		
+
 		void packState(State const& pState, PackedState& pkd) const {
 			pkd = pState.getPacked();
 		}
 		
 		void unpackState(State& pState, PackedState const& pkd) const {
 			pState.fromPacked(pkd);
-			
-			cost_t cst_h, cst_d;
-			
-			mManhattan.eval(pState, cst_h, cst_d);
-			pState.set_h(cst_h);
-			pState.set_d(cst_d);
+			mManhattan.eval(pState, pState.h, pState.d);
 		}
 		
-		OperatorSet createOperatorSet(State const& s) const {
-			return OperatorSet(s.getBlankPos());
+		AdjEdgeIterator getAdjEdges(State& pState) const {
+			return AdjEdgeIterator(pState, mManhattan);
 		}
 		
-		Edge createEdge(State& s, Operator op) const {
-			Cost dh, dd;
-			mManhattan.increment(op, s.getBlankPos(), s[op], dh, dd);
-			
-			s.set_h(s.get_h() + dh);
-			s.set_d(s.get_d() + dd);
-
-			Operator oldblank = s.getBlankPos();
-			s.moveBlank(op);
-			
-			return Edge(s, Use_Weight ? oldblank : 1, oldblank, dh, dd);
-		}
-		
-		void destroyEdge(Edge& e) const {
-			e.mState.set_h(e.mState.get_h() - e.mdh);
-			e.mState.set_d(e.mState.get_d() - e.mdd);
-			e.mState.moveBlank(e.mParentOp);
-		}
-		
-		void prettyPrint(State const& pState, std::ostream& out) const {
+		void prettyPrintState(State const& pState, std::ostream& out) const {
 			pState.prettyPrint(out);
-			out << "(h, d): (" << pState.get_h() << ", " << pState.get_d() << ")\n";
+			out << "(h, d): (" << pState.h << ", " << pState.d << ")\n";
 		}
-		
-		void prettyPrint(Operator op, std::ostream& out) const {
-			out << op;
-		}
+
 		
 		size_t hash(PackedState const& pkd) const {
 				return pkd;
@@ -172,11 +182,15 @@ namespace mjon661 { namespace tiles {
 		}
 
 		Cost costHeuristic(State const& pState) const {
-			return pState.get_h();
+			return pState.h;
 		}
 		
 		Cost distanceHeuristic(State const& pState) const {
-			return pState.get_d();
+			return pState.d;
+		}
+		
+		std::pair<Cost,Cost> pairHeuristics(State const& pState) const {
+			return {pState.h, pState.d};
 		}
 
 		bool compare(State const& a, State const& b) const {
@@ -187,10 +201,9 @@ namespace mjon661 { namespace tiles {
 			return a == b;
 		}
 		
-		std::pair<Cost, Cost> pairHeuristics(State const& pState) const {
-			return std::pair<Cost, Cost>(pState.get_h(), pState.get_d());
+		void initialiseState(State& s) const {
+			mManhattan.eval(s, s.h, s.d);
 		}
-		
 
 		private:
 		const Manhattan<H,W,Use_Weight> mManhattan;
@@ -200,73 +213,90 @@ namespace mjon661 { namespace tiles {
 	
 	
 	
+	
+	
 	template<unsigned H, unsigned W, bool Use_Weight>
-	struct CompleteTilesDomain_NoH {
+	struct CompleteTilesDomain<H,W,false,Use_Weight> {
 		
-		using Cost = cost_t;
-		using Operator = unsigned;
-		
-		static const bool Is_Perfect_Hash = true;
-
+		using Cost = cost_t;		
+		static const bool Is_Perfect_Hash = H*W <= 11; //11! ~= 40e6
 
 		using State = BoardState<H,W>;
 		using PackedState = typename State::packed_t;
 		
-		struct OperatorSet {
-			OperatorSet(unsigned i) :
-				n(0),
-				mvs()
+		
+		struct AdjEdgeIterator {
+			enum {
+				Op_Start, Op_Up, Op_Down, Op_Left, Op_Right, Op_Null
+			};
+			
+			AdjEdgeIterator(State& pState) :
+				mAdjState(pState),
+				mLastOp(Op_Start),
+				mOrigBlankPos(pState.getBlankPos()),
+				mTest_origState(pState)
 			{
-				if(i >= W) mvs[n++] = i - W;
-				if(i < (H-1)*W) mvs[n++] = i + W;
-				if(i % W != 0) mvs[n++] = i-1;
-				if((i+1) % W != 0) mvs[n++] = i+1;
+				next();
 			}
 			
-			unsigned size() {
-				return n;
+			~AdjEdgeIterator() {
+				if(!finished()) {
+					mAdjState.moveBlank(mOrigBlankPos);
+				}
+				slow_assert(mTest_origState == mAdjState);
 			}
 			
-			unsigned operator[](unsigned i) {
-				return mvs[i];
+			bool finished() const {
+				return mLastOp == Op_Null;
 			}
 			
-			private:
-			unsigned n;
-			std::array<unsigned, 4> mvs;
-		};
-		
-		struct Edge {
-			Edge(State& pState, Cost pCost, Operator pParentOp) :
-				mState(pState), mCost(pCost), mParentOp(pParentOp)
-			{}
+			State& state() const {
+				slow_assert(!finished());
+				return mAdjState;
+			}
+			
+			Cost cost() const {
+				slow_assert(!finished());
+				return Use_Weight ? mOrigBlankPos : 1;
+			}
+			
+			void next() {
+				slow_assert(!finished());
+				mAdjState.moveBlank(mOrigBlankPos);
 				
-			State& state() {
-				return mState;
+				mLastOp++;
+				
+				for(int op = mLastOp; op<Op_Null; op++) {
+					if(tryOp(op))
+						break;
+					mLastOp++;
+				}
 			}
 			
-			Cost cost() {
-				return mCost;
+			bool tryOp(int op) {
+				idx_t newBlankPos = -1;
+				
+				if(op == Op_Up && mOrigBlankPos >= W) 					newBlankPos = mOrigBlankPos - W;
+				else if(op == Op_Down && mOrigBlankPos < (H-1)*W) 		newBlankPos	= mOrigBlankPos + W;
+				else if(op == Op_Left && mOrigBlankPos % W != 0)		newBlankPos	= mOrigBlankPos - 1;
+				else if(op == Op_Right && (mOrigBlankPos+1) % W != 0)	newBlankPos = mOrigBlankPos + 1;
+
+				if(newBlankPos == -1)
+					return false;
+				
+				return true;
 			}
-			
-			Operator parentOp() {
-				return mParentOp;
-			}
-			
-			State& mState;
-			Cost mCost;
-			Operator mParentOp;
+
+			State& mAdjState;
+			int mLastOp;
+			const idx_t mOrigBlankPos;
+			const State mTest_origState;
 		};
 		
-
-		CompleteTilesDomain_NoH(BoardState<H,W> const& pGoalState) :
+		
+		CompleteTilesDomain(BoardState<H,W> const& pGoalState) :
 			mGoalState(pGoalState)
 		{}
-		
-		
-		Operator getNoOp() const {
-			return -1;
-		}
 		
 		void packState(State const& pState, PackedState& pkd) const {
 			pkd = pState.getPacked();
@@ -276,20 +306,9 @@ namespace mjon661 { namespace tiles {
 			pState.fromPacked(pkd);
 		}
 		
-		OperatorSet createOperatorSet(State const& s) {
-			return OperatorSet(s.getBlankPos());
-		}
-		
-		Edge createEdge(State& s, Operator op) const {
-			Operator oldblank = s.getBlankPos();
-			s.moveBlank(op);
-			
-			return Edge(s, Use_Weight ? oldblank : 1, oldblank);
-		}
-		
-		void destroyEdge(Edge& e) const {
-			e.mState.moveBlank(e.mParentOp);
-		}
+		AdjEdgeIterator getAdjEdges(State& pState) const {
+			return AdjEdgeIterator(pState);
+		}		
 		
 		void prettyPrint(State const& pState, std::ostream& out) const {
 			pState.prettyPrint(out);
@@ -323,85 +342,93 @@ namespace mjon661 { namespace tiles {
 			return std::pair<Cost, Cost>(0, 0);
 		}
 		
-		void prettyPrint(Operator op, std::ostream& out) const {
-			out << op;
+		void prettyPrintState(State const& pState, std::ostream& out) const {
+			pState.prettyPrint(out);
 		}
+		
+		void initialiseState(State&) const {}
+		
 		private:
 		State mGoalState;
 	};
 	
-	
-	template<unsigned H, unsigned W, bool Use_Weight, bool Use_H>
-	struct CompleteTilesDomain;
-	
-	template<unsigned H, unsigned W, bool Use_Weight>
-	struct CompleteTilesDomain<H, W, Use_Weight, true> : public CompleteTilesDomain_Manhat<H, W, Use_Weight> {
-		using CompleteTilesDomain_Manhat<H, W, Use_Weight>::CompleteTilesDomain_Manhat;
-	};
-	
-	template<unsigned H, unsigned W, bool Use_Weight>
-	struct CompleteTilesDomain<H, W, Use_Weight, false> : public CompleteTilesDomain_NoH<H, W, Use_Weight> {
-		using CompleteTilesDomain_NoH<H, W, Use_Weight>::CompleteTilesDomain_NoH;
-	};
-	
-	
+
 	
 	template<unsigned H, unsigned W, unsigned Sz, bool Use_Weight>
 	struct SubsetTilesDomain {
 		using Cost = cost_t;
-		using Operator = unsigned;
 		
 		using State = SubsetBoardState<H, W, Sz>;
 		using PackedState = typename State::packed_t;
 		
-		static const bool Is_Perfect_Hash = true;
+		static const bool Is_Perfect_Hash = H*W <= 11; //11! ~= 40e6
 		
-				
-		struct OperatorSet {
-			OperatorSet(unsigned i) :
-				n(0),
-				mvs()
+		struct AdjEdgeIterator {
+			enum {
+				Op_Start, Op_Up, Op_Down, Op_Left, Op_Right, Op_Null
+			};
+			
+			AdjEdgeIterator(State& pState) :
+				mAdjState(pState),
+				mLastOp(Op_Start),
+				mOrigBlankPos(pState.getBlankPos()),
+				mTest_origState(pState)
 			{
-				if(i >= W) mvs[n++] = i - W;
-				if(i < (H-1)*W) mvs[n++] = i + W;
-				if(i % W != 0) mvs[n++] = i-1;
-				if((i+1) % W != 0) mvs[n++] = i+1;
+				next();
 			}
 			
-			unsigned size() {
-				return n;
+			~AdjEdgeIterator() {
+				if(!finished()) {
+					mAdjState.moveBlank(mOrigBlankPos);
+				}
+				slow_assert(mTest_origState == mAdjState);
 			}
 			
-			unsigned operator[](unsigned i) {
-				return mvs[i];
+			bool finished() const {
+				return mLastOp == Op_Null;
 			}
 			
-			private:
-			unsigned n;
-			std::array<unsigned, 4> mvs;
-		};
-		
-		
-		struct Edge {
-			Edge(State& pState, Cost pCost, Operator pParentOp) :
-				mState(pState), mCost(pCost), mParentOp(pParentOp)
-			{}
+			State& state() const {
+				slow_assert(!finished());
+				return mAdjState;
+			}
+			
+			Cost cost() const {
+				slow_assert(!finished());
+				return Use_Weight ? mOrigBlankPos : 1;
+			}
+			
+			void next() {
+				slow_assert(!finished());
+				mAdjState.moveBlank(mOrigBlankPos);
 				
-			State& state() {
-				return mState;
+				mLastOp++;
+				
+				for(int op = mLastOp; op<Op_Null; op++) {
+					if(tryOp(op))
+						break;
+					mLastOp++;
+				}
 			}
 			
-			Cost cost() {
-				return mCost;
+			bool tryOp(int op) {
+				idx_t newBlankPos = -1;
+				
+				if(op == Op_Up && mOrigBlankPos >= W) 					newBlankPos = mOrigBlankPos - W;
+				else if(op == Op_Down && mOrigBlankPos < (H-1)*W) 		newBlankPos	= mOrigBlankPos + W;
+				else if(op == Op_Left && mOrigBlankPos % W != 0)		newBlankPos	= mOrigBlankPos - 1;
+				else if(op == Op_Right && (mOrigBlankPos+1) % W != 0)	newBlankPos = mOrigBlankPos + 1;
+
+				if(newBlankPos == -1)
+					return false;
+				
+				return true;
 			}
-			
-			Operator parentOp() {
-				return mParentOp;
-			}
-			
-			State& mState;
-			Cost mCost;
-			Operator mParentOp;
+
+			State& mAdjState;
+			int mLastOp;
+			const idx_t mOrigBlankPos;
+			const State mTest_origState;
 		};
 		
 		
@@ -413,10 +440,6 @@ namespace mjon661 { namespace tiles {
 		template<typename BS>
 		State abstractParentState(BS const& bs) const {
 			return State(bs, mAbtSpec);
-		}
-		
-		Operator getNoOp() const {
-			return -1;
 		}
 
 		void unpackState(State& pState, PackedState const& pkd) const {
@@ -431,26 +454,12 @@ namespace mjon661 { namespace tiles {
 			pState.prettyPrint(out);
 		}
 		
-		void prettyPrint(Operator op, std::ostream& out) const {
-			out << op;
-		}
-		
 		size_t hash(PackedState const& pkd) const {
 				return pkd;
 		}
-		
-		OperatorSet createOperatorSet(State const& pState) const {
-			return OperatorSet(pState.getBlankPos());
-		}
-		
-		Edge createEdge(State& pState, Operator pOp) const {
-			Operator oldblank = pState.getBlankPos();
-			pState.moveBlank(pOp);
-			return Edge(pState, Use_Weight ? oldblank : 1, oldblank);
-		}
-		
-		void destroyEdge(Edge& e) const {
-			e.mState.moveBlank(e.mParentOp);
+	
+		AdjEdgeIterator getAdjEdges(State& pState) const {
+			return AdjEdgeIterator(pState);
 		}
 		
 		bool checkGoal(State const& pState) const {

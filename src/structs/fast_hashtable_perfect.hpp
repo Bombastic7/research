@@ -174,6 +174,8 @@ namespace mjon661 {
 			unsigned newSz = mTableSize;
 			while(newSz < pMinSize) newSz *= 2;
 			
+			logDebugStream() << "trying to alloc " << newSz << "\n";
+			g_logDebugOfs.flush();
 			Wrapped_t** newTable = new Wrapped_t*[newSz];
 			std::fill(newTable, newTable+newSz, nullptr);
 			

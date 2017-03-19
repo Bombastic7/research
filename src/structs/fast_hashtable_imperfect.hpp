@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <stdexcept>
 #include "structs/fast_vector.hpp"
 #include "util/debug.hpp"
+#include "util/math.hpp"
 
 
 namespace mjon661 {
@@ -21,7 +23,7 @@ namespace mjon661 {
 		
 		static const unsigned Grow_Fact = 2;
 		static const unsigned Fill_Fact = 3;
-		
+		static const unsigned Max_Table_Size = 409600000;
 
 		struct Wrapped_t : public WrappedBase_t {
 			Wrapped_t* nxt;
@@ -61,8 +63,8 @@ namespace mjon661 {
 
 		void add(Elm_t* e_) {
 			slow_assert(!overflow::mul(mFill, Grow_Fact));
-			if(mFill * Fill_Fact > mTableSize)
-				resize(mTableSize * Grow_Fact);
+			if(mFill * Fill_Fact > mTableSize && mTableSize < Max_Table_Size)
+				resize(mathutil::min(Max_Table_Size, mTableSize * Grow_Fact));
 
 			Wrapped_t* e = static_cast<Wrapped_t*>(e_);
 			
@@ -212,8 +214,13 @@ namespace mjon661 {
 			mUsedIndices.swap(oldUsedIndices);
 					
 			fast_assert(mUsedIndices.size() == 0);
-					
-			mHashTable = new Wrapped_t*[newSize];
+			
+			try {
+				mHashTable = new Wrapped_t*[newSize];
+			} catch(std::bad_alloc const& e) {
+				throw std::runtime_error(std::string(__FILE__) + ":" + std::to_string(__LINE__) + " cursz=" + std::to_string(mTableSize) +
+					" nextsz=" + std::to_string(newSize) + "\n\n" + e.what());
+			}
 			mTableSize = newSize;
 			mFill = 0;
 			

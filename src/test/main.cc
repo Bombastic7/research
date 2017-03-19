@@ -25,6 +25,7 @@
 #include "search/admissible_abtsearch2.hpp"
 #include "search/astar.hpp"
 #include "search/bugsy.hpp"
+#include "search/debug_walker.hpp"
 
 #include "domain/gridnav/blocked/hypernav.hpp"
 #include "domain/gridnav/blocked/test_hypernav.hpp"
@@ -486,10 +487,18 @@ namespace mjon661 {
 		
 		for(unsigned i=0; i<H*W; i++) {
 			goalState.push_back(i);
-			if(i != 0)
-				tilesDropLevel.push_back(1);
 		}
 		
+		unsigned abt1droptiles = (H*W-1) / 2;
+		tilesDropLevel.resize(H*W-1);
+		
+		for(unsigned i=H*W-2-abt1droptiles; i<H*W-1; i++) {
+			tilesDropLevel.at(i) = 1;
+		}
+		
+		for(unsigned i=H*W-2-abt1droptiles, j=2; i!=(unsigned)-1; i--, j++) {
+			tilesDropLevel.at(i) = j;
+		}
 		
 		jDomConfig["goal"] = goalState;
 		jDomConfig["kept"] = tilesDropLevel;
@@ -497,7 +506,8 @@ namespace mjon661 {
 		
 
 		using DomStack_t = tiles::TilesGeneric_DomainStack<H, W, true, true, 1>;
-		using Alg_t = Alg_t_D<DomStack_t>;
+		//using Alg_t = Alg_t_D<DomStack_t>;
+		using Alg_t = algorithm::DebugWalker<DomStack_t>;
 		
 		
 		DomStack_t domStack(jDomConfig);
@@ -564,21 +574,21 @@ namespace mjon661 {
 			
 			for(auto& w : weights) {
 				std::string algStr_delay = std::string("bugsyDelay_") +  std::to_string(w.first) + "_" + std::to_string(w.second);
-				std::string algStr_bf = std::string("bugsyBF_") +  std::to_string(w.first) + "_" + std::to_string(w.second);
+				//~ std::string algStr_bf = std::string("bugsyBF_") +  std::to_string(w.first) + "_" + std::to_string(w.second);
 				
 				Json jAlgConfig;
 				jAlgConfig["wf"] = w.first;
 				jAlgConfig["wt"] = w.second;
 				
-				jRes[std::to_string(i)][algStr_delay] = run_tiles_hr<4,4, BugsyAlgDelay_t_D>(i, jAlgConfig);
-				jRes[std::to_string(i)][algStr_delay]["utility"] = 
-					w.first * jRes[std::to_string(i)][algStr_delay]["goal_g"].get<double>() +
-					w.second * jRes[std::to_string(i)][algStr_delay]["wall_time"].get<double>();
+				jRes[std::to_string(i)][algStr_delay] = run_tiles_hr<3,3, BugsyAlgDelay_t_D>(i, jAlgConfig);
+				//~ jRes[std::to_string(i)][algStr_delay]["utility"] = 
+					//~ w.first * jRes[std::to_string(i)][algStr_delay]["goal_g"].get<double>() +
+					//~ w.second * jRes[std::to_string(i)][algStr_delay]["wall_time"].get<double>();
 
-				jRes[std::to_string(i)][algStr_bf] = run_tiles_hr<4,4, BugsyAlgBf_t_D>(i, jAlgConfig);
-				jRes[std::to_string(i)][algStr_bf]["utility"] = 
-					w.first * jRes[std::to_string(i)][algStr_bf]["goal_g"].get<double>() +
-					w.second * jRes[std::to_string(i)][algStr_bf]["wall_time"].get<double>();
+				//~ jRes[std::to_string(i)][algStr_bf] = run_tiles_hr<4,4, BugsyAlgBf_t_D>(i, jAlgConfig);
+				//~ jRes[std::to_string(i)][algStr_bf]["utility"] = 
+					//~ w.first * jRes[std::to_string(i)][algStr_bf]["goal_g"].get<double>() +
+					//~ w.second * jRes[std::to_string(i)][algStr_bf]["wall_time"].get<double>();
 			}
 		}
 		

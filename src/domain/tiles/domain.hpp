@@ -310,7 +310,7 @@ namespace mjon661 { namespace tiles {
 			return AdjEdgeIterator(pState);
 		}		
 		
-		void prettyPrint(State const& pState, std::ostream& out) const {
+		void prettyPrintState(State const& pState, std::ostream& out) const {
 			pState.prettyPrint(out);
 		}
 		
@@ -342,10 +342,6 @@ namespace mjon661 { namespace tiles {
 			return std::pair<Cost, Cost>(0, 0);
 		}
 		
-		void prettyPrintState(State const& pState, std::ostream& out) const {
-			pState.prettyPrint(out);
-		}
-		
 		void initialiseState(State&) const {}
 		
 		private:
@@ -364,7 +360,7 @@ namespace mjon661 { namespace tiles {
 		static const bool Is_Perfect_Hash = H*W <= 11; //11! ~= 40e6
 		
 		struct AdjEdgeIterator {
-			enum {
+			enum : unsigned {
 				Op_Start, Op_Up, Op_Down, Op_Left, Op_Right, Op_Null
 			};
 			
@@ -404,14 +400,14 @@ namespace mjon661 { namespace tiles {
 				
 				mLastOp++;
 				
-				for(int op = mLastOp; op<Op_Null; op++) {
+				for(unsigned op = mLastOp; op<Op_Null; op++) {
 					if(tryOp(op))
 						break;
 					mLastOp++;
 				}
 			}
 			
-			bool tryOp(int op) {
+			bool tryOp(unsigned op) {
 				idx_t newBlankPos = -1;
 				
 				if(op == Op_Up && mOrigBlankPos >= W) 					newBlankPos = mOrigBlankPos - W;
@@ -427,7 +423,7 @@ namespace mjon661 { namespace tiles {
 
 			State& mAdjState;
 			int mLastOp;
-			const idx_t mOrigBlankPos;
+			const unsigned mOrigBlankPos;
 			const State mTest_origState;
 		};
 		
@@ -450,7 +446,7 @@ namespace mjon661 { namespace tiles {
 			pkd = pState.getPacked(mAbtSpec);
 		}
 		
-		void prettyPrint(State const& pState, std::ostream& out) const {
+		void prettyPrintState(State const& pState, std::ostream& out) const {
 			pState.prettyPrint(out);
 		}
 		

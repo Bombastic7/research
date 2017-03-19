@@ -19,10 +19,8 @@ namespace mjon661 { namespace tiles {
 		static const int Board_Size = H*W;
 		
 		Manhattan(BoardState<H, W> const& pGoalState) :
-			mGoalState(pGoalState),
-			mMoveLookup()
+			mGoalState(pGoalState)
 		{
-			std::vector<idx_t> ancVec;
 			
 			for(idx_t src=0; src<Board_Size; src++) {
 				for(tile_t t=0; t<Board_Size; t++) {
@@ -97,23 +95,31 @@ namespace mjon661 { namespace tiles {
 		
 		private:
 		
+		//t = tile
+		//s = tile's position
+		//g = cost from t's goal position to s.
 		
+		//If this is the cheapest we've moved t to s, update mMinCost[t][s].
+		//For all adjacent positions, recursively call functions again.
 		void weightedCostRec(tile_t t, idx_t s, cost_t g) {
-			
 			if(mMinCost[t][s] <= g)
 				return;
 			
 			mMinCost[t][s] = g;
 			
-			std::array<idx_t, 5> const& mvs = mMoveLookup.get(s);
-			
-			for(int n=0; n<mvs[0]; n++)
-				weightedCostRec(t, mvs[n+1], g+s);
+			//If Use_Weight = true, edge cost is 1 + row of blank pos.
+			if(s >= W)
+				weightedCostRec(t, s-W, g + 1 + (s-W)/W);
+			if(s < (H-1)*W)
+				weightedCostRec(t, s+W, g + 1 + (s+W)/W);
+			if(s % W != 0)
+				weightedCostRec(t, s-1, g + 1 + (s-1)/W);
+			if((s+1) % W != 0)
+				weightedCostRec(t, s+1, g + 1 + (s+1)/W);
 		}
 		
 		std::array<std::array<cost_t, Board_Size>, Board_Size> mMinCost, mMinDistance;
 		std::array<std::array<std::array<int, Board_Size>, Board_Size>, Board_Size> mCostInc, mDistInc;
 		const BoardState<H, W> mGoalState;
-		const MoveLookup<H, W> mMoveLookup;
 	};
 }}

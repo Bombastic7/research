@@ -3,137 +3,94 @@
 #include <string>
 #include <iostream>
 #include <cstdlib>
+#include <string>
+#include <utility>
 
 #include "util/json.hpp"
 
 namespace mjon661 { namespace algorithm {
-	
-	
-	template<typename DomStack, unsigned L>
-	struct PrintStatesAndOps {
-		
-		using Domain = typename DomStack::template Domain<L>;
-		using State = typename Domain::State;
-		using Operator = typename Domain::Operator;
-		
-		
-		static void doPrintState(Domain& dom, State& s) {
-			
-			dom.prettyPrint(s, std::cout);
-			
-		}
-		
-		static void doPrintOperator(Domain& dom, Operator op) {
-			dom.prettyPrint(op, std::cout);
-			
-		}
-	};
 
-
-
-
-	template<typename DomStack, unsigned L, bool = true>
+	template<typename DomStack, unsigned L, unsigned Bound>
 	struct DebugWalkerImpl {
 		
 		using Domain = typename DomStack::template Domain<L>;
 		using State = typename Domain::State;
-		using Operator = typename Domain::Operator;
-		using OperatorSet = typename Domain::OperatorSet;
-		using Edge = typename Domain::Edge;
-		
-		template<bool>
-		struct Tag {};
+		using Cost = typename Domain::Cost;
 		
 		
 		DebugWalkerImpl(DomStack const& pStack) :
 			mDomain(pStack),
-			mDomStack(pStack),
-			mNxtLevelAlg(pStack)
+			mNxtLevel(pStack)
 		{}
 		
 		template<typename BS>
-		void executeFromParentState(BS const& bs) {
+		void executeFromParentState(BS const& bs, unsigned expdTot) {
 			State s0 = mDomain.abstractParentState(bs);
-			doWalk(s0);
+			doWalk(s0, expdTot);
 		}
 		
-		void doWalk(State& s) {
+		void doWalk(State const& s0, unsigned expdTot) {
+			
+			State s = s0;
+			unsigned expdThisLevel = 0;
+			
 			while(true) {
-				std::cout << "\nLEVEL " << std::to_string(L) << "\n\n";
+				std::cout << "----------------\nLevel=" << L << "\nTotal expd=" << expdTot+expdThisLevel << "\nexpd=" << expdThisLevel << "\n";
+				if(mDomain.checkGoal(s))
+					std::cout << "goal=true\n";
+
+				std::cout << "\n";
 				
-				PrintStatesAndOps<DomStack, L>::doPrintState(mDomain, s);
-				
+				mDomain.prettyPrintState(s, std::cout);
 				std::cout << "\n\n";
 				
-				if(mDomain.checkGoal(s))
-					std::cout << "Is Goal\n\n";
 				
-				OperatorSet opSet = mDomain.createOperatorSet(s);
+				std::vector<std::pair<State, Cost>> adjEdges;
 				
-				std::cout << "Operators:\n\n";
+				for(auto edgeIt=mDomain.getAdjEdges(s); !edgeIt.finished(); edgeIt.next())
+					adjEdges.push_back({edgeIt.state(), edgeIt.cost()});
+					
 				
-				for(unsigned i=0; i<opSet.size(); i++) {
-					
-					Operator op = opSet[i];
-					
-					std::cout << i << ":\n";
-					PrintStatesAndOps<DomStack, L>::doPrintOperator(mDomain, op);
-					
-					{
-						Edge edge = mDomain.createEdge(s, opSet[i]);
-						std::cout << "\nCost: " << edge.cost() << "\n";
-						mDomain.destroyEdge(edge);
-					}
-					
+				for(unsigned i=0; i<adjEdges.size(); i++) {
+					std::cout << i << ": cost=" << adjEdges[i].second << "\n";
+					mDomain.prettyPrintState(adjEdges[i].first, std::cout);
 					std::cout << "\n\n";
 				}
-				
-				
-				
-				std::cout << "\nCOMMAND (e opn, a, p): ";
+
+				std::cout << ":";
+
 				std::string comnd;
 				std::getline(std::cin, comnd);
 
-				if(comnd == "p")
-					break;
-					
+				if(comnd == "p") {
+					std::cout << "\n\n";
+					return;
+				}
 				else if(comnd == "a") {
-					doAbstraction(s);
-					
+					std::cout << "\n\n";
+					mNxtLevel.executeFromParentState(s, expdTot+expdThisLevel);
 				}
-				else if(comnd[0] == 'e' && comnd.size() > 2) {
-					unsigned opn = strtol(comnd.c_str() + 2, nullptr, 10);
-					if(opn < opSet.size()) {
-						
-						Edge edge = mDomain.createEdge(s, opSet[opn]);
-						doWalk(edge.state());
-						mDomain.destroyEdge(edge);
-						
-					}
+				else {
+					unsigned adjn = std::stol(comnd);
+					s = adjEdges.at(adjn).first;
+					expdThisLevel++;
 				}
 			}
-		}
-
-		void doAbstraction(State& pState) {
-			if(DomStack::Top_Abstract_Level == L) {
-				std::cout << "Abstraction not available (not used).\n\n";
-				return;
-			}
-			mNxtLevelAlg.executeFromParentState(pState);
 		}
 		
 		Domain mDomain;
-		DomStack const& mDomStack;
-		DebugWalkerImpl<DomStack, L+1, L+1 <= DomStack::Top_Abstract_Level> mNxtLevelAlg;
+		DebugWalkerImpl<DomStack, L+1, Bound> mNxtLevel;
 	};
 
 
 	template<typename DomStack, unsigned L>
-	struct DebugWalkerImpl<DomStack, L, false> {
+	struct DebugWalkerImpl<DomStack, L, L> {
 		DebugWalkerImpl(DomStack const&) {}
 		
 		template<typename BS>
-		void executeFromParentState(BS const& bs) {}
+		void executeFromParentState(BS const& bs, unsigned) {
+			std::cout << "Reached hard abstraction limit.\n\n";
+		}
 	};
 
 
@@ -141,22 +98,21 @@ namespace mjon661 { namespace algorithm {
 	template<typename DomStack>
 	struct DebugWalker {
 		
-		DebugWalker(DomStack const& pDomStack) :
-			mImpl(pDomStack),
-			mDomStack(pDomStack)
+		DebugWalker(DomStack const& pDomStack, Json const& jConfig) :
+			mImpl(pDomStack)
 		{}
 		
-		void execute() {
-			typename DomStack::template Domain<0> dom(mDomStack);
+		void execute(typename DomStack::template Domain<0>::State const& pInitState) {
 			
-			typename DomStack::template Domain<0>::State s0 = mDomStack.getInitState();
-			
-			mImpl.doWalk(s0);
+			mImpl.doWalk(pInitState, 0);
+		}
+		
+		Json report() {
+			return Json();
 		}
 		
 		
-		DebugWalkerImpl<DomStack, 0> mImpl;
-		DomStack const& mDomStack;
+		DebugWalkerImpl<DomStack, 0, DomStack::Top_Abstract_Level+1> mImpl;
 	
 	};
 }}

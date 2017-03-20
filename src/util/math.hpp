@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <tuple>
 #include <random>
+#include <fstream>
 
 //#include <boost/multiprecision/cpp_int.hpp>
 #include "util/debug.hpp"
@@ -273,5 +274,41 @@ namespace mjon661 { namespace mathutil {
 			fast_assert(b);
 		
 		return edgesIn;
+	}
+	
+	
+	template<typename = void>
+	void writeImgPPM(	std::vector<uint8_t> const& pR,
+						std::vector<uint8_t> const& pG,
+						std::vector<uint8_t> const& pB,
+						unsigned height, 
+						unsigned width, 
+						std::string const& pOutFile) 
+	{
+		std::ofstream out(pOutFile, std::ofstream::out | std::ofstream::binary);
+		
+		if(!out)
+			throw std::runtime_error(std::string(__FILE__) + ":" + std::to_string(__LINE__));
+		
+		fast_assert(height*width == pR.size() && pR.size() == pB.size() && pR.size() == pB.size());
+		
+		std::string magicStr("P6"), widthStr = std::to_string(width), heightStr = std::to_string(height), maxvalStr("255");
+		
+		
+		out.write(magicStr.c_str(), magicStr.size());
+		out.put(' ');
+		out.write(widthStr.c_str(), widthStr.size());
+		out.put(' ');
+		out.write(heightStr.c_str(), heightStr.size());
+		out.put(' ');
+		out.write(maxvalStr.c_str(), maxvalStr.size());
+		out.put('\n');
+
+		for(unsigned i=0; i<height*width; i++) {
+			out.put(pR[i]);
+			out.put(pG[i]);
+			out.put(pB[i]);
+		}
+		
 	}
 }}

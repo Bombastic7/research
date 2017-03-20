@@ -73,6 +73,7 @@ namespace mjon661 { namespace tiles {
 				} while(!isSolvable(s, mGoalState));
 			}
 			
+			s.initBlankPos();
 			return s;
 		}
 		

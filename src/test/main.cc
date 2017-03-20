@@ -31,6 +31,7 @@
 #include "domain/gridnav/blocked/test_hypernav.hpp"
 #include "search/astar2.hpp"
 
+#include "domain/gridnav/blocked/cellmap_real.hpp"
 
 namespace mjon661 {
 	
@@ -253,7 +254,7 @@ namespace mjon661 {
 		
 		for(unsigned h=0; h<2000; h++) {
 			for(unsigned w=0; w<2000; w++) {
-				if(domStack.mCellMap.cells().at(w+h*2000) == gridnav::hypernav_blocked::Cell_t::Blocked)
+				if(domStack.mCellMap.isOpen(w+h*2000))
 					dumpCellMapOfs << "O";
 				else
 					dumpCellMapOfs << " ";
@@ -506,8 +507,8 @@ namespace mjon661 {
 		
 
 		using DomStack_t = tiles::TilesGeneric_DomainStack<H, W, true, true, 1>;
-		//using Alg_t = Alg_t_D<DomStack_t>;
-		using Alg_t = algorithm::DebugWalker<DomStack_t>;
+		using Alg_t = Alg_t_D<DomStack_t>;
+		//using Alg_t = algorithm::DebugWalker<DomStack_t>;
 		
 		
 		DomStack_t domStack(jDomConfig);
@@ -523,7 +524,7 @@ namespace mjon661 {
 		}
 		
 		
-		//typename DomStack_t::template Domain<0> dom(domStack);
+		typename DomStack_t::template Domain<0> dom(domStack);
 		
 		//algorithm::Astar2Impl<DomStack_t, algorithm::Astar2SearchMode::Standard> astaralg(domStack, Json());
 		Alg_t alg(domStack, jAlgConfig);
@@ -535,15 +536,15 @@ namespace mjon661 {
 		
 		try {	
 			alg.execute(domStack.getInitState());
-		/*
-			for(auto* n = astaralg.mGoalNode; n; n=n->parent) {
-				decltype(dom)::State s;
+		
+			for(auto* n = alg.mGoalNode; n; n=n->parent) {
+				typename decltype(dom)::State s;
 				dom.unpackState(s, n->pkd);
 				
 				dom.prettyPrintState(s, std::cout);
 				std::cout << "\n\n";
 			}
-		*/
+		
 		} catch(std::exception const&) {
 			failed = true;
 		}
@@ -567,11 +568,12 @@ namespace mjon661 {
 
 		Json jRes;
 		
-		std::vector<std::pair<double,double>> weights = {{1,0}, {1000,1}, {10000,1}, {100000,1}, {200000,1}, {300000,1}};
+		std::vector<std::pair<double,double>> weights = {{1000,1}, {10000,1}, {100000,1}, {200000,1}, {300000,1}};
 		
 		for(unsigned i=0; i<3; i++) {
-			jRes[std::to_string(i)]["astar"] = run_tiles_hr<4,4, AstarAlg_t_D>(i);
+			jRes[std::to_string(i)]["astar"] = run_tiles_hr<3,3, AstarAlg_t_D>(i);
 			
+			/*
 			for(auto& w : weights) {
 				std::string algStr_delay = std::string("bugsyDelay_") +  std::to_string(w.first) + "_" + std::to_string(w.second);
 				//~ std::string algStr_bf = std::string("bugsyBF_") +  std::to_string(w.first) + "_" + std::to_string(w.second);
@@ -580,19 +582,28 @@ namespace mjon661 {
 				jAlgConfig["wf"] = w.first;
 				jAlgConfig["wt"] = w.second;
 				
-				jRes[std::to_string(i)][algStr_delay] = run_tiles_hr<3,3, BugsyAlgDelay_t_D>(i, jAlgConfig);
-				//~ jRes[std::to_string(i)][algStr_delay]["utility"] = 
-					//~ w.first * jRes[std::to_string(i)][algStr_delay]["goal_g"].get<double>() +
-					//~ w.second * jRes[std::to_string(i)][algStr_delay]["wall_time"].get<double>();
+				jRes[std::to_string(i)][algStr_delay] = run_tiles_hr<4,4, BugsyAlgDelay_t_D>(i, jAlgConfig);
+				jRes[std::to_string(i)][algStr_delay]["utility"] = 
+					w.first * jRes[std::to_string(i)][algStr_delay]["goal_g"].get<double>() +
+					w.second * jRes[std::to_string(i)][algStr_delay]["wall_time"].get<double>();
 
 				//~ jRes[std::to_string(i)][algStr_bf] = run_tiles_hr<4,4, BugsyAlgBf_t_D>(i, jAlgConfig);
 				//~ jRes[std::to_string(i)][algStr_bf]["utility"] = 
 					//~ w.first * jRes[std::to_string(i)][algStr_bf]["goal_g"].get<double>() +
 					//~ w.second * jRes[std::to_string(i)][algStr_bf]["wall_time"].get<double>();
 			}
+			*/
 		}
 		
 		return jRes;
+	}
+	
+	
+	void test_cellmap_real() {
+		
+		gridnav::hypernav_blocked::CellMapReal<double> cellmap(100, ",fill,10,0,1,10,0");
+		cellmap.dumpHeatMap(10,10);
+		
 	}
 }
 
@@ -612,12 +623,12 @@ int main(int argc, const char* argv[]) {
 	
 	//std::cout << mjon661::test_hypernav2().dump(4);
 	//std::cout << mjon661::test_pancake().dump(4);
-	std::cout << mjon661::run_tiles_44().dump(4);
+	//std::cout << mjon661::run_tiles_44().dump(4);
 	
 	//std::cout << mjon661::gridnav::cube_blocked::test_cubenav_dirs() << "\n";
 	
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";
 	
 	//mjon661::gridnav::hypernav_blocked::test_statepack<3>();
-	
+	mjon661::test_cellmap_real();
 }

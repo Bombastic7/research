@@ -116,22 +116,21 @@ namespace mjon661 { namespace tiles {
 			}
 			
 			bool tryOp(int op) {
-				idx_t newBlankPos = -1;
+				unsigned newBlankPos = -1;
 				
 				if(op == Op_Up && mOrigBlankPos >= W) 					newBlankPos = mOrigBlankPos - W;
 				else if(op == Op_Down && mOrigBlankPos < (H-1)*W) 		newBlankPos	= mOrigBlankPos + W;
 				else if(op == Op_Left && mOrigBlankPos % W != 0)		newBlankPos	= mOrigBlankPos - 1;
 				else if(op == Op_Right && (mOrigBlankPos+1) % W != 0)	newBlankPos = mOrigBlankPos + 1;
+				else 													return false;
 
-				if(newBlankPos == -1)
-					return false;
-				
 				Cost dh, dd;
 				mManhat.increment(newBlankPos, mOrigBlankPos, mAdjState[newBlankPos], dh, dd);
 				
 				mAdjState.moveBlank(newBlankPos);
 				mAdjState.h += dh;
 				mAdjState.d += dd;
+				slow_assert(mAdjState.valid());
 				
 				return true;
 			}
@@ -274,16 +273,15 @@ namespace mjon661 { namespace tiles {
 			}
 			
 			bool tryOp(int op) {
-				idx_t newBlankPos = -1;
+				unsigned newBlankPos = -1;
 				
 				if(op == Op_Up && mOrigBlankPos >= W) 					newBlankPos = mOrigBlankPos - W;
 				else if(op == Op_Down && mOrigBlankPos < (H-1)*W) 		newBlankPos	= mOrigBlankPos + W;
 				else if(op == Op_Left && mOrigBlankPos % W != 0)		newBlankPos	= mOrigBlankPos - 1;
 				else if(op == Op_Right && (mOrigBlankPos+1) % W != 0)	newBlankPos = mOrigBlankPos + 1;
-
-				if(newBlankPos == -1)
-					return false;
+				else 													return false;
 				
+				mAdjState.moveBlank(newBlankPos);
 				return true;
 			}
 
@@ -408,16 +406,14 @@ namespace mjon661 { namespace tiles {
 			}
 			
 			bool tryOp(unsigned op) {
-				idx_t newBlankPos = -1;
-				
+				unsigned newBlankPos = -1;
 				if(op == Op_Up && mOrigBlankPos >= W) 					newBlankPos = mOrigBlankPos - W;
 				else if(op == Op_Down && mOrigBlankPos < (H-1)*W) 		newBlankPos	= mOrigBlankPos + W;
 				else if(op == Op_Left && mOrigBlankPos % W != 0)		newBlankPos	= mOrigBlankPos - 1;
 				else if(op == Op_Right && (mOrigBlankPos+1) % W != 0)	newBlankPos = mOrigBlankPos + 1;
-
-				if(newBlankPos == -1)
-					return false;
+				else 													return false;
 				
+				mAdjState.moveBlank(newBlankPos);
 				return true;
 			}
 

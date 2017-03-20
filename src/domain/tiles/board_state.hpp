@@ -86,6 +86,9 @@ namespace mjon661 { namespace tiles {
 			}
 		}
 		
+		bool valid() {
+			return (*this)[mBlankPos] == 0 && Permutation<H*W,H*W>::valid();
+		}
 
 		idx_t mBlankPos;
 	};
@@ -248,6 +251,8 @@ namespace mjon661 { namespace tiles {
 					return false;
 				if((*this)[i] == 0) {
 					if(foundBlank)
+						return false;
+					if(this->mBlankPos != i)
 						return false;
 					else
 						foundBlank = true;

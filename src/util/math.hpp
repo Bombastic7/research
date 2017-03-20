@@ -311,4 +311,157 @@ namespace mjon661 { namespace mathutil {
 		}
 		
 	}
+	
+	
+	template<typename T>
+	constexpr unsigned binomialCoeff(T n, T k) {
+		return k > n ? 0 : factorial<unsigned>(n) / (factorial<unsigned>(k) * factorial<unsigned>(n-k));
+	}
+	
+	template<typename T>
+	std::vector<unsigned> unrankCombination(T n, T k) {
+		std::vector<unsigned> v;
+		
+		for(; k>0; k--) { 
+			for(unsigned i=k-1; ; i++) {
+				if(binomialCoeff<unsigned>(i,k) > n) {
+					v.push_back(i-1);
+					n -= binomialCoeff<unsigned>(i-1,k);
+					break;
+				}
+			}
+		}
+		
+		return v;
+	}
+	
+	
+	//Computes and stores a table of moves for positions in an N-dimensional hypergrid.
+	//A position is an N-length sequence of coordinate values, for dimensions 0..N-1, respectively.
+	//A move is a k-length sequence of {dimension,delta} pairs, where 1 <= k <= MaxK <= N. Delta is either +1 or -1.
+
+	//For 1 <= k <= MaxK, number of moves affecting k dimensions is binomialCoeff(N,k) * 2**k.
+	
+	//Format of move is std::array<std::pair<unsigned, bool>, MaxK>.
+	
+	template<unsigned N, unsigned MaxK>
+	struct HypergridMoveSet {
+		
+		static constexpr unsigned compMvsK(unsigned k) {
+			return binomialCoeff(N, k) * pow<unsigned>(2, k);
+		}
+		
+		static constexpr unsigned compTotMvs(unsigned k=1) {
+			return k == MaxK+1 ? 0 : compMvsK(k) + compTotMvs(k+1);
+		}
+		
+
+		
+		HypergridMoveSet()
+		{
+			init();
+		}
+		
+		//Total moves
+		unsigned size() const {
+			return compTotMvs();
+		}
+		
+		//Get move by ordinal and set out_k to number of affect dimensions for this move.
+		std::array<std::pair<unsigned, bool>, MaxK> const& getMove(unsigned i, unsigned& out_k) const {
+			slow_assert(i < mMvs.size());
+			out_k = mKLookup[i];
+			return mMvs[i];
+		}
+		
+		//Get i-th move that affects k dimensions.
+		//~ std::array<std::pair<unsigned, bool>, MaxK> const& getKMove(unsigned k, unsigned i) const {
+			//~ slow_assert(k >= 1 && k <= MaxK);
+			//~ auto const& p = mFindByK[k];
+			//~ slow_assert(p.first + i < p.second);
+			//~ slow_assert(mKLookup[p.first + i] == k);
+			//~ return mMvs[p.first + i];
+		//~ }
+		
+		//Return the first and last+1 ordinal of moves affecting k dimensions.
+		std::pair<unsigned, unsigned> const& getKsize(unsigned k) const {
+			slow_assert(k >= 1 && k <= MaxK);
+			return mFindByK[k];
+		}
+		
+		void dump(std::ostream& out) const {
+			for(unsigned i=0; i<size(); i++) {
+				unsigned k;
+				auto const& mv = getMove(i, k);
+				
+				out << i << ": ";
+				
+				for(unsigned j=0; j<k; j++) {
+					out << mv[j].first;
+					if(mv[j].second)
+						out << "+";
+					else
+						out << "-";
+					out << " ";
+				}
+				
+				out << "\n";
+			}
+		}
+		
+		
+		private:
+		
+		void init() {
+			//Null tables.
+			for(unsigned i=0; i<mMvs.size(); i++) {
+				mKLookup[i] = -1;
+				for(unsigned j=0; j<MaxK; j++)
+					mMvs[i][j].first = -1;
+			}
+			
+			for(unsigned i=0; i<mFindByK.size(); i++) {
+				mFindByK[i].first = -1;
+				mFindByK[i].second = -1;
+			}
+			
+			unsigned nMvs = 0;
+			
+			//For k=[1..MaxK] ...
+			for(unsigned k=1; k<=MaxK; k++) {
+				if(k != 1)
+					mFindByK[k-1].second = nMvs;
+				mFindByK[k].first = nMvs;
+				
+				//For all k-combinations of N dimensions...
+				for(unsigned dimsRank=0; dimsRank<binomialCoeff(N,k); dimsRank++) {
+					
+					//For all k-tuples of {true, false}...
+					for(unsigned dimsDir=0; dimsDir<(1u<<k); dimsDir++) {
+						
+						std::vector<unsigned> tgtDims = unrankCombination(dimsRank, k);
+						slow_assert(tgtDims.size() == k && uniqueElements(tgtDims));
+						
+						std::array<std::pair<unsigned,bool>, MaxK> mv;
+						
+						for(unsigned i=0; i<k; i++) {
+							slow_assert(tgtDims[i] < k);
+							mv[i].first = tgtDims[i];
+							mv[i].second = (dimsDir >> i) & 1;
+						}
+						
+						mMvs[nMvs] = mv;
+						mKLookup[nMvs] = k;
+						nMvs++;
+					}
+				}
+			}
+		}
+		
+
+		std::array<std::array<std::pair<unsigned, bool>, MaxK>, compTotMvs()> mMvs;
+		std::array<unsigned, compTotMvs()> mKLookup;
+		std::array<std::pair<unsigned, unsigned>, MaxK+1> mFindByK;
+		
+	};
 }}

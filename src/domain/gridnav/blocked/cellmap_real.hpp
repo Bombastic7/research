@@ -97,26 +97,42 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 				std::getline(ss, t, ',');
 				noisestddev = std::stod(t);
 				
+				const double diagLength = std::hypot(width, mSize/width);
+				
 				std::vector<std::pair<unsigned, unsigned>> hillpos;
+				std::vector<double> hillradius;
+				std::vector<double> hilldepth;
 				
 				std::mt19937 randgen(5489u + seed);
 				std::uniform_int_distribution<unsigned> hillposdist(0, mSize);
+				std::uniform_real_distribution<double> hillradiusdist(0, diagLength/4);
+				std::uniform_real_distribution<double> hilldepthdist(0, diagLength/4);
+
 				std::uniform_real_distribution<double> noisedist(noisemean, noisestddev);
 				
 				for(unsigned i=0; i<nhills; i++) {
 					unsigned pkd = hillposdist(randgen);
 					unsigned x = pkd % width, y = pkd / width;
 					hillpos.push_back({x,y});
+					hillradius.push_back(hillradiusdist(randgen));
+					hilldepth.push_back(hilldepthdist(randgen));
 				}
 				
 				std::fill(mCells.begin(), mCells.end(), 0);
 				
-				for(unsigned i=0; i<mSize; i++) {
-					double tgtx = i % width, tgty = i / width;
+				for(unsigned i=0; i<nhills; i++) {
+					double r2 = std::pow(hillradius[i], 2);
 					
-					for(auto& hpos : hillpos) {
-						double w = noisedist(randgen) / std::hypot(tgtx-hpos.first, tgty-hpos.second);
-						mCells[i] += w;
+					for(unsigned pkd=0; pkd<mSize; pkd++) {
+						double tgtx = pkd % width, tgty = pkd / width;
+						double d = std::hypot(tgtx-hillpos[i].first, tgty-hillpos[i].second);
+						
+						if(d > hillradius[i])
+							continue;
+
+						mCells[pkd] += mathutil::max(0.0, std::sqrt(r2 - std::pow(d, 2)) - hilldepth[i]);
+						slow_assert(std::isfinite(mCells[pkd]));
+						//std::cout << mCells[pkd] << "\n";
 					}
 				}
 				
@@ -147,14 +163,15 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 				if(i > maxval) maxval = i;
 			}
 			
-			//double range = maxval - minval;
+			double range = maxval - minval;
 			
 			std::vector<uint8_t> vGray(mSize);
 			
-			for(unsigned i=0; i<mSize; i++)
-				//vGray[i] = (mCells[i] - minval) / range * 255.0;
-				vGray[i] = i % 256;
-			
+			for(unsigned i=0; i<mSize; i++) {
+				double v = (mCells[i] - minval) / range * 255.0;
+				slow_assert(v >= 0 && v <= 255);
+				vGray[i] = v;
+			}
 
 			mathutil::writeImgPPM(vGray, vGray, vGray, height, width, "cellmap_real.ppm");
 		}

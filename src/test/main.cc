@@ -601,10 +601,18 @@ namespace mjon661 {
 	
 	void test_cellmap_real() {
 		
-		gridnav::hypernav_blocked::CellMapReal<double> cellmap(100, ",fill,10,0,1,10,0");
-		cellmap.dumpHeatMap(10,10);
+		gridnav::hypernav_blocked::CellMapReal<double> cellmap(1000*1000, ",random_hills,1000,0,100,1,0.3");
+		cellmap.dumpHeatMap(1000,1000);
 		
 	}
+	
+	
+	void test_hypergridmoveset() {
+		const mathutil::HypergridMoveSet<3,3> mvset;
+		
+		mvset.dump(std::cout);
+	}
+	
 }
 
 int main(int argc, const char* argv[]) {
@@ -630,5 +638,6 @@ int main(int argc, const char* argv[]) {
 	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";
 	
 	//mjon661::gridnav::hypernav_blocked::test_statepack<3>();
-	mjon661::test_cellmap_real();
+	//mjon661::test_cellmap_real();
+	mjon661::test_hypergridmoveset();
 }

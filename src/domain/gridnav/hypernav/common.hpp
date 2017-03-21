@@ -128,6 +128,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 		void next() {
 			slow_assert(!finished());
 			undoMv();
+			mLastOrd++;
 			for(; mLastOrd<mMvSet.size(); mLastOrd++) {
 				if(tryApplyMv(mLastOrd))
 					break;
@@ -162,7 +163,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 		}
 			
 		
-		bool tryApplyMv(unsigned i) {
+		bool tryApplyMv(const unsigned i) {
 			unsigned k;
 			Mv_t const& mv = mMvSet.getMove(i, k);
 			

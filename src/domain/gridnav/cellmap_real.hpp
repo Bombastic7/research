@@ -113,6 +113,8 @@ namespace mjon661 { namespace gridnav {
 					hillpos.push_back({x,y});
 					hillradius.push_back(hillradiusdist(randgen));
 					hilldepth.push_back(hilldepthdist(randgen));
+					logDebugStream() << "(" << hillpos.back().first << "," << hillpos.back().second << ") " 
+						<< hillradius.back() << " " << hilldepth.back() << "\n";
 				}
 				
 				std::fill(mCells.begin(), mCells.end(), 0);
@@ -175,45 +177,63 @@ namespace mjon661 { namespace gridnav {
 		
 		
 		void dumpHeatMap2(unsigned height, unsigned width, std::vector<unsigned> const& pPackedStates) const {
-			CellVal_t minval, maxval;
-			minval = std::numeric_limits<CellVal_t>::max();
-			maxval = std::numeric_limits<CellVal_t>::min();
-			
-			for(auto& i : mCells) {
-				if(i < minval) minval = i;
-				if(i > maxval) maxval = i;
-			}
-			
-			double range = maxval - minval;
-			
-			std::vector<double> brightness(mSize), hue(mSize);
-			
-			for(unsigned i=0; i<mSize; i++)
-				brightness[i] = (mCells[i] - minval) / range;
-			
+			std::vector<double> brightness(mSize);
+			std::vector<double> hue(mSize);
+
 			std::fill(hue.begin(), hue.end(), 0);
+			std::fill(brightness.begin(), brightness.end(), 0);
 			
-			for(unsigned i=0; i<pPackedStates.size(); i++)
+			for(unsigned i=0; i<pPackedStates.size(); i++) {
 				hue[pPackedStates[i]] = (double)i / pPackedStates.size();
+				brightness[pPackedStates[i]] = 0.5;
+			}
 			
 			std::vector<std::tuple<double, double, double>> pxls(mSize);
 			
 			for(unsigned i=0; i<mSize; i++)
-				pxls[i] = mathutil::HSLtoRGBcolor<double>(hue[i] * 360, 1, brightness[i]);
+				pxls[i] = mathutil::HSLtoRGBcolor<double>(hue[i] * 315, 1, brightness[i]);
 
 			
-			std::vector<unsigned char> vR, vG, vB;
+			std::vector<unsigned char> vR(mSize), vG(mSize), vB(mSize);
 			
 			for(unsigned i=0; i<mSize; i++) {
 				vR[i] = std::get<0>(pxls[i]) * 255;
 				vG[i] = std::get<1>(pxls[i]) * 255;
 				vB[i] = std::get<2>(pxls[i]) * 255;
 			}
+			
+			unsigned blankBarBegin = vR.size(), colorMapBarBegin = vR.size() + 5 * width, newImgEnd = vR.size() + 10 * width;
+		
+			vR.resize(newImgEnd);
+			vG.resize(newImgEnd);
+			vB.resize(newImgEnd);
+			pxls.resize(newImgEnd);
 
-			mathutil::writeImgPPM(vR, vG, vB, height, width, "cellmap_real_2.ppm");
+			for(unsigned i=blankBarBegin; i<colorMapBarBegin; i++)
+				vR[i] = vG[i] = vB[i] = 0;
+			
+			for(unsigned i=colorMapBarBegin; i<newImgEnd; i++) {
+				std::tuple<double, double, double> mappxl = mathutil::HSLtoRGBcolor<double>((double)(i%width)/width * 315, 1, 0.5);
+				vR[i] = std::get<0>(mappxl) * 255;
+				vG[i] = std::get<1>(mappxl) * 255;
+				vB[i] = std::get<2>(mappxl) * 255;
+			}
+			
+			mathutil::writeImgPPM(vR, vG, vB, newImgEnd/width, width, "cellmap_real_2.ppm");
 			
 		}
 		
+		
+		void dumpHeatMap3(unsigned height, unsigned width, std::vector<unsigned> const& pPackedStates) const {
+			std::vector<uint8_t> vGray(mSize);
+			
+			std::fill(vGray.begin(), vGray.end(), 0);
+			
+			for(unsigned i=0; i<pPackedStates.size(); i++)
+				vGray.at(pPackedStates[i]) = (double)i / pPackedStates.size() * 255;
+
+			mathutil::writeImgPPM(vGray, vGray, vGray, height, width, "cellmap_real_3.ppm");	
+		}
 		
 		
 		private:

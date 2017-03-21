@@ -321,14 +321,14 @@ namespace mjon661 { namespace mathutil {
 		double chroma = (1.0 - std::abs(2*light - 1)) * sat;
 		double Hp = hue / 60.0;
 		
-		double x = chroma * (1.0 - std::abs(std::remainder(Hp, 2) - 1.0));
+		slow_assert(Hp >= 0 && Hp <= 6);
 		
-		slow_assert(std::isfinite(chroma) && std::isfinite(Hp) && std::isfinite(x));
+		double x = chroma * (1.0 - std::abs( std::fmod(Hp, 2.0) - 1));
+		
+		slow_assert(std::isfinite(x));
 		
 		double vR, vG, vB;
-		
-		slow_assert(Hp >= 0 && Hp < 6.0);
-		
+
 		if(Hp <= 1.0) {
 			vR = chroma; vG = x; vB = 0;
 		} else if(Hp <= 2.0) {
@@ -408,6 +408,7 @@ namespace mjon661 { namespace mathutil {
 		std::array<std::pair<unsigned, bool>, MaxK> const& getMove(unsigned i, unsigned& out_k) const {
 			slow_assert(i < mMvs.size());
 			out_k = mKLookup[i];
+			slow_assert(out_k >= 1 && out_k <= MaxK);
 			return mMvs[i];
 		}
 		
@@ -488,7 +489,7 @@ namespace mjon661 { namespace mathutil {
 						std::array<std::pair<unsigned,bool>, MaxK> mv;
 						
 						for(unsigned i=0; i<k; i++) {
-							slow_assert(tgtDims[i] < k);
+							slow_assert(tgtDims[i] < N);
 							mv[i].first = tgtDims[i];
 							mv[i].second = (dimsDir >> i) & 1;
 						}

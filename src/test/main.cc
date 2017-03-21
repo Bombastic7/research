@@ -33,6 +33,35 @@
 
 namespace mjon661 {
 	
+	void test_moves() {
+		using D = gridnav::hypernav::DomainRealStack<3, 3>;
+		
+		Json jDomConfig;
+		jDomConfig["map"] = ",random_hills,100,0,10,100,20";
+		jDomConfig["dimsz"] = std::vector<unsigned>{100,100,100};
+		
+		D domStack(jDomConfig);
+		typename D::template Domain<0> dom(domStack);
+		
+		unsigned n=0;
+		
+		std::array<unsigned, 3> s = {1,1,1};
+		
+		for(auto it=dom.getAdjEdges(s); !it.finished(); it.next()) {
+			std::cout << n++ << ": ";
+			dom.prettyPrintState(it.state(), std::cout);
+			std::cout << "   " << it.cost() << "\n";
+		}
+	}
+	
+	
+	struct AstarExpandedNodesSort {
+		
+		template<typename Node>
+		bool operator()(Node* a, Node* b) const {
+			return a->expn < b->expn;
+		}
+	};
 	
 	void test_hypernav_real() {
 		using D = gridnav::hypernav::DomainRealStack<2, 1>;
@@ -40,6 +69,7 @@ namespace mjon661 {
 		
 		Json jDomConfig;
 		jDomConfig["map"] = ",random_hills,100,0,10,100,20";
+		jDomConfig["dimsz"] = std::vector<unsigned>{100,100};
 		
 		D domStack(jDomConfig);
 		
@@ -47,42 +77,29 @@ namespace mjon661 {
 		
 		alg.execute(domStack.getInitState());
 		
-		std::vector<unsigned> expStates;
+		std::vector<typename Alg_t::Node*> expNodes;
 		
 		for(auto it=alg.mClosedList.begin(); it!=alg.mClosedList.end(); ++it)
-			expStates.push_back((*it)->pkd);
+			expNodes.push_back(*it);
 		
+		std::sort(expNodes.begin(), expNodes.end(), AstarExpandedNodesSort());
+
+
+		std::vector<unsigned> expStates;
+		
+		for(auto* n : expNodes)
+			expStates.push_back(n->pkd);
 
 		domStack.mCellMap.dumpHeatMap1(100,100);
 		domStack.mCellMap.dumpHeatMap2(100,100, expStates);
+		domStack.mCellMap.dumpHeatMap3(100,100, expStates);
 		
 	}
 
 }
 
 int main(int argc, const char* argv[]) {
-	//mjon661::gridnav::blocked::run();
-	//mjon661::pancake::run();
-	//mjon661::tiles::run();
-	
-	//mjon661::testgraph::run();
-	
-	//mjon661::run_ugsapure();
-	
-	//mjon661::Json res;
-	//res["gridnav"] = mjon661::run_session1_gridnav();
-	
-	//std::cout << res.dump(4);
-	
-	//std::cout << mjon661::test_hypernav2().dump(4);
-	//std::cout << mjon661::test_pancake().dump(4);
-	//std::cout << mjon661::run_tiles_44().dump(4);
-	
-	//std::cout << mjon661::gridnav::cube_blocked::test_cubenav_dirs() << "\n";
-	
-	//std::cout << stats[0] << " " << stats[1] << " " << stats[2] << "\n";
-	
-	//mjon661::gridnav::hypernav_blocked::test_statepack<3>();
 	mjon661::test_hypernav_real();
-	//mjon661::test_hypergridmoveset();
+	//mjon661::test_moves();
+
 }

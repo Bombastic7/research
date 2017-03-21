@@ -38,15 +38,15 @@ namespace mjon661 {
 			delete[] mHashTable;
 		}
 		
-		unsigned size() {
+		unsigned size() const {
 			return mTableSize;
 		}
 				
-		unsigned getFill() {
+		unsigned getFill() const {
 			return mFill;
 		}
 				
-		bool empty() {
+		bool empty() const {
 			return mFill == 0;
 		}
 		
@@ -68,7 +68,7 @@ namespace mjon661 {
 			mHashTable[idx] = e;
 		}
 		
-		Elm_t* find(const Key_t& k) {
+		Elm_t* find(const Key_t& k) const {
 			size_t h = mHasher(k);
 			
 			unsigned idx = static_cast<unsigned>(h);
@@ -99,15 +99,15 @@ namespace mjon661 {
 			return true;
 		}
 		
-		unsigned getMaxBucketLength() {
+		unsigned getMaxBucketLength() const {
 			return 1;
 		}
 		
-		std::string getChainLengthDist() {
+		std::string getChainLengthDist() const {
 			return std::string("1: -");
 		}
 		
-		Wrapped_t * const data() {
+		Wrapped_t * const data() const {
 			return mHashTable;
 		}
 		

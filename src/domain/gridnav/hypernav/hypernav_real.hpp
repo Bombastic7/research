@@ -16,144 +16,57 @@
 #include "search/make_goal_state.hpp"
 #include "util/math.hpp"
 
-#include "domain/gridnav/blocked/cellmap_blocked.hpp"
+#include "domain/gridnav/cellmap_real.hpp"
+#include "domain/gridnav/hypernav/common.hpp"
 
 
-namespace mjon661 { namespace gridnav { namespace hypernav_real {
+namespace mjon661 { namespace gridnav { namespace hypernav {
 
 
-
-	template<unsigned N, unsigned MaxK>
-	struct AdjEdgeIterator_base {
-		
-		using Mv_t = std::array<std::pair<unsigned, bool>>;
-		
-		
-		AdjEdgeIterator_base(	std::array<unsigned, N>& pState,
-								HypergridMoveSet<N, MaxK> const& pMvSet,
-								std::array<unsigned,N> const& pDimsSz, 
-								CellMapReal<double> const& pCellMap) :
-			mMvSet(pMvSet),
-			mDimsSz(pDimsSz),
-			mCellMap(pCellMap),
-			mAdjState(pState),
-			mLastOrd(0),
-			mLastK(0),				//Invalid, set in tryApplyMv().
-			mTest_origState(pState)
-		{
-			for(; mLastOrd<mMvSet.size(); mLastOrd++) {
-				if(tryApplyMv(mLastOrd))
-					break;
-			}
-		}
-		
-		~AdjEdgeIterator_base() {
-			if(!finished())
-				undoMv();
-			slow_assert(mTest_origState == mAdjState);
-		}
-		
-		
-		void next() {
-			slow_assert(!finished());
-			undoMv();
-			for(; mLastOrd<mMvSet.size(); mLastOrd++) {
-				if(tryApplyMv(mLastOrd))
-					break;
-			}
-		}
-		
-		bool finished() const {
-			bool b = mLastOrd == mMvSet.size();
-			if(b)
-				slow_assert(mTest_origState == mAdjState);
-		}
-		
-		std::array<unsigned, N>& state() const {
-			slow_assert(!finished());
-			return mAdjState;
-		}
-		
-		double cost() const {
-			slow_assert(!finished());
-			return mCurCost * mCellMap.cells[doPackState(mAdjState)];
-		}
-		
-	
-		private:
-		
-		void undoMv() {
-			unsigned k;
-			Mv_t const& mv = mMvSet.getMove(mLastOrd, k);
-			
-			for(unsigned j=0; j<k; j++) {
-				if(mv[j].second)
-					mAdjState[mv[j].first]--;
-				else
-					mAdjState[mv[j].first]++;
-			}
-		}
-			
-		
-		bool tryApplyMv(unsigned i) {
-			unsigned k;
-			Mv_t const& mv = mMvSet.getMove(i, k);
-			
-			for(unsigned j=0; j<k; j++) {
-				if(mAdjState[mv[j].first] == 0 && !mv[j].second)
-					return false;
-				if(mAdjState[mv[j].first] == mDimSz[mv[j].first]-1 && mv[j].second)
-					return false;
-			}
-			
-			for(unsigned j=0; j<k; j++) {
-				if(mv[j].second)
-					mAdjState[mv[j].first]++;
-				else
-					mAdjState[mv[j].first]--;
-			}
-			
-			if(k != mLastK) {
-				mCurCost = mMvSet.getMoveCost(i);
-				mLastK = k;
-			}
-			
-			mLastOrd = i;
-			return true;
-		}
-		
-		
-		HypergridMoveSet<N, MaxK> const& mMvSet;
-		std::array<unsigned,N> const& mDimsSz;
-		CellMapReal<double> const& pCellMap;
-		
-		std::array<unsigned, N> mAdjState;
-		unsigned mLastOrd;
-		unsigned mLastK;
-		double mCurCost;
-		
-		const std::array<unsigned, N> mTest_origState;
-	};
-	
-	
-	
-	
 
 	template<unsigned N, unsigned MaxK>
-	struct Domain_base {
+	struct DomainReal {
 		
 		static_assert(N > 0, "");
 		static_assert(N >= MaxK, "");
 		
-		using Cost = typename CostType<MaxK>::type;
+		using Cost = double;
 		using State = StateN<N>;
-		using PackedState = PackedStateN;
-		using AdjEdgeIterator = AdjEdgeIterator_base<N, MaxK>;
+		using PackedState = unsigned;
 		
 		static const bool Is_Perfect_Hash = true;
 
+		struct AdjEdgeIterator : public AdjEdgeIterator_base<N, MaxK> {
+			
+			AdjEdgeIterator(	std::array<unsigned, N>& pState,
+								mathutil::HypergridMoveSet<N, MaxK> const& pMvSet,
+								std::array<unsigned,N> const& pDimsSz,
+								CellMapReal<double> const& pCellMap) :
+				AdjEdgeIterator_base<N, MaxK>(pState, pMvSet, pDimsSz),
+				mAdjPackedState(doPackState(this->mAdjState, this->mDimsSz)),
+				mCellMap(pCellMap)
+			{}
+			
+			void next() {
+				AdjEdgeIterator_base<N, MaxK>::next();
+				
+				if(this->finished())
+					return;
 
-		Domain_base(State const& pGoalState, std::array<unsigned,N> const& pDimSz, CellMapBlocked<> const& pCellMap) :
+				mAdjPackedState = doPackState(this->mAdjState, this->mDimsSz);
+			}
+			
+			double cost() const {
+				return this->mMvSet.getMoveCost(this->mLastK) * mCellMap.cells()[mAdjPackedState];
+			}
+			
+			private:
+			unsigned mAdjPackedState;
+			CellMapReal<double> const& mCellMap;
+		};
+		
+
+		DomainReal(State const& pGoalState, std::array<unsigned,N> const& pDimSz, CellMapReal<double> const& pCellMap) :
 			mGoalState(pGoalState),
 			mDimSz(pDimSz),
 			mCellMap(pCellMap)
@@ -165,18 +78,15 @@ namespace mjon661 { namespace gridnav { namespace hypernav_real {
 		}
 		
 		void packState(State const& s, PackedState& pkd) const {
-			slow_assert(mCellMap.isOpen(doPackState(s, mDimSz)));
 			pkd = doPackState(s, mDimSz);
 		}
 		
 		void unpackState(State& s, PackedState const& pkd) const {
 			s = doUnpackState(pkd, mDimSz);
-			slow_assert(mCellMap.isOpen(doPackState(s, mDimSz)));
 		}
 		
 		AdjEdgeIterator getAdjEdges(State& s) const {
-			
-			return AdjEdgeIterator(s, mDimSz, mCellMap);
+			return AdjEdgeIterator(s, mMvSet, mDimSz, mCellMap);
 		}
 		
 		size_t hash(PackedState pPacked) const {
@@ -184,14 +94,10 @@ namespace mjon661 { namespace gridnav { namespace hypernav_real {
 		}
 		
 		Cost costHeuristic(State const& pState) const {
-			if(MaxK == 1)
-				return manhat(pState, mGoalState);
 			return 0;
 		}
 		
 		Cost distanceHeuristic(State const& pState) const {
-			if(MaxK == 1)
-				return manhat(pState, mGoalState);
 			return 0;
 		}
 		
@@ -211,60 +117,34 @@ namespace mjon661 { namespace gridnav { namespace hypernav_real {
 		
 		State mGoalState;
 		std::array<unsigned, N> const& mDimSz;
-		CellMapBlocked<> const& mCellMap;
+		CellMapReal<double> const& mCellMap;
+		const mathutil::HypergridMoveSet<N, MaxK> mMvSet;
 	};
+	
+	
+	
 	
 
 	template<unsigned N, unsigned MaxK>
-	struct TestDomainStack {
+	struct DomainRealStack {
 		
 		using State = StateN<N>;
 		
 		static const unsigned Top_Abstract_Level = 0;
 		
 		template<unsigned L>
-		struct Domain : public Domain_base<N, MaxK> {
-			Domain(TestDomainStack& pStack) :
-				Domain_base<N, MaxK>(pStack.mGoalState, pStack.mDimSz, pStack.mCellMap)
+		struct Domain : public DomainReal<N, MaxK> {
+			Domain(DomainRealStack& pStack) :
+				DomainReal<N, MaxK>(pStack.mGoalState, pStack.mDimSz, pStack.mCellMap)
 			{}
 		};
 		
-		TestDomainStack(Json const& jConfig) :
+		DomainRealStack(Json const& jConfig) :
 			mDimSz(prepDimSz(jConfig.at("dimsz"))),
 			mCellMap(mTotCells, jConfig.at("map").get_ref<std::string const&>())
 		{
-			PackedStateN initpkd = 0;
-			while(true) {
-				if(mCellMap.isOpen(initpkd))
-					break;
-				initpkd++;
-				if(initpkd == mTotCells)
-					gen_assert(false);
-			}
-			
-			mInitState = doUnpackState(initpkd, mDimSz);
-			
-			PackedStateN goalpkd = mTotCells-1;
-			
-			while(true) {
-				if(mCellMap.isOpen(goalpkd))
-					break;
-				if(goalpkd == 0)
-					gen_assert(false);
-				goalpkd--;
-			}
-			
-			mGoalState = doUnpackState(goalpkd, mDimSz);
-			
-			logDebugStream() << "Init: ";
-			doPrettyPrintState(mInitState, g_logDebugOfs);
-			g_logDebugOfs << " Goal: ";
-			doPrettyPrintState(mGoalState, g_logDebugOfs);
-			g_logDebugOfs << "\n";
-			g_logDebugOfs.flush();
-			
-			fast_assert(mCellMap.isOpen(doPackState(mInitState, mDimSz)));
-			fast_assert(mCellMap.isOpen(doPackState(mGoalState, mDimSz)));
+			mInitState = doUnpackState(0, mDimSz);
+			mGoalState = doUnpackState(mTotCells-1, mDimSz);
 		}
 		
 		State getInitState() {
@@ -289,8 +169,6 @@ namespace mjon661 { namespace gridnav { namespace hypernav_real {
 		void assignInitGoalStates(std::pair<StateN<N>, StateN<N>> const& s) {
 			mInitState = s.first;
 			mGoalState = s.second;
-			fast_assert(mCellMap.isOpen(doPackState(mInitState, mDimSz)));
-			fast_assert(mCellMap.isOpen(doPackState(mGoalState, mDimSz)));
 			
 			logDebugStream() << "Assigned. Init: ";
 			doPrettyPrintState(mInitState, g_logDebugOfs);
@@ -299,53 +177,11 @@ namespace mjon661 { namespace gridnav { namespace hypernav_real {
 			g_logDebugOfs << "\n";
 			g_logDebugOfs.flush();
 		}
-		
-		
-		struct CompDistSeparation {
-			typename CostType<MaxK>::type operator()(StateN<N> const& a, StateN<N> const& b) {
-				return euclid_dist(a, b);
-			}
-		};
-		
-		std::pair<StateN<N>, StateN<N>> genRandInitGoal(typename CostType<MaxK>::type pMinCost) {
-			std::random_device rd;
-			std::mt19937 randgen(rd());
-			std::uniform_int_distribution<> ud(0, mTotCells-1);
-			
-			algorithm::MakeGoalStateAlg<TestDomainStack<N,MaxK>, CompDistSeparation> makeGoalStateAlg(*this);
-
-			
-			for(unsigned ntries = 0; ; ntries++) {
-				fast_assert(ntries < 100);
-				
-				StateN<N> initState, goalState;
-				
-				while(true) {
-					PackedStateN initPkd = ud(randgen);
-					if(!mCellMap.isOpen(initPkd))
-						continue;
-					
-					initState = doUnpackState(initPkd, mDimSz);
-					break;
-				}
-			
-				
-				try {
-					makeGoalStateAlg.execute(initState, pMinCost);
-					goalState = makeGoalStateAlg.getGoalState();
-					
-				} catch(NoSolutionException const&) {
-					continue;
-				}
-				
-				return {initState, goalState};
-			}
-		}
 
 		
 		std::array<unsigned,N> mDimSz;
 		unsigned mTotCells;
-		CellMapBlocked<> mCellMap;
+		CellMapReal<double> mCellMap;
 		
 		State mInitState, mGoalState;
 	};

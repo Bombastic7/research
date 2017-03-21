@@ -35,11 +35,11 @@ namespace mjon661 {
 			mSoftSize = 0;
 		}
 		
-		unsigned size() {
+		unsigned size() const {
 			return mSoftSize;
 		}
 		
-		unsigned capacity() {
+		unsigned capacity() const {
 			return mData.size();
 		}
 		

@@ -150,7 +150,7 @@ namespace mjon661 { namespace gridnav {
 			return mSize;
 		}
 		
-		void dumpHeatMap(unsigned height, unsigned width) const {
+		void dumpHeatMap1(unsigned height, unsigned width) const {
 			CellVal_t minval, maxval;
 			minval = std::numeric_limits<CellVal_t>::max();
 			maxval = std::numeric_limits<CellVal_t>::min();
@@ -170,8 +170,51 @@ namespace mjon661 { namespace gridnav {
 				vGray[i] = v;
 			}
 
-			mathutil::writeImgPPM(vGray, vGray, vGray, height, width, "cellmap_real.ppm");
+			mathutil::writeImgPPM(vGray, vGray, vGray, height, width, "cellmap_real_1.ppm");
 		}
+		
+		
+		void dumpHeatMap2(unsigned height, unsigned width, std::vector<unsigned> const& pPackedStates) const {
+			CellVal_t minval, maxval;
+			minval = std::numeric_limits<CellVal_t>::max();
+			maxval = std::numeric_limits<CellVal_t>::min();
+			
+			for(auto& i : mCells) {
+				if(i < minval) minval = i;
+				if(i > maxval) maxval = i;
+			}
+			
+			double range = maxval - minval;
+			
+			std::vector<double> brightness(mSize), hue(mSize);
+			
+			for(unsigned i=0; i<mSize; i++)
+				brightness[i] = (mCells[i] - minval) / range;
+			
+			std::fill(hue.begin(), hue.end(), 0);
+			
+			for(unsigned i=0; i<pPackedStates.size(); i++)
+				hue[pPackedStates[i]] = (double)i / pPackedStates.size();
+			
+			std::vector<std::tuple<double, double, double>> pxls(mSize);
+			
+			for(unsigned i=0; i<mSize; i++)
+				pxls[i] = mathutil::HSLtoRGBcolor<double>(hue[i] * 360, 1, brightness[i]);
+
+			
+			std::vector<unsigned char> vR, vG, vB;
+			
+			for(unsigned i=0; i<mSize; i++) {
+				vR[i] = std::get<0>(pxls[i]) * 255;
+				vG[i] = std::get<1>(pxls[i]) * 255;
+				vB[i] = std::get<2>(pxls[i]) * 255;
+			}
+
+			mathutil::writeImgPPM(vR, vG, vB, height, width, "cellmap_real_2.ppm");
+			
+		}
+		
+		
 		
 		private:
 		

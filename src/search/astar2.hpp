@@ -45,6 +45,7 @@ namespace mjon661 { namespace algorithm {
 			Cost g, f;
 			PackedState pkd;
 			Node* parent;
+			unsigned expn;
 		};
 		
 
@@ -129,6 +130,7 @@ namespace mjon661 { namespace algorithm {
 
 				n0->g = 		Cost(0);
 				n0->parent = 	nullptr;
+				n0->expn = 		0;
 
 				evalHr(n0, s0);
 
@@ -226,6 +228,7 @@ namespace mjon661 { namespace algorithm {
 			mLog_expd++;
 			
 			mTest_exp_f[n->f]++;
+			n->expn = mLog_expd;
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
@@ -248,6 +251,7 @@ namespace mjon661 { namespace algorithm {
 					if(kid_dup->g > kid_g) {
 						kid_dup->g			= kid_g;
 						kid_dup->parent		= n;
+						kid_dup->expn		= -1;
 						
 						evalHr(kid_dup, edgeIt.state());
 						
@@ -264,7 +268,7 @@ namespace mjon661 { namespace algorithm {
 					kid_node->g 		= kid_g;
 					kid_node->pkd 		= kid_pkd;
 					kid_node->parent	= n;
-					
+					kid_node->expn		= -1;
 					evalHr(kid_node, edgeIt.state());
 
 					mOpenList.push(kid_node);

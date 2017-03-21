@@ -1,7 +1,4 @@
-
-
-
-pragma once
+#pragma once
 
 
 #include <array>
@@ -20,7 +17,6 @@ pragma once
 #include "util/math.hpp"
 
 
-
 namespace mjon661 { namespace gridnav { namespace hypernav {
 
 
@@ -28,7 +24,6 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 	using StateN = std::array<unsigned, N>;
 	
 	using PackedStateN = unsigned;
-	
 	
 	template<long unsigned N>
 	void doPrettyPrintState(StateN<N> const& s, std::ostream& out) {
@@ -99,22 +94,22 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 	
 	
 	
+	
+	//Edge iterator base. Provides iterator framework (except cost()), and ignores out-of-bounds adjacent positions.
 	template<unsigned N, unsigned MaxK>
 	struct AdjEdgeIterator_base {
 		
-		using Mv_t = std::array<std::pair<unsigned, bool>>;
+		using Mv_t = std::array<std::pair<unsigned, bool>, MaxK>;
 		
 		
 		AdjEdgeIterator_base(	std::array<unsigned, N>& pState,
-								HypergridMoveSet<N, MaxK> const& pMvSet,
-								std::array<unsigned,N> const& pDimsSz, 
-								CellMapReal<double> const& pCellMap) :
+								mathutil::HypergridMoveSet<N, MaxK> const& pMvSet,
+								std::array<unsigned,N> const& pDimsSz) :
 			mMvSet(pMvSet),
 			mDimsSz(pDimsSz),
-			mCellMap(pCellMap),
 			mAdjState(pState),
 			mLastOrd(0),
-			mLastK(0),				//Invalid, set in tryApplyMv().
+			mLastK(0),				//Invalid here, set properly in tryApplyMv().
 			mTest_origState(pState)
 		{
 			for(; mLastOrd<mMvSet.size(); mLastOrd++) {
@@ -143,16 +138,12 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 			bool b = mLastOrd == mMvSet.size();
 			if(b)
 				slow_assert(mTest_origState == mAdjState);
+			return b;
 		}
 		
 		std::array<unsigned, N>& state() const {
 			slow_assert(!finished());
 			return mAdjState;
-		}
-		
-		double cost() const {
-			slow_assert(!finished());
-			return mCurCost * mCellMap.cells[doPackState(mAdjState)];
 		}
 		
 	
@@ -178,7 +169,7 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 			for(unsigned j=0; j<k; j++) {
 				if(mAdjState[mv[j].first] == 0 && !mv[j].second)
 					return false;
-				if(mAdjState[mv[j].first] == mDimSz[mv[j].first]-1 && mv[j].second)
+				if(mAdjState[mv[j].first] == mDimsSz[mv[j].first]-1 && mv[j].second)
 					return false;
 			}
 			
@@ -189,26 +180,22 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 					mAdjState[mv[j].first]--;
 			}
 			
-			if(k != mLastK) {
-				mCurCost = mMvSet.getMoveCost(i);
+			if(k != mLastK)
 				mLastK = k;
-			}
 			
 			mLastOrd = i;
 			return true;
 		}
+
+		protected:
 		
-		
-		HypergridMoveSet<N, MaxK> const& mMvSet;
+		mathutil::HypergridMoveSet<N, MaxK> const& mMvSet;
 		std::array<unsigned,N> const& mDimsSz;
-		CellMapReal<double> const& pCellMap;
 		
-		std::array<unsigned, N> mAdjState;
+		std::array<unsigned, N>& mAdjState;
 		unsigned mLastOrd;
 		unsigned mLastK;
-		double mCurCost;
 		
 		const std::array<unsigned, N> mTest_origState;
 	};
-	
 }}}

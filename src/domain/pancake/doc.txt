@@ -1,0 +1,15 @@
+
+
+---Pancake Domain---
+
+N = number of cakes.
+
+A state is an permutation of N cakes, labeled [0..N-1]. Each cake has position [0..N-1].
+The goal state has cakes arranged in ascending order. i.e. POSITION(cake) = cake.
+
+An operation is a prefix reversal of the cakes, or equivalently reversing the order of cakes with positions 0 to k, where 1 <= k < N.
+Hence for all states there are N-1 applicable operators. These are labeled [0..N-2], for k = [1..N-1], respectively.
+
+
+
+---Ignore Abt Domain---

@@ -19,289 +19,125 @@
 #include "domain/gridnav/blocked/cellmap_blocked.hpp"
 
 
-namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
+namespace mjon661 { namespace gridnav { namespace hypernav_real {
 
 
-
-	
-	
-	
-		
-	template<unsigned N>
-	using StateN = std::array<unsigned, N>;
-	
-	using PackedStateN = unsigned;
-	
-	
-	template<long unsigned N>
-	void doPrettyPrintState(StateN<N> const& s, std::ostream& out) {
-			out << "[ ";
-			for(unsigned i=0; i<N; i++)
-				out << s[i] << " ";
-			out << "]";
-	}
-
-	
-	
-	template<long unsigned N>
-	PackedStateN doPackState(StateN<N> const& s, std::array<unsigned,N> const& pDimSz) {
-		PackedStateN pkd = 0;
-		unsigned rdx = 1;
-		
-		for(unsigned i=0; i<N; i++) {
-			pkd += s[i] * rdx;
-			rdx *= pDimSz[i];
-		}
-		
-		return pkd;
-	}
-	
-	template<long unsigned N>
-	StateN<N> doUnpackState(PackedStateN pkd, std::array<unsigned,N> const& pDimSz) {
-		StateN<N> s;
-		
-		for(unsigned i=0; i<N; i++) {
-			s[i] = pkd % pDimSz[i];
-			pkd /= pDimSz[i];
-		}
-		
-		return s;
-	}
-	
-	template<long unsigned N>
-	inline unsigned manhat(StateN<N> const& s, StateN<N> const& g) {
-		unsigned d = 0;
-		
-		for(unsigned i=0; i<N; i++)
-			d += std::abs((int)s[i] - (int)g[i]);
-		
-		return d;
-	}
-	
-	
-	template<long unsigned N>
-	inline double euclid_dist(StateN<N> const& s, StateN<N> const& g) {
-		double acc = 0;
-		
-		for(unsigned i=0; i<N; i++)
-			acc += std::pow((double)s[i] - g[i], 2);
-		
-		return std::sqrt(acc);
-	}
-	
-	
-	template<unsigned K>
-	struct CostType {
-		using type = double;
-	};
-	
-	template<>
-	struct CostType<1> {
-		using type = unsigned;
-	};	
-	
-	
-	
-	
-	//Iterates through adjacent states, a state being a position in the N-dimensional cellmap.
-	//MaxK is the maximum number of dimensions that can be moved through in a single move. That is, 1 to N inclusive.
-	//New states are prepared inplace using the State provided to the ctor. This state cannot be used until finished() returns true,
-	//	or dtor called.
-	
-	//state(), cost() - returns current edge info. Only valid when finished() returns false.
-	//finished() - returns false if more adjacent edges can be generated with next().
-	//next() - tries to advance to the next adjacent edge. If current edge is the last, instead sets finished() true and restores
-	// state given in ctor.
-	
-	
-	//Each move affects [1..MaxK] dimensions, those dimensions can be any combination of [0,1,..,N-1], and the dimensions selected can 
-	//	each be either increased or decreased. The maximum possible number of moves a state can have is:
-	//SUM{k=1..MaxK} NumMovesK(k),  where NumMovesK(k) = N!/(k!(N-k)!) * 2**k
-	
-	//The real number of moves is this, less the number of off-the-map positions, and positions corresponding to blocked cells.
 
 	template<unsigned N, unsigned MaxK>
 	struct AdjEdgeIterator_base {
-		AdjEdgeIterator_base(	StateN<N>& pState,
+		
+		using Mv_t = std::array<std::pair<unsigned, bool>>;
+		
+		
+		AdjEdgeIterator_base(	std::array<unsigned, N>& pState,
+								HypergridMoveSet<N, MaxK> const& pMvSet,
 								std::array<unsigned,N> const& pDimsSz, 
-								CellMapBlocked<> const& pCellMap) :
+								CellMapReal<double> const& pCellMap) :
+			mMvSet(pMvSet),
 			mDimsSz(pDimsSz),
 			mCellMap(pCellMap),
-			mCurState(pState),
-			mFinished(true)
+			mAdjState(pState),
+			mLastOrd(0),
+			mLastK(0),				//Invalid, set in tryApplyMv().
+			mTest_origState(pState)
 		{
-			mCurK = 1;
-			mMaxIncrDim = 2;
-			mCurCost = 1;
-			
-			for(unsigned i=0; i<mCurK; i++)
-				mTgtDims[i] = i;
-			
-			mIncrDim = 0;
-			
-			while(true) {
-				if(applyMv()) {
-					if(!mCellMap.isOpen(doPackState(mCurState, mDimsSz))) {
-						undoMv();
-					} else {
-						mFinished = false;
-						break;
-					}
-				}
-				
-				if(!adv())
+			for(; mLastOrd<mMvSet.size(); mLastOrd++) {
+				if(tryApplyMv(mLastOrd))
 					break;
 			}
 		}
 		
 		~AdjEdgeIterator_base() {
-			if(!mFinished)
+			if(!finished())
 				undoMv();
+			slow_assert(mTest_origState == mAdjState);
 		}
 		
-		
-		bool finished() {
-			return mFinished;
-		}
-		
-		StateN<N>& state() {
-			return mCurState;
-		}
-		
-		typename CostType<MaxK>::type cost() {
-			return mCurCost;
-		}
 		
 		void next() {
-			slow_assert(!mFinished);
-			
+			slow_assert(!finished());
 			undoMv();
-			
-			while(true) {
-				if(!adv()) {
-					mFinished = true;
+			for(; mLastOrd<mMvSet.size(); mLastOrd++) {
+				if(tryApplyMv(mLastOrd))
 					break;
-				}
-				
-				if(applyMv()) {
-					if(mCellMap.isOpen(doPackState(mCurState, mDimsSz)))
-						return;
-					else
-						undoMv();
-				}
 			}
 		}
 		
-		
-		bool applyMv() {
-			unsigned i = 0;
-			bool oob = false;
-			
-			for(; i<mCurK; i++) {
-				bool incr = (mIncrDim >> i) & 1;
-				
-				if(incr) {
-					if(mCurState[mTgtDims[i]] == mDimsSz[mTgtDims[i]]-1) {
-						oob = true;
-						break;
-					}
-					mCurState[mTgtDims[i]]++;
-				}
-				else {
-					if(mCurState[mTgtDims[i]] == 0) {
-						oob = true;
-						break;
-					}
-					mCurState[mTgtDims[i]]--;
-				}
-			}
-			
-			if(oob) {
-				for(unsigned j=0; j<i; j++) {
-					bool incr = (mIncrDim >> j) & 1;
-					
-					if(incr)
-						mCurState[mTgtDims[j]]--;
-					else
-						mCurState[mTgtDims[j]]++;
-				}
-				return false;
-			}
-			
-			return true;
+		bool finished() const {
+			bool b = mLastOrd == mMvSet.size();
+			if(b)
+				slow_assert(mTest_origState == mAdjState);
 		}
 		
+		std::array<unsigned, N>& state() const {
+			slow_assert(!finished());
+			return mAdjState;
+		}
+		
+		double cost() const {
+			slow_assert(!finished());
+			return mCurCost * mCellMap.cells[doPackState(mAdjState)];
+		}
+		
+	
+		private:
 		
 		void undoMv() {
-			for(unsigned j=0; j<mCurK; j++) {
-				bool incr = (mIncrDim >> j) & 1;
-				
-				if(incr)
-					mCurState[mTgtDims[j]]--;
+			unsigned k;
+			Mv_t const& mv = mMvSet.getMove(mLastOrd, k);
+			
+			for(unsigned j=0; j<k; j++) {
+				if(mv[j].second)
+					mAdjState[mv[j].first]--;
 				else
-					mCurState[mTgtDims[j]]++;
+					mAdjState[mv[j].first]++;
 			}
 		}
-		
-		
-		bool adv() {
-			mIncrDim++;
 			
-			if(mIncrDim == mMaxIncrDim) {
-				mIncrDim = 0;
-				
-				bool foundMid = false;
 		
-				for(unsigned i=1; i<mCurK; i++) {
-					if(mTgtDims[i] >= mTgtDims[i-1]+2) {
-						foundMid = true;
-						mTgtDims[i-1]++;
-						
-						for(unsigned j=0; j<i-1; j++)
-							mTgtDims[j] = j;
-						
-						break;
-					}
-				}
-				
-				if(!foundMid) {
-					if(mTgtDims[mCurK-1] == N-1) {
-						if(mCurK == MaxK)
-							return false;
-						mCurK++;
-						mMaxIncrDim = 1 << mCurK;
-						for(unsigned i=0; i<mCurK; i++)
-							mTgtDims[i] = i;
-						mCurCost = std::sqrt(mCurK);
-					}
-					else
-						mTgtDims[mCurK-1]++;
-				}
+		bool tryApplyMv(unsigned i) {
+			unsigned k;
+			Mv_t const& mv = mMvSet.getMove(i, k);
+			
+			for(unsigned j=0; j<k; j++) {
+				if(mAdjState[mv[j].first] == 0 && !mv[j].second)
+					return false;
+				if(mAdjState[mv[j].first] == mDimSz[mv[j].first]-1 && mv[j].second)
+					return false;
 			}
 			
+			for(unsigned j=0; j<k; j++) {
+				if(mv[j].second)
+					mAdjState[mv[j].first]++;
+				else
+					mAdjState[mv[j].first]--;
+			}
+			
+			if(k != mLastK) {
+				mCurCost = mMvSet.getMoveCost(i);
+				mLastK = k;
+			}
+			
+			mLastOrd = i;
 			return true;
 		}
 		
 		
-		
+		HypergridMoveSet<N, MaxK> const& mMvSet;
 		std::array<unsigned,N> const& mDimsSz;
-		CellMapBlocked<> const& mCellMap;
+		CellMapReal<double> const& pCellMap;
 		
-		StateN<N>& mCurState;
-		unsigned mCurK;
-		std::array<unsigned, MaxK> mTgtDims;
-		unsigned mMaxIncrDim;
-		unsigned mIncrDim;
-		bool mFinished;
-		typename CostType<MaxK>::type mCurCost;
+		std::array<unsigned, N> mAdjState;
+		unsigned mLastOrd;
+		unsigned mLastK;
+		double mCurCost;
+		
+		const std::array<unsigned, N> mTest_origState;
 	};
 	
 	
 	
 	
-
-
-
 
 	template<unsigned N, unsigned MaxK>
 	struct Domain_base {

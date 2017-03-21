@@ -363,7 +363,7 @@ namespace mjon661 { namespace mathutil {
 		}
 		
 		//Total moves
-		unsigned size() const {
+		constexpr unsigned size() const {
 			return compTotMvs();
 		}
 		
@@ -387,6 +387,12 @@ namespace mjon661 { namespace mathutil {
 		std::pair<unsigned, unsigned> const& getKsize(unsigned k) const {
 			slow_assert(k >= 1 && k <= MaxK);
 			return mFindByK[k];
+		}
+		
+		//Returns sqrt(k), where k is the number of affected dimensions for move i.
+		double getMoveCost(unsigned i) const {
+			slow_assert(i < mMvs.size());
+			return mCostLookup[i];
 		}
 		
 		void dump(std::ostream& out) const {
@@ -452,6 +458,7 @@ namespace mjon661 { namespace mathutil {
 						
 						mMvs[nMvs] = mv;
 						mKLookup[nMvs] = k;
+						mCostLookup[nMvs] = std::sqrt(k);
 						nMvs++;
 					}
 				}
@@ -461,6 +468,7 @@ namespace mjon661 { namespace mathutil {
 
 		std::array<std::array<std::pair<unsigned, bool>, MaxK>, compTotMvs()> mMvs;
 		std::array<unsigned, compTotMvs()> mKLookup;
+		std::array<double, compTotMvs()> mCostLookup;
 		std::array<std::pair<unsigned, unsigned>, MaxK+1> mFindByK;
 		
 	};

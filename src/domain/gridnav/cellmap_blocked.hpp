@@ -16,10 +16,7 @@
 #include "util/math.hpp"
 
 
-namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
-
-
-	
+namespace mjon661 { namespace gridnav {
 
 	template<typename = void>
 	class CellMapBlocked {
@@ -314,4 +311,4 @@ namespace mjon661 { namespace gridnav { namespace hypernav_blocked {
 		const unsigned mSize;
 		std::vector<Cell_t> mCells;
 	};
-}}}
+}}

@@ -76,7 +76,66 @@ namespace mjon661 { namespace gridnav {
 				logDebugStream() << "random_norm init. seed=" << seed << ", mean=" << mean << ", stdev=" << stddev << "\n";
 			}
 			
+			else if(funcStr == "random_cones") {
+				//mapstr = ",random_cones,<width>,<seed>,<coneIntv>,<maxConeHeight>"
+				
+				unsigned width;
+				unsigned seed, coneIntv, maxConeHeight;
+				//double noisemean, noisestddev;
+				
+				
+				std::getline(ss, t, ',');
+				width = std::stoul(t);
+				std::getline(ss, t, ',');
+				seed = std::stoul(t);
+				std::getline(ss, t, ',');
+				coneIntv = std::stoul(t);
+				std::getline(ss, t, ',');
+				maxConeHeight = std::stoul(t);
+
+				
+				
+				std::vector<std::pair<unsigned, unsigned>> conepos;
+				std::vector<double> coneheight;
+				
+				std::fill(mCells.begin(), mCells.end(), 0);
+				
+				std::mt19937 randgen;
+				std::uniform_real_distribution<double> coneHeightDist(0, maxConeHeight);
+				
+				for(unsigned x=0; x<width; x+=coneIntv)
+					for(unsigned y=0; y<mSize/width; y+=coneIntv) {
+						conepos.push_back({x,y});
+						coneheight.push_back(coneHeightDist(randgen));
+					}
+				
+				for(unsigned pkd=0; pkd<mSize; pkd++) {
+					unsigned x = pkd % width, y = pkd / width;
+					
+					for(unsigned i=0; i<conepos.size(); i++) {
+						double d = std::hypot(x - conepos[i].first, y - conepos[i].second);
+						double w = coneheight[i] - std::tan(0.5236) * d; //0.5236 ~= 2pi/6 = 30 degrees;
+						
+						if(w > mCells[pkd])
+							mCells[pkd] = w;
+					}
+				}
+				
+				logDebugStream() << "random_cones init. seed=" << seed << ", coneIntv=" << coneIntv 
+					<< ", maxConeHeight=" << maxConeHeight << "\n";
+			}
+			
 			else if(funcStr == "random_hills") {
+				//mapstr = ",random_hills,<width>,<seed>,<nhills>,<noisemean>,<noisestddev>"
+				//Make set of nhills spheres. Each sphere has (x,y) centre, radius, depth.
+				//
+				//For each sphere, for each cell with distance from sphere centre d, where d <= radius,
+				//	contribute to cell weight w = sqrt(radius**2 - d**2) - depth.
+				//
+				//Default cell weight is 1.
+				//
+				//Sphere radius and depth is randomly set between 0 and diagLength/4, where diagLength is hypot(width, height).
+				//Position is random.
 				unsigned width;
 				unsigned seed, nhills;
 				double noisemean, noisestddev;
@@ -105,7 +164,7 @@ namespace mjon661 { namespace gridnav {
 				std::uniform_real_distribution<double> hillradiusdist(0, diagLength/4);
 				std::uniform_real_distribution<double> hilldepthdist(0, diagLength/4);
 
-				std::uniform_real_distribution<double> noisedist(noisemean, noisestddev);
+				//std::uniform_real_distribution<double> noisedist(noisemean, noisestddev);
 				
 				for(unsigned i=0; i<nhills; i++) {
 					unsigned pkd = hillposdist(randgen);
@@ -117,7 +176,7 @@ namespace mjon661 { namespace gridnav {
 						<< hillradius.back() << " " << hilldepth.back() << "\n";
 				}
 				
-				std::fill(mCells.begin(), mCells.end(), 0);
+				std::fill(mCells.begin(), mCells.end(), 1);
 				
 				for(unsigned i=0; i<nhills; i++) {
 					double r2 = std::pow(hillradius[i], 2);

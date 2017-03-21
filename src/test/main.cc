@@ -68,7 +68,7 @@ namespace mjon661 {
 		using Alg_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>;
 		
 		Json jDomConfig;
-		jDomConfig["map"] = ",random_hills,100,0,10,100,20";
+		jDomConfig["map"] = ",random_cones,100,0,10,20";
 		jDomConfig["dimsz"] = std::vector<unsigned>{100,100};
 		
 		D domStack(jDomConfig);

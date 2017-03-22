@@ -75,6 +75,12 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 			for(unsigned sz : mDimSz)
 				acc *= sz;
 			fast_assert(acc == mCellMap.cells().size());
+			
+			auto minmaxvals = std::minmax_element(mCellMap.cells().begin(), mCellMap.cells().end());
+			
+			mMinCellWeight = *minmaxvals.first;
+			mMaxCellWeight = *minmaxvals.second;
+			
 		}
 		
 		void packState(State const& s, PackedState& pkd) const {
@@ -94,15 +100,40 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 		}
 		
 		Cost costHeuristic(State const& pState) const {
-			return 0;
+			std::array<unsigned, MaxK> moveCount;
+			compMinKmoves<N,MaxK>(pState, mGoalState, moveCount);
+			
+			double cst = 0;
+			for(unsigned i=0; i<MaxK; i++)
+				cst += moveCount[i] * mMvSet.getKcost(i+1);
+
+			return cst * mMinCellWeight;
 		}
 		
 		Cost distanceHeuristic(State const& pState) const {
-			return 0;
+			std::array<unsigned, MaxK> moveCount;
+			compMinKmoves<N,MaxK>(pState, mGoalState, moveCount);
+			
+			unsigned n=0;
+			for(unsigned i=0; i<MaxK; i++)
+				n += moveCount[i];
+
+			return n;
 		}
 		
 		std::pair<Cost,Cost> pairHeuristics(State const& pState) const {
-			return {costHeuristic(pState), distanceHeuristic(pState)};
+			std::array<unsigned, MaxK> moveCount;
+			compMinKmoves<N,MaxK>(pState, mGoalState, moveCount);
+			
+			double cst = 0;
+			unsigned n = 0;
+			
+			for(unsigned i=0; i<MaxK; i++) {
+				cst += moveCount[i] * mMvSet.getKcost(i+1);
+				n += moveCount[i];
+			}
+			
+			return {cst, n};
 		}
 		
 		bool checkGoal(State const& pState) const {
@@ -119,6 +150,8 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 		std::array<unsigned, N> const& mDimSz;
 		CellMapReal<double> const& mCellMap;
 		const mathutil::HypergridMoveSet<N, MaxK> mMvSet;
+		
+		double mMinCellWeight, mMaxCellWeight;
 	};
 	
 	

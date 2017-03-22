@@ -64,14 +64,17 @@ namespace mjon661 {
 	};
 	
 	void test_hypernav_real() {
-		using D = gridnav::hypernav::DomainRealStack<2, 1>;
-		using Alg_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>;
+		using D = gridnav::hypernav::DomainRealStack<2, 2>;
+		using Alg_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Speedy>;
 		
 		Json jDomConfig;
 		jDomConfig["map"] = ",random_cones,100,0,10,20";
 		jDomConfig["dimsz"] = std::vector<unsigned>{100,100};
 		
 		D domStack(jDomConfig);
+		domStack.assignInitGoalStates({{50,50}, {99,99}});
+		
+		typename D::template Domain<0> dom(domStack);
 		
 		Alg_t alg(domStack, Json());
 		
@@ -79,8 +82,10 @@ namespace mjon661 {
 		
 		std::vector<typename Alg_t::Node*> expNodes;
 		
-		for(auto it=alg.mClosedList.begin(); it!=alg.mClosedList.end(); ++it)
-			expNodes.push_back(*it);
+		for(auto it=alg.mClosedList.begin(); it!=alg.mClosedList.end(); ++it) {
+			if((*it)->expn != (unsigned)-1)
+				expNodes.push_back(*it);
+		}
 		
 		std::sort(expNodes.begin(), expNodes.end(), AstarExpandedNodesSort());
 
@@ -93,6 +98,11 @@ namespace mjon661 {
 		domStack.mCellMap.dumpHeatMap1(100,100);
 		domStack.mCellMap.dumpHeatMap2(100,100, expStates);
 		domStack.mCellMap.dumpHeatMap3(100,100, expStates);
+		
+		for(auto* n = alg.mGoalNode; n; n=n->parent) {
+			unsigned x = n->pkd%100, y = n->pkd/100;
+			std::cout << "(" << x << "," << y << ") " << dom.costHeuristic({x,y}) << " " << dom.distanceHeuristic({x,y}) << "\n";
+		}
 		
 	}
 

@@ -433,6 +433,12 @@ namespace mjon661 { namespace mathutil {
 			return mCostLookup[i];
 		}
 		
+		//Returns sqrt(k).
+		double getKcost(unsigned k) const {
+			slow_assert(k >= 1 && k <= MaxK);
+			return mCostLookupByK[k];
+		}
+		
 		void dump(std::ostream& out) const {
 			for(unsigned i=0; i<size(); i++) {
 				unsigned k;
@@ -477,6 +483,8 @@ namespace mjon661 { namespace mathutil {
 					mFindByK[k-1].second = nMvs;
 				mFindByK[k].first = nMvs;
 				
+				mCostLookupByK[k] = std::sqrt(k);
+				
 				//For all k-combinations of N dimensions...
 				for(unsigned dimsRank=0; dimsRank<binomialCoeff(N,k); dimsRank++) {
 					
@@ -507,6 +515,7 @@ namespace mjon661 { namespace mathutil {
 		std::array<std::array<std::pair<unsigned, bool>, MaxK>, compTotMvs()> mMvs;
 		std::array<unsigned, compTotMvs()> mKLookup;
 		std::array<double, compTotMvs()> mCostLookup;
+		std::array<double, MaxK+1> mCostLookupByK;
 		std::array<std::pair<unsigned, unsigned>, MaxK+1> mFindByK;
 		
 	};

@@ -93,6 +93,41 @@ namespace mjon661 { namespace gridnav { namespace hypernav {
 	};	
 	
 	
+	//Determine the minimum number of moves required to transform pState into pGoalState.
+	//Number of moves affecting k dimensions is returned in pMoveCount[k-1].
+	template<unsigned N, unsigned MaxK>
+	inline void compMinKmoves(StateN<N> const& pState, StateN<N> const& pGoalState, std::array<unsigned, MaxK>& pMoveCount) {
+		std::array<unsigned, N> delta;
+		unsigned remDims = 0;
+		
+		pMoveCount.fill(0);
+		
+		for(unsigned i=0; i<N; i++) {
+			delta[i] = pState[i] > pGoalState[i] ? pState[i] - pGoalState[i] : pGoalState[i] - pState[i];
+			if(delta[i] != 0)
+				remDims++;
+		}
+		
+		std::sort(delta.rbegin(), delta.rend());
+		
+		while(remDims > 0) {
+			unsigned k = std::min(MaxK, remDims);
+			
+			unsigned reduction = delta[k-1];
+			unsigned oldRemDims = remDims;
+			
+			for(unsigned i=0; i<k; i++) {
+				delta[i] -= reduction;
+				if(delta[i] == 0)
+					remDims--;
+			}
+
+			pMoveCount[k-1] += reduction;
+
+			std::sort(delta.rbegin()+(N-oldRemDims), delta.rend());
+		}
+	}
+	
 	
 	
 	//Edge iterator base. Provides iterator framework (except cost()), and ignores out-of-bounds adjacent positions.

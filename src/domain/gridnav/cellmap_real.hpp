@@ -98,7 +98,7 @@ namespace mjon661 { namespace gridnav {
 				std::vector<std::pair<unsigned, unsigned>> conepos;
 				std::vector<double> coneheight;
 				
-				std::fill(mCells.begin(), mCells.end(), 0);
+				std::fill(mCells.begin(), mCells.end(), 1);
 				
 				std::mt19937 randgen;
 				std::uniform_real_distribution<double> coneHeightDist(0, maxConeHeight);

@@ -82,7 +82,7 @@ namespace mjon661 { namespace tiles {
 			mGoalState(jConfig.at("goal").get<std::vector<tile_t>>())
 		{
 			if(jConfig.count("init"))
-				mInitState = BoardState<Height, Width>(jConfig.at("goal").get<std::vector<tile_t>>());
+				mInitState = BoardState<Height, Width>(jConfig.at("init").get<std::vector<tile_t>>());
 			else
 				mInitState = randInitState(0);
 			

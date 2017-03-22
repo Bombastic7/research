@@ -176,6 +176,7 @@ namespace mjon661 { namespace algorithm {
 			Cost g;
 			double u;
 			Cost f; //......
+			unsigned depth;
 			
 			Node *parent;
 			
@@ -253,6 +254,12 @@ namespace mjon661 { namespace algorithm {
 			
 			mResort_next = 16;
 			mResort_n = 0;
+			
+			mTest_exp_f.clear();
+			mTest_exp_u.clear();
+			mTest_exp_uh.clear();
+			mTest_exp_ucorr.clear();
+			mTest_exp_depth.clear();
 			mTimer.start();
 		}
 
@@ -269,6 +276,7 @@ namespace mjon661 { namespace algorithm {
 				n0->g = 		Cost(0);
 				n0->parent = 	nullptr;
 				n0->expdGen =	0;
+				n0->depth =		0;
 				
 				evalHr(n0, s0);
 
@@ -287,6 +295,7 @@ namespace mjon661 { namespace algorithm {
 
 				if(mDomain.checkGoal(s)) {
 					mGoalNode = n;
+					mTest_exp_f.push_back(n->f);
 					break;
 				}
 				
@@ -324,30 +333,33 @@ namespace mjon661 { namespace algorithm {
 				j["goal_depth"] = goal_depth;
 			}
 			
+			j["exp_f_raw"] = mTest_exp_f;
+			j["exp_u_raw"] = mTest_exp_u;
+			j["exp_ucorr_raw"] = mTest_exp_ucorr;
+			j["exp_uh_raw"] = mTest_exp_uh;
+			j["exp_depth_raw"] = mTest_exp_depth;
+			
+			std::map<Cost, unsigned> flevel_exp;
+			
+			for(auto cst : mTest_exp_f)
+				flevel_exp[cst]++;
+			
 			std::vector<Cost> flevel_cost;
 			std::vector<unsigned> flevel_n;
 			std::vector<double> flevel_bf;
 
-			for(auto it = mTest_exp_f.begin(); it!=mTest_exp_f.end(); ++it) {
+			for(auto it = flevel_exp.begin(); it!=flevel_exp.end(); ++it) {
 				flevel_cost.push_back(it->first);
 				flevel_n.push_back(it->second);
 			}
 			
-
-			if(mTest_exp_f.size() >= 1) {
-				auto it = mTest_exp_f.begin(), itprev = mTest_exp_f.begin();
-
-				++it;
-					
-				for(; it!=mTest_exp_f.end(); ++it, ++itprev)
-					flevel_bf.push_back((double)it->second / itprev->second);
-				
-				fast_assert(flevel_bf.size() + 1 == mTest_exp_f.size());
-			}
-
-			j["f_exp_n"] = flevel_n;
-			j["f_exp_cost"] = flevel_cost;
-			j["f_exp_bf"] = flevel_bf;
+			if(flevel_n.size() > 1)
+				for(unsigned i=0; i<flevel_n.size()-1; i++)
+					flevel_bf.push_back((double)flevel_n[i+1] / flevel_n[i]);
+			
+			j["exp_f"] = flevel_cost;
+			j["exp_n"] = flevel_n;
+			j["exp_bf"] = flevel_bf;
 			
 			return j;
 		}
@@ -355,7 +367,11 @@ namespace mjon661 { namespace algorithm {
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
-			mTest_exp_f[n->f]++;
+			mTest_exp_f.push_back(n->f);
+			mTest_exp_u.push_back(n->u);
+			mTest_exp_uh.push_back(n->u - mParams_wf * n->g);
+			mTest_exp_ucorr.push_back(n->u + mParams_wt * mLog_curExpTime * mLog_expd);
+			mTest_exp_depth.push_back(n->depth);
 			informExpansion(n);
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
@@ -380,6 +396,7 @@ namespace mjon661 { namespace algorithm {
 						kid_dup->g			= kid_g;
 						kid_dup->parent		= n;
 						kid_dup->expdGen	= mLog_expd;
+						kid_dup->depth		= n->depth + 1;
 						
 						evalHr(kid_dup, edgeIt.state());
 						
@@ -397,6 +414,7 @@ namespace mjon661 { namespace algorithm {
 					kid_node->pkd 		= kid_pkd;
 					kid_node->parent	= n;
 					kid_node->expdGen	= mLog_expd;
+					kid_node->depth		= n->depth + 1;
 					
 					evalHr(kid_node, edgeIt.state());
 
@@ -426,8 +444,7 @@ namespace mjon661 { namespace algorithm {
 				mTimer.start();
 				mLog_curExpTime = mTimer.seconds() / expThisPhase;
 			}
-			
-			logDebug(std::to_string(expThisPhase));//.......
+
 			mCompRemExp.update(expThisPhase);
 			
 			for(unsigned i=0; i<mOpenList.size(); i++) {
@@ -461,6 +478,10 @@ namespace mjon661 { namespace algorithm {
 		
 		double mLog_curExpTime, mLog_curDistFact;
 		
-		std::map<Cost, unsigned> mTest_exp_f;
+		std::vector<Cost> mTest_exp_f;
+		std::vector<double> mTest_exp_u;
+		std::vector<double> mTest_exp_uh;
+		std::vector<double> mTest_exp_ucorr;
+		std::vector<double> mTest_exp_depth;
 	};
 }}

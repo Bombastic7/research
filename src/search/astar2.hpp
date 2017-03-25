@@ -45,7 +45,8 @@ namespace mjon661 { namespace algorithm {
 			Cost g, f;
 			PackedState pkd;
 			Node* parent;
-			unsigned expn;
+			//unsigned expn;
+			//unsigned depth;
 		};
 		
 
@@ -116,6 +117,9 @@ namespace mjon661 { namespace algorithm {
 			mGoalNode = nullptr;
 			
 			mTest_exp_f.clear();
+			mTest_exp_g.clear();
+			mTest_exp_h.clear();
+			mTest_exp_depth.clear();
 		}
 
 		
@@ -130,8 +134,9 @@ namespace mjon661 { namespace algorithm {
 
 				n0->g = 		Cost(0);
 				n0->parent = 	nullptr;
-				n0->expn = 		0;
-
+				//n0->expn = 		0;
+				//n0->depth =		0;
+				
 				evalHr(n0, s0);
 
 				mDomain.packState(s0, n0->pkd);
@@ -184,37 +189,11 @@ namespace mjon661 { namespace algorithm {
 				
 				j["goal_depth"] = goal_depth;
 			}
-			
-			
-			std::vector<Cost> flevel_cost;
-			std::vector<unsigned> flevel_n;
-			std::vector<double> flevel_bf;
-			
-			
 
-			for(auto it = mTest_exp_f.begin(); it!=mTest_exp_f.end(); ++it) {
-				flevel_cost.push_back(it->first);
-				flevel_n.push_back(it->second);
-			}
-			
-
-			if(mTest_exp_f.size() >= 1) {
-				auto it = mTest_exp_f.begin(), itprev = mTest_exp_f.begin();
-
-				++it;
-					
-				for(; it!=mTest_exp_f.end(); ++it, ++itprev)
-					flevel_bf.push_back((double)it->second / itprev->second);
-				
-				fast_assert(flevel_bf.size() + 1 == mTest_exp_f.size());
-			
-			}
-			
-			
-			
-			j["f_exp_n"] = flevel_n;
-			j["f_exp_cost"] = flevel_cost;
-			j["f_exp_bf"] = flevel_bf;
+			j["exp_f_raw"] = mTest_exp_f;
+			j["exp_g_raw"] = mTest_exp_g;
+			j["exp_h_raw"] = mTest_exp_h;
+			j["exp_depth_raw"] = mTest_exp_depth;
 			
 			return j;
 		}
@@ -227,8 +206,11 @@ namespace mjon661 { namespace algorithm {
 		void expand(Node* n, State& s) {
 			mLog_expd++;
 			
-			mTest_exp_f[n->f]++;
-			n->expn = mLog_expd;
+			//mTest_exp_f.push_back(n->f);
+			//mTest_exp_g.push_back(n->g);
+			//mTest_exp_h.push_back(n->f - n->g);
+			//mTest_exp_depth.push_back(n->depth);
+			//n->expn = mLog_expd;
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
@@ -251,7 +233,8 @@ namespace mjon661 { namespace algorithm {
 					if(kid_dup->g > kid_g) {
 						kid_dup->g			= kid_g;
 						kid_dup->parent		= n;
-						kid_dup->expn		= -1;
+						//kid_dup->expn		= -1;
+						//kid_dup->depth		= n->depth + 1;
 						
 						evalHr(kid_dup, edgeIt.state());
 						
@@ -268,7 +251,9 @@ namespace mjon661 { namespace algorithm {
 					kid_node->g 		= kid_g;
 					kid_node->pkd 		= kid_pkd;
 					kid_node->parent	= n;
-					kid_node->expn		= -1;
+					//kid_node->expn		= -1;
+					//kid_node->depth		= n->depth + 1;
+					
 					evalHr(kid_node, edgeIt.state());
 
 					mOpenList.push(kid_node);
@@ -306,6 +291,9 @@ namespace mjon661 { namespace algorithm {
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
 		
-		std::map<Cost, unsigned> mTest_exp_f;
+		std::vector<Cost> mTest_exp_f;
+		std::vector<Cost> mTest_exp_g;
+		std::vector<Cost> mTest_exp_h;
+		std::vector<unsigned> mTest_exp_depth;
 	};
 }}

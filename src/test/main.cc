@@ -31,6 +31,7 @@
 #include "domain/gridnav/hypernav/hypernav_real.hpp"
 #include "search/astar2.hpp"
 
+#include "search/ugsa.hpp"
 
 namespace mjon661 {
 	
@@ -105,6 +106,8 @@ namespace mjon661 {
 	
 	
 	
+
+	
 	std::vector<int> korf_15tiles_100instances(unsigned i) {
 		fast_assert(i >= 1 && i <= 5);
 		
@@ -125,39 +128,79 @@ namespace mjon661 {
 	}
 	
 	
+	
+	
+
+	template<typename D, unsigned... Rem_Exp_Ops>
+	void run_bugsy_fixed(D& pDomStack, Json const& jAlgConfig, std::string const& pAlgName, Json& jRes) {
+		using namespace algorithm;
+		
+		Timer searchTimer;
+		
+		BugsyImpl<D, true, Rem_Exp_Ops...> alg_bugsy(pDomStack, jAlgConfig);
+
+		searchTimer.start();
+		alg_bugsy.execute(pDomStack.getInitState());
+		searchTimer.stop();
+		
+		std::string opStr = BugsyConstants::optionStr({Rem_Exp_Ops...});
+		std::string algKey = pAlgName + "_" + opStr;
+		
+		jRes[algKey] = alg_bugsy.report();
+		jRes[algKey]["walltime"] = searchTimer.seconds();
+		jRes[algKey]["utility"] = 
+			jRes[algKey]["goal_g"].get<double>() * jRes[algKey]["wf"].get<double>() +
+			jRes[algKey]["expd"].get<double>() * jRes[algKey]["fixed_exp_time"].get<double>() * jRes[algKey]["wt"].get<double>();
+	}
+	
+	
 	Json run_tiles_44() {
 		
 		using D = tiles::TilesGeneric_DomainStack<4,4,true,false,1>;
 		
 		using Alg_Astar_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>;
-		using Alg_Speedy_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Speedy>;
-		using Alg_Bugsy_t = algorithm::BugsyImpl<D, true, algorithm::BugsySearchMode::Delay>;
+		//using Alg_Speedy_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Speedy>;
+		//using Alg_Bugsy_t = algorithm::BugsyImpl<D, true>;
+		//using Alg_Ugsa_t = algorithm::UgsaImpl<D, true>;
 		
 		Json jDomConfig, jAlgConfig, jRes;
 		
 		
 		jDomConfig["goal"] = std::vector<unsigned>{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
 		jDomConfig["kept"] = std::vector<unsigned>{  1,1,1,1,1,1,1,1,1,1 ,1 ,1 ,1 ,1 ,1 };
-		//jDomConfig["init"] = std::vector<unsigned>{14,13,15,7,11,12,9,5,6,0,2,1,4,8,10,3}; //Korf random instance 1.
 		D domStack(jDomConfig);
+
 		
 		for(unsigned i=1; i<=1; i++) {
 			tiles::BoardState<4,4> initState(korf_15tiles_100instances(i));
 			domStack.setInitState(initState);
+			std::string probKey = std::to_string(i);
+			
 			
 			{
 				Alg_Astar_t alg_astar(domStack, Json());
+				//searchTimer.start();
 				//alg_astar.execute(domStack.getInitState());
+				//searchTimer.stop();
 				//jRes[std::to_string(i)]["astar"] = alg_astar.report();
+				//jRes[std::to_string(i)]["astar"]["walltime"] = searchTimer.seconds();
+				
 			}
 			
 			{
-				Alg_Speedy_t alg_speedy(domStack, Json());
+				//Alg_Speedy_t alg_speedy(domStack, Json());
+				//searchTimer.start();
 				//alg_speedy.execute(domStack.getInitState());
+				//searchTimer.stop();
 				//jRes[std::to_string(i)]["speedy"] = alg_speedy.report();
+				//jRes[std::to_string(i)]["speedy"]["walltime"] = searchTimer.seconds();
 			}
 			
+			
+
+			
 			{
+				
 				std::vector<std::tuple<double,double,std::string>> weights = {
 						std::tuple<double,double,std::string>{1,1e6,"1e6"},
 						std::tuple<double,double,std::string>{1,1e3, "1e3"},
@@ -166,10 +209,18 @@ namespace mjon661 {
 				for(unsigned j=0; j<1; j++) {
 					jAlgConfig["wf"] = std::get<0>(weights[j]);
 					jAlgConfig["wt"] = std::get<1>(weights[j]);
+					jAlgConfig["fixed_exptime"] = 3e-6;
 
-					Alg_Bugsy_t alg_bugsy(domStack, jAlgConfig);
-					alg_bugsy.execute(domStack.getInitState());
-					jRes[std::to_string(i)][std::string("bugsy") + std::get<2>(weights[j])] = alg_bugsy.report();
+
+					run_bugsy_fixed<D, 0>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
+					run_bugsy_fixed<D, 1,0,0,0>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
+					run_bugsy_fixed<D, 1,0,0,1>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
+					run_bugsy_fixed<D, 1,0,1,0>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
+					run_bugsy_fixed<D, 1,0,1,1>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
+					run_bugsy_fixed<D, 1,1,0,0>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
+					run_bugsy_fixed<D, 1,1,0,1>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
+					run_bugsy_fixed<D, 1,1,1,0>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
+					run_bugsy_fixed<D, 1,1,1,1>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
 				}
 			}
 		}

@@ -15,55 +15,77 @@
 #include "util/exception.hpp"
 #include "util/time.hpp"
 
-#include "search/admissible_abtsearch.hpp"
-#include "search/admissible_abtsearch_util.hpp"
+#include "search/hr_module.hpp"
+
 
 
 namespace mjon661 { namespace algorithm {
 
-	enum struct BugsySearchMode {
-		Delay, BranchingFactor
+
+	struct BugsyConstants {
+		enum {
+			Delay, RollingBf
+		};
+		
+		enum {
+			depth, f, uRound50,
+		};
+		
+		
+		static std::string optionStr(std::vector<unsigned> const& ops) {
+			if(ops.size() == 1) {
+				fast_assert(ops[0] == Delay);
+				return "Delay";
+			}
+			
+			if(ops.size() == 4) {
+				fast_assert(ops[0] == RollingBf);
+				std::string s = "RollingBf_";
+				s += ops[0] == depth ? "depth_" : (ops[0] == f ? "f_" : (ops[0] == uRound50 ? "uRound50_" : "error"));
+				s += ops[1] == 0 ? "dropcounts_" : ( ops[1] == 1 ? "keepcounts_" : "error");
+				s += ops[2] == 0 ? "nopr" : (ops[2] == 1 ? "pr" : "error");
+				return s;
+			}
+			
+			
+			gen_assert(false);
+			return "";
+		}
+		
 	};
-	
-	std::string BugsySearchModeStr(BugsySearchMode m) {
-		if(m == BugsySearchMode::Delay)
-			return "Delay";
-		else if(m == BugsySearchMode::BranchingFactor)
-			return "BranchingFactor";
-		
-		gen_assert(false);
-		return "";
-	}
-	
-	
-	template<typename, BugsySearchMode>
-	struct CompRemExpansions;
+
+
+	template<typename D, typename Node, unsigned... Vp>
+	struct CompRemExp;
 	
 	
 	
-	template<typename D>
-	struct CompRemExpansions<D, BugsySearchMode::Delay> {
-		
+	
+
+	template<typename D, typename Node>
+	struct CompRemExp<D, Node, BugsyConstants::Delay> {
+		using Cost = typename D::template Domain<0>::Cost;
 		
 		void reset() {
 			mLog_nextExpDelayAcc = 0;
 			mLog_curExpDelay = 1;
 			mLog_pastExpDelays.clear();
 			mLog_pastExpDelays.push_back(mLog_curExpDelay);
+			mExpSinceLast = 0;
 		}
-		
-		template<typename Node>
+
 		void informExpansion(Node* n, unsigned pExpDelay) {
 			mLog_nextExpDelayAcc += pExpDelay;
+			mExpSinceLast++;
 		}
 		
-		void update(unsigned pExpSinceLast) {
-			mLog_curExpDelay = (double)mLog_nextExpDelayAcc / pExpSinceLast;
+		void update() {
+			mLog_curExpDelay = (double)mLog_nextExpDelayAcc / mExpSinceLast;
 			mLog_nextExpDelayAcc = 0;
 			mLog_pastExpDelays.push_back(mLog_curExpDelay);
+			mExpSinceLast = 0;
 		}
-		
-		template<typename Cost>
+
 		double eval(Cost d) {
 			return d * mLog_curExpDelay;
 		}
@@ -76,92 +98,99 @@ namespace mjon661 { namespace algorithm {
 
 		unsigned mLog_nextExpDelayAcc;
 		double mLog_curExpDelay;
+		unsigned mExpSinceLast;
 		
 		std::vector<double> mLog_pastExpDelays;
 	};
 	
 	
 	
-	template<typename D>
-	struct CompRemExpansions<D, BugsySearchMode::BranchingFactor> {
-		
+	
+
+	template<typename D, typename Node, unsigned Use_Prop, unsigned Do_Keep_Counts, unsigned Do_Prune_Outliers>
+	struct CompRemExp<D, Node, BugsyConstants::RollingBf, Use_Prop, Do_Keep_Counts, Do_Prune_Outliers> {
 		using Cost = typename D::template Domain<0>::Cost;
 		
 		void reset() {
-			mLog_fexp.clear();
-			mLog_curBF = 1;
-			mLog_pastBFs.clear();
-			mLog_pastBFs.push_back(mLog_curBF);
-		}
-		
-		template<typename Node>
-		void informExpansion(Node* n, unsigned) {
-			mLog_fexp[n->f]++;
-		}
-		
-		void update(unsigned pExpSinceLast) {
-			logDebug("update bf start");//.........
-			logDebug(std::to_string(mLog_fexp.size()));
-			if(mLog_fexp.size() < 2)
-				return;
-		
-			std::vector<double> bfsamples;
-						
-			auto it = mLog_fexp.begin(), itprev = mLog_fexp.begin();
-			++it;
-			
-			for(; it!=mLog_fexp.end(); ++it, ++itprev)
-				bfsamples.push_back((double)it->second/itprev->second);
-			
-			std::sort(bfsamples.begin(), bfsamples.end());
-			
-			double acc = 0;
-			unsigned nused = 0;
-			
-			if(bfsamples.size() >= 3) {
-				for(unsigned i=1; i<bfsamples.size()-1; i++)
-					acc += bfsamples[i];
-				nused = bfsamples.size()-2;
-			}
-			else if(bfsamples.size() == 2) {
-				acc = bfsamples[0] + bfsamples[1];
-				nused = 2;
-			}
-			else {
-				acc = bfsamples[0];
-				nused = 1;
-			}
-			
-			acc /= nused;
-			
-			if(acc > 5)
-				acc = 5;
-			
-			mLog_curBF = acc;
-			mLog_pastBFs.push_back(mLog_curBF);
-			logDebugStream() << "update. new bf=" << mLog_curBF << "\n";
+			mAvgBf = 1;
+			mExpCountMap.clear();
+			mLog_pastBf.push_back(mAvgBf);
 		}
 
+		void informExpansion(Node* n, unsigned pExpDelay) {
+			Cost k;
+			if(Use_Prop == BugsyConstants::f)
+				k = n->f;
+			else if(Use_Prop == BugsyConstants::depth)
+				k = n->depth;
+			else if(Use_Prop == BugsyConstants::uRound50) {
+				k = std::round(n->u / 50) * 50;
+			}
+			else
+				gen_assert(false);
+
+			mExpCountMap[k] += 1;
+		}
+		
+		
+		void update() {
+			if(mExpCountMap.size() < 2)
+				return;
+
+			auto it = mExpCountMap.begin(), itprev = mExpCountMap.begin();
+			++it;
+			
+			std::vector<double> bfsamples;
+			
+			for(; it!=mExpCountMap.end(); ++it, ++itprev) {
+				bfsamples.push_back((double)it->second / itprev->second);
+			}
+			
+			if(Do_Prune_Outliers == 1 && bfsamples.size() >= 3) {
+				std::sort(bfsamples.begin(), bfsamples.end());
+				bfsamples.erase(bfsamples.begin());
+				bfsamples.pop_back();
+				fast_assert(bfsamples.size() >= 1);
+			}
+			
+			double acc = 0;
+			
+			for(auto& i : bfsamples)
+				acc += i;
+			
+			mAvgBf = acc / (mExpCountMap.size() - 1);
+			mLog_pastBf.push_back(mAvgBf);
+			
+			if(Do_Keep_Counts == 0)
+				mExpCountMap.clear();
+		}
+		
 		double eval(Cost d) {
-			return std::pow(mLog_curBF, d);
+			return std::pow(mAvgBf, d);
 		}
 		
 		Json report() {
 			Json j;
-			j["used_bf"] = mLog_pastBFs;
+			j["method"] = "RollingBf";
+			j["Do_Keep_Counts"] = Do_Keep_Counts;
+			j["past_bf"] = mLog_pastBf;
 			return j;
 		}
 		
-
-		std::map<Cost, unsigned> mLog_fexp;
-		double mLog_curBF;
-		
-		std::vector<double> mLog_pastBFs;
+		double mAvgBf;
+		std::map<Cost, unsigned> mExpCountMap;
+		std::vector<double> mLog_pastBf;
 	};
 	
 
 
-	template<typename D, bool Use_Exp_Time, BugsySearchMode Search_Mode>
+	
+	
+	
+	
+
+
+	template<typename D, bool Use_Fixed_Exp_Time, unsigned... Comp_Rem_Exp_Ops>
 	class BugsyImpl {
 		public:
 
@@ -181,6 +210,8 @@ namespace mjon661 { namespace algorithm {
 			Node *parent;
 			
 			unsigned expdGen;
+			unsigned expdN;
+			unsigned remexp;
 		};
 		
 
@@ -237,7 +268,8 @@ namespace mjon661 { namespace algorithm {
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mParams_wf			(jConfig.at("wf")),
-			mParams_wt			(jConfig.at("wt"))
+			mParams_wt			(jConfig.at("wt")),
+			mParams_fixedExpTime(Use_Fixed_Exp_Time ? jConfig.at("fixed_exptime").get<double>() : 0)
 		{}
 
 		void reset() {
@@ -247,7 +279,12 @@ namespace mjon661 { namespace algorithm {
 			mCompRemExp.reset();
 
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
-			mLog_curExpTime = Use_Exp_Time ? 0 : 1;
+			
+			if(Use_Fixed_Exp_Time)
+				mLog_curExpTime = mParams_fixedExpTime;
+			else
+				mLog_curExpTime = 0;
+
 			mLog_curDistFact = mLog_curExpTime * mParams_wt;
 			
 			mGoalNode = nullptr;
@@ -260,6 +297,7 @@ namespace mjon661 { namespace algorithm {
 			mTest_exp_uh.clear();
 			mTest_exp_ucorr.clear();
 			mTest_exp_depth.clear();
+			mTest_exp_delay.clear();
 			mTimer.start();
 		}
 
@@ -277,6 +315,7 @@ namespace mjon661 { namespace algorithm {
 				n0->parent = 	nullptr;
 				n0->expdGen =	0;
 				n0->depth =		0;
+				n0->expdN =		0;
 				
 				evalHr(n0, s0);
 
@@ -296,6 +335,7 @@ namespace mjon661 { namespace algorithm {
 				if(mDomain.checkGoal(s)) {
 					mGoalNode = n;
 					mTest_exp_f.push_back(n->f);
+					n->expdN = mLog_expd;
 					break;
 				}
 				
@@ -313,12 +353,14 @@ namespace mjon661 { namespace algorithm {
 			j["gend"] = mLog_gend;
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
-			j["use_exp_time"] = Use_Exp_Time;
+			j["use_fixed_exp_time"] = Use_Fixed_Exp_Time;
 			j["resort_next"] = mResort_next;
 			j["resort_n"] = mResort_n;
 			j["curExpTime"] = mLog_curExpTime;
 			j["wf"] = mParams_wf;
 			j["wt"] = mParams_wt;
+			j["fixed_exp_time"] = mParams_fixedExpTime;
+			
 			j["comp_remexp"] = mCompRemExp.report();
 			
 			if(mGoalNode) {
@@ -338,6 +380,8 @@ namespace mjon661 { namespace algorithm {
 			j["exp_ucorr_raw"] = mTest_exp_ucorr;
 			j["exp_uh_raw"] = mTest_exp_uh;
 			j["exp_depth_raw"] = mTest_exp_depth;
+			j["exp_delay_raw"] = mTest_exp_delay;
+			j["exp_disthr_raw"] = mTest_exp_distHr;
 			
 			std::map<Cost, unsigned> flevel_exp;
 			
@@ -361,17 +405,58 @@ namespace mjon661 { namespace algorithm {
 			j["exp_n"] = flevel_n;
 			j["exp_bf"] = flevel_bf;
 			
+			j["bf_count_map"] = countTrueBf();
+			
+			std::vector<double> expectedBf, expectedBf_hr;
+			
+			for(Node* n = mGoalNode; n; n=n->parent) {
+				unsigned trueRemExp = mLog_expd - n->expdN;
+				unsigned trueDistToGo = mGoalNode->depth - n->depth;
+				double bf = std::pow(trueRemExp, 1.0/trueDistToGo);
+				expectedBf.push_back(bf);
+			}
+			for(Node* n = mGoalNode; n; n=n->parent) {
+				State s;
+				mDomain.unpackState(s, n->pkd);
+				unsigned trueRemExp = mLog_expd - n->expdN;
+				double bf = std::pow(trueRemExp, 1.0/mDomain.distanceHeuristic(s));
+				expectedBf_hr.push_back(bf);
+			}
+			
+			
+			
+			j["expected_bf"] = expectedBf;
+			j["expected_bf_hr"] = expectedBf_hr;
+			
+			
+			
+			std::vector<double> absRemExpError, ratRemExpError;
+			
+			for(Node* n = mGoalNode; n; n=n->parent) {
+				unsigned trueRemExp = mLog_expd - n->expdN;
+				absRemExpError.push_back((double)trueRemExp - n->remexp);
+				ratRemExpError.push_back((double)n->remexp / trueRemExp);
+			}
+			j["true_remexp_error_abs"] = absRemExpError;
+			j["true_remexp_error_rat"] = ratRemExpError;
+			
+			
+			
 			return j;
 		}
 
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
-			mTest_exp_f.push_back(n->f);
-			mTest_exp_u.push_back(n->u);
-			mTest_exp_uh.push_back(n->u - mParams_wf * n->g);
-			mTest_exp_ucorr.push_back(n->u + mParams_wt * mLog_curExpTime * mLog_expd);
-			mTest_exp_depth.push_back(n->depth);
+			//mTest_exp_f.push_back(n->f);
+			//mTest_exp_u.push_back(n->u);
+			//mTest_exp_uh.push_back(n->u - mParams_wf * n->g);
+			//mTest_exp_ucorr.push_back(n->u + mParams_wt * mLog_curExpTime * mLog_expd);
+			//mTest_exp_depth.push_back(n->depth);
+			//mTest_exp_delay.push_back(mLog_expd - n->expdGen);
+			//mTest_exp_distHr.push_back(n->depth + mDomain.distanceHeuristic(s));
+			n->expdN = mLog_expd;
+			
 			informExpansion(n);
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
@@ -430,6 +515,7 @@ namespace mjon661 { namespace algorithm {
 
 			n->f = n->g + hrvals.first;
 			n->u = mParams_wf * n->f + mLog_curDistFact * mCompRemExp.eval(hrvals.second);
+			n->remexp = mCompRemExp.eval(hrvals.second);
 		}
 		
 		void informExpansion(Node* n) {
@@ -439,13 +525,13 @@ namespace mjon661 { namespace algorithm {
 		void doResort() {
 			unsigned expThisPhase = mResort_n == 0 ? 16 : mLog_expd / 2;
 			
-			if(Use_Exp_Time) {
+			if(!Use_Fixed_Exp_Time) {
 				mTimer.stop();
 				mTimer.start();
 				mLog_curExpTime = mTimer.seconds() / expThisPhase;
 			}
 
-			mCompRemExp.update(expThisPhase);
+			mCompRemExp.update();
 			
 			for(unsigned i=0; i<mOpenList.size(); i++) {
 				State s;
@@ -461,16 +547,43 @@ namespace mjon661 { namespace algorithm {
 			mLog_curDistFact = mLog_curExpTime * mParams_wt;
 		}
 		
+		
+		std::vector<unsigned> countTrueBf() {
+			std::map<Node*, unsigned> childCountMap;
+			std::map<unsigned, unsigned> bfCountMap;
+			
+			for(auto it=mClosedList.begin(); it!=mClosedList.end(); ++it) {
+				if(mOpenList.contains(*it))
+					continue;
+				childCountMap[(*it)->parent] += 1;
+			}
+			
+			for(auto it=childCountMap.begin(); it!=childCountMap.end(); ++it) {
+				bfCountMap[it->second]++;
+			}
+			
+			std::vector<unsigned> countPairs;
+			
+			for(auto it=bfCountMap.begin(); it!=bfCountMap.end(); ++it) {
+				if(countPairs.size() < it->first+1)
+					countPairs.resize(it->first + 1, 0);
+				countPairs.at(it->first) = it->second;
+			}
+			
+			return countPairs;
+		}
+		
 
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
+		
 		Node* mGoalNode;
 		Timer mTimer; //Should this be walltime or cputime ??
-		CompRemExpansions<D, Search_Mode> mCompRemExp;
+		CompRemExp<D, Node, Comp_Rem_Exp_Ops...> mCompRemExp;
 		
-		const double mParams_wf, mParams_wt;
+		const double mParams_wf, mParams_wt, mParams_fixedExpTime;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
 
@@ -483,5 +596,7 @@ namespace mjon661 { namespace algorithm {
 		std::vector<double> mTest_exp_uh;
 		std::vector<double> mTest_exp_ucorr;
 		std::vector<double> mTest_exp_depth;
+		std::vector<double> mTest_exp_delay;
+		std::vector<double> mTest_exp_distHr;
 	};
 }}

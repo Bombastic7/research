@@ -210,17 +210,37 @@ namespace mjon661 {
 					jAlgConfig["wf"] = std::get<0>(weights[j]);
 					jAlgConfig["wt"] = std::get<1>(weights[j]);
 					jAlgConfig["fixed_exptime"] = 3e-6;
+					jAlgConfig["expd_limit"] = 500e3;
+					
+					std::string algName = std::string("bugsy_") + std::get<2>(weights[j]) + "_";
 
 
-					run_bugsy_fixed<D, 0>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
-					run_bugsy_fixed<D, 1,0,0,0>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
-					run_bugsy_fixed<D, 1,0,0,1>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
-					run_bugsy_fixed<D, 1,0,1,0>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
-					run_bugsy_fixed<D, 1,0,1,1>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
-					run_bugsy_fixed<D, 1,1,0,0>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
-					run_bugsy_fixed<D, 1,1,0,1>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
-					run_bugsy_fixed<D, 1,1,1,0>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
-					run_bugsy_fixed<D, 1,1,1,1>(domStack, jAlgConfig, std::string("bugsy_") + std::get<2>(weights[j]), jRes);
+					run_bugsy_fixed<D, 0>(domStack, jAlgConfig, algName, jRes);
+					
+					run_bugsy_fixed<D, 1,0,0,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,0,0,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,0,0,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,0,0,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,0,1,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,0,1,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,0,1,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,0,1,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,1,0,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,1,0,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,1,0,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,1,0,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,1,1,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,1,1,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,1,1,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,1,1,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,2,0,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,2,0,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,2,0,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,2,0,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,2,1,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,2,1,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,2,1,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed<D, 1,2,1,1,1>(domStack, jAlgConfig, algName, jRes);
 				}
 			}
 		}

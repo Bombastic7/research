@@ -90,20 +90,20 @@ namespace mjon661 {
 			pushdown(i);
 		}
 		
-		Elm_t* at(unsigned i) {
+		Elm_t* at(unsigned i) const {
 			fast_assert(i < mSize);
 			return mHeap[i];
 		}
 		
-		bool empty() {
+		bool empty() const {
 			return mSize == 0;
 		}
 		
-		unsigned size() {
+		unsigned size() const {
 			return mSize;
 		}
 		
-		unsigned capacity() {
+		unsigned capacity() const {
 			return mCap;
 		}
 

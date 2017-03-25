@@ -24,11 +24,11 @@ namespace mjon661 { namespace algorithm {
 
 	struct BugsyConstants {
 		enum {
-			Delay, RollingBf
+			Delay=0, RollingBf=1
 		};
 		
 		enum {
-			depth, f, uRound50,
+			depth=0, f=1, uRound=2,
 		};
 		
 		
@@ -38,12 +38,13 @@ namespace mjon661 { namespace algorithm {
 				return "Delay";
 			}
 			
-			if(ops.size() == 4) {
+			if(ops.size() == 5) {
 				fast_assert(ops[0] == RollingBf);
 				std::string s = "RollingBf_";
-				s += ops[0] == depth ? "depth_" : (ops[0] == f ? "f_" : (ops[0] == uRound50 ? "uRound50_" : "error"));
-				s += ops[1] == 0 ? "dropcounts_" : ( ops[1] == 1 ? "keepcounts_" : "error");
-				s += ops[2] == 0 ? "nopr" : (ops[2] == 1 ? "pr" : "error");
+				s += ops[1] == depth ? "depth_" : (ops[1] == f ? "f_" : (ops[1] == uRound ? "uRound_" : "error"));
+				s += ops[2] == 0 ? "dropcounts_" : ( ops[2] == 1 ? "keepcounts_" : "error");
+				s += ops[3] == 0 ? "nopr_" : (ops[3] == 1 ? "pr_" : "error");
+				s += ops[4] == 0 ? "nok" : (ops[4] == 1 ? "kopensz" : "error");
 				return s;
 			}
 			
@@ -79,7 +80,8 @@ namespace mjon661 { namespace algorithm {
 			mExpSinceLast++;
 		}
 		
-		void update() {
+		template<typename Alg_t>
+		void update(Alg_t const&) {
 			mLog_curExpDelay = (double)mLog_nextExpDelayAcc / mExpSinceLast;
 			mLog_nextExpDelayAcc = 0;
 			mLog_pastExpDelays.push_back(mLog_curExpDelay);
@@ -107,14 +109,20 @@ namespace mjon661 { namespace algorithm {
 	
 	
 
-	template<typename D, typename Node, unsigned Use_Prop, unsigned Do_Keep_Counts, unsigned Do_Prune_Outliers>
-	struct CompRemExp<D, Node, BugsyConstants::RollingBf, Use_Prop, Do_Keep_Counts, Do_Prune_Outliers> {
+	template<	typename D, 
+				typename Node, 
+				unsigned Use_Prop, 
+				unsigned Do_Keep_Counts, 
+				unsigned Do_Prune_Outliers,
+				unsigned Use_Open_List_Size>
+	struct CompRemExp<D, Node, BugsyConstants::RollingBf, Use_Prop, Do_Keep_Counts, Do_Prune_Outliers, Use_Open_List_Size> {
 		using Cost = typename D::template Domain<0>::Cost;
 		
 		void reset() {
 			mAvgBf = 1;
 			mExpCountMap.clear();
 			mLog_pastBf.push_back(mAvgBf);
+			mK = 1;
 		}
 
 		void informExpansion(Node* n, unsigned pExpDelay) {
@@ -123,8 +131,8 @@ namespace mjon661 { namespace algorithm {
 				k = n->f;
 			else if(Use_Prop == BugsyConstants::depth)
 				k = n->depth;
-			else if(Use_Prop == BugsyConstants::uRound50) {
-				k = std::round(n->u / 50) * 50;
+			else if(Use_Prop == BugsyConstants::uRound) {
+				k = std::round(n->u);
 			}
 			else
 				gen_assert(false);
@@ -133,7 +141,8 @@ namespace mjon661 { namespace algorithm {
 		}
 		
 		
-		void update() {
+		template<typename Alg_t>
+		void update(Alg_t const& pAlg) {
 			if(mExpCountMap.size() < 2)
 				return;
 
@@ -163,6 +172,10 @@ namespace mjon661 { namespace algorithm {
 			
 			if(Do_Keep_Counts == 0)
 				mExpCountMap.clear();
+			
+			if(Use_Open_List_Size) {
+				mK = pAlg.mOpenList.size();
+			}
 		}
 		
 		double eval(Cost d) {
@@ -177,7 +190,7 @@ namespace mjon661 { namespace algorithm {
 			return j;
 		}
 		
-		double mAvgBf;
+		double mAvgBf, mK;
 		std::map<Cost, unsigned> mExpCountMap;
 		std::vector<double> mLog_pastBf;
 	};
@@ -269,7 +282,8 @@ namespace mjon661 { namespace algorithm {
 			mNodePool			(),
 			mParams_wf			(jConfig.at("wf")),
 			mParams_wt			(jConfig.at("wt")),
-			mParams_fixedExpTime(Use_Fixed_Exp_Time ? jConfig.at("fixed_exptime").get<double>() : 0)
+			mParams_fixedExpTime(Use_Fixed_Exp_Time ? jConfig.at("fixed_exptime").get<double>() : 0),
+			mParams_expdLimit	(jConfig.count("expd_limit") ? jConfig.at("expd_limit").get<unsigned>() : 0)
 		{}
 
 		void reset() {
@@ -360,6 +374,7 @@ namespace mjon661 { namespace algorithm {
 			j["wf"] = mParams_wf;
 			j["wt"] = mParams_wt;
 			j["fixed_exp_time"] = mParams_fixedExpTime;
+			j["expd_limit"] = mParams_expdLimit;
 			
 			j["comp_remexp"] = mCompRemExp.report();
 			
@@ -531,7 +546,7 @@ namespace mjon661 { namespace algorithm {
 				mLog_curExpTime = mTimer.seconds() / expThisPhase;
 			}
 
-			mCompRemExp.update();
+			mCompRemExp.update(*this);
 			
 			for(unsigned i=0; i<mOpenList.size(); i++) {
 				State s;
@@ -584,12 +599,15 @@ namespace mjon661 { namespace algorithm {
 		CompRemExp<D, Node, Comp_Rem_Exp_Ops...> mCompRemExp;
 		
 		const double mParams_wf, mParams_wt, mParams_fixedExpTime;
+		const unsigned mParams_expdLimit;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
 
 		unsigned mResort_next, mResort_n;
 		
 		double mLog_curExpTime, mLog_curDistFact;
+		
+		
 		
 		std::vector<Cost> mTest_exp_f;
 		std::vector<double> mTest_exp_u;

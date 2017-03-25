@@ -72,7 +72,7 @@ namespace mjon661 { namespace algorithm {
 				Base_t::update(n->openind);
 		}
 		
-		bool contains(Node_t *n) {
+		bool contains(Node_t *n) const {
 			return static_cast<Wrapped_t*>(n)->openind != Null_Index;
 		}
 		
@@ -80,15 +80,15 @@ namespace mjon661 { namespace algorithm {
 			Base_t::clear();
 		}
 		
-		bool empty() {
+		bool empty() const {
 			return Base_t::empty();
 		}
 		
-		unsigned size() {
+		unsigned size() const {
 			return Base_t::size();
 		}
 		
-		unsigned capacity() {
+		unsigned capacity() const {
 			return Base_t::capacity();
 		}
 	};

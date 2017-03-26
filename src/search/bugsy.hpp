@@ -22,7 +22,7 @@
 namespace mjon661 { namespace algorithm { namespace bugsy {
 
 	enum struct SearchMode {
-		Delay, RollingBf, ExponentialDelay
+		Delay, RollingBf
 	};
 	
 	
@@ -31,29 +31,44 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		enum struct E_TgtProp {
 			depth, f, uRound, n
 		};
+		static std::string Str_TgtProp(E_TgtProp i) {return std::vector<std::string>{"depth", "f", "uRound"}.at((unsigned)i);}
 		
 		enum struct E_KeepCounts {
 			keep, drop, n
 		};
+		static std::string Str_KeepCounts(E_KeepCounts i) {return std::vector<std::string>{"keepcounts", "dropcounts"}.at((unsigned)i);}
 		
 		enum struct E_PruneOutliers {
 			prune, nopr, n
 		};
+		static std::string Str_PruneOutliers(E_PruneOutliers i) {return std::vector<std::string>{"prune", "nopr"}.at((unsigned)i);}
 		
 		enum struct E_Kfactor {
 			none, openlistsz, n
 		};
+		static std::string Str_Kfactor(E_Kfactor i) {return std::vector<std::string>{"nok", "openlistsz"}.at((unsigned)i);}
 		
 		enum struct E_EvalProp {
-			dist, distAndDepth, n
+			dist, distAndDepth, /*expoDelay,*/ n
 		};
+		static std::string Str_EvalProp(E_EvalProp i) {return std::vector<std::string>{"dist", "distAndDepth"}.at((unsigned)i);}
+
+
+		static std::string niceNameStr(E_TgtProp tgtprop, E_KeepCounts keepcounts, E_PruneOutliers prout, E_Kfactor kfact, E_EvalProp evalprop) {
+			return Str_TgtProp(tgtprop) + "_" + Str_KeepCounts(keepcounts) + "_" + Str_PruneOutliers(prout) + "_" + Str_Kfactor(kfact) + "_" + Str_EvalProp(evalprop);
+		}
+		
+		static std::string niceNameStr(unsigned v0, unsigned v1, unsigned v2, unsigned v3, unsigned v4) {
+			return niceNameStr((E_TgtProp)v0, (E_KeepCounts)v1, (E_PruneOutliers)v2, (E_Kfactor)v3, (E_EvalProp)v4);
+		}
+	
 	};
 
 
 
 
 
-	template<typename D, typename Node, unsigned... Vp>
+	template<typename D, typename Node, SearchMode, unsigned... Vp>
 	struct CompRemExp;
 	
 	
@@ -108,12 +123,20 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 
 	template<	typename D, 
 				typename Node, 
-				C_RollingBf::E_TgtProp OP_Tgt_Prop, 
-				C_RollingBf::E_KeepCounts OP_Keep_Counts, 
-				C_RollingBf::E_PruneOutliers OP_Prune_Outliers,
-				C_RollingBf::E_Kfactor OP_K_Factor,
-				C_RollingBf::E_EvalProp OP_Eval_Prop>
-	struct CompRemExp<D, Node, SearchMode::RollingBf, OP_Tgt_Prop, OP_Keep_Counts, OP_Prune_Outliers, OP_K_Factor, OP_Eval_Prop> {
+				unsigned I_Tgt_Prop, 
+				unsigned I_Keep_Counts, 
+				unsigned I_Prune_Outliers,
+				unsigned I_K_Factor,
+				unsigned I_Eval_Prop>
+	struct CompRemExp<D, Node, SearchMode::RollingBf, I_Tgt_Prop, I_Keep_Counts, I_Prune_Outliers, I_K_Factor, I_Eval_Prop> {
+		
+		C_RollingBf::E_TgtProp OP_Tgt_Prop = 				(C_RollingBf::E_TgtProp) I_Tgt_Prop;
+		C_RollingBf::E_KeepCounts OP_Keep_Counts =			(C_RollingBf::E_KeepCounts) I_Keep_Counts; 
+		C_RollingBf::E_PruneOutliers OP_Prune_Outliers =	(C_RollingBf::E_PruneOutliers) I_Prune_Outliers;
+		C_RollingBf::E_Kfactor OP_K_Factor =				(C_RollingBf::E_Kfactor) I_K_Factor;
+		C_RollingBf::E_EvalProp OP_Eval_Prop = 				(C_RollingBf::E_EvalProp) I_Eval_Prop; 
+		
+		
 		using Cost = typename D::template Domain<0>::Cost;
 		
 		void reset() {
@@ -121,6 +144,9 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mExpCountMap.clear();
 			mLog_pastBf.push_back(mAvgBf);
 			mK = 1;
+			mAvgDelay = 0;
+			mDelayAcc = 0;
+			mExpansionsThisPhase = 0;
 		}
 
 		void informExpansion(Node* n, unsigned pExpDelay) {
@@ -136,6 +162,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				gen_assert(false);
 
 			mExpCountMap[k] += 1;
+			mExpansionsThisPhase++;
+			mDelayAcc += pExpDelay;
 		}
 		
 		
@@ -174,17 +202,26 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			if(OP_K_Factor == C_RollingBf::E_Kfactor::openlistsz) {
 				mK = pAlg.mOpenList.size();
 			}
+			
+			mAvgDelay = (double)mDelayAcc / mExpansionsThisPhase;
+			mExpansionsThisPhase = 0;
 		}
 		
 		double eval(Node* n, Cost h, Cost d) {
 			if(OP_Eval_Prop == C_RollingBf::E_EvalProp::dist)
-				return std::pow(mAvgBf, d);
+				return mK * std::pow(mAvgBf, d);
 			else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::distAndDepth)
-				return std::pow(mAvgBf, n->depth + d);
+				return mK * std::pow(mAvgBf, n->depth + d);
+			//~ else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::expoDelay) {
+				//~ return mK * 
+				
+			//~ }
+			else
+				gen_assert(false);
+			return 0;
 		}
 		
-		
-		double eval_2(Node* n, Cost h, Cost d) {
+
 		
 		Json report() {
 			Json j;
@@ -194,32 +231,23 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		}
 		
 		double mAvgBf, mK;
+		double mAvgDelay;
+		unsigned mDelayAcc;
+		unsigned mExpansionsThisPhase;
+		
+		std::vector<double> mExpoBfCache;
+		
 		std::map<Cost, unsigned> mExpCountMap;
 		std::vector<double> mLog_pastBf;
 	};
+
+
+
+//Powsum
 	
 
 
-	template<	typename D, 
-				typename Node,
-				C_RollingBf::E_TgtProp OP_Tgt_Prop, 
-				C_RollingBf::E_KeepCounts OP_Keep_Counts, 
-				C_RollingBf::E_PruneOutliers OP_Prune_Outliers,
-				C_RollingBf::E_Kfactor OP_K_Factor,
-				C_RollingBf::E_EvalProp OP_Eval_Prop>
-	struct CompRemExp<D, Node, SearchMode::ExponentialDelay> {
-		
-		
-		
-		
-		CompRemExp<OP_Tgt_Prop, OP_Keep_Counts, OP_Prune_Outliers, OP_K_Factor, OP_Eval_Prop> mCompBf;
-	};
-	
-	
-	
-
-
-	template<typename D, bool Use_Fixed_Exp_Time, unsigned... Comp_Rem_Exp_Ops>
+	template<typename D, bool Use_Fixed_Exp_Time, SearchMode Search_Mode, unsigned... Comp_Rem_Exp_Ops>
 	class BugsyImpl {
 		public:
 
@@ -357,6 +385,10 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 
 			while(true) {
+				
+				if(mLog_expd == mParams_expdLimit)
+					break;
+
 				Node* n = mOpenList.pop();
 					
 				State s;
@@ -545,8 +577,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			std::pair<Cost, Cost> hrvals = mDomain.pairHeuristics(s);
 
 			n->f = n->g + hrvals.first;
-			n->u = mParams_wf * n->f + mLog_curDistFact * mCompRemExp.eval(hrvals.second);
-			n->remexp = mCompRemExp.eval(hrvals.second);
+			n->u = mParams_wf * n->f + mLog_curDistFact * mCompRemExp.eval(n, hrvals.first, hrvals.second);
+			n->remexp = mCompRemExp.eval(n, hrvals.first, hrvals.second);
 		}
 		
 		void informExpansion(Node* n) {
@@ -612,7 +644,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		Node* mGoalNode;
 		Timer mTimer; //Should this be walltime or cputime ??
-		CompRemExp<D, Node, Comp_Rem_Exp_Ops...> mCompRemExp;
+		CompRemExp<D, Node, Search_Mode, Comp_Rem_Exp_Ops...> mCompRemExp;
 		
 		const double mParams_wf, mParams_wt, mParams_fixedExpTime;
 		const unsigned mParams_expdLimit;

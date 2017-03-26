@@ -131,27 +131,40 @@ namespace mjon661 {
 	
 	
 
-	template<typename D, unsigned... Rem_Exp_Ops>
-	void run_bugsy_fixed(D& pDomStack, Json const& jAlgConfig, std::string const& pAlgName, Json& jRes) {
+	template<typename D, typename Alg_t>
+	void run_util_search(D& pDomStack, Json const& jAlgConfig, std::string const& pAlgName, Json& jRes) {
 		using namespace algorithm;
 		
 		Timer searchTimer;
 		
-		BugsyImpl<D, true, Rem_Exp_Ops...> alg_bugsy(pDomStack, jAlgConfig);
+		Alg_t alg_bugsy(pDomStack, jAlgConfig);
 
 		searchTimer.start();
 		alg_bugsy.execute(pDomStack.getInitState());
 		searchTimer.stop();
 		
-		std::string opStr = BugsyConstants::optionStr({Rem_Exp_Ops...});
-		std::string algKey = pAlgName + "_" + opStr;
+
 		
-		jRes[algKey] = alg_bugsy.report();
-		jRes[algKey]["walltime"] = searchTimer.seconds();
-		jRes[algKey]["utility"] = 
-			jRes[algKey]["goal_g"].get<double>() * jRes[algKey]["wf"].get<double>() +
-			jRes[algKey]["expd"].get<double>() * jRes[algKey]["fixed_exp_time"].get<double>() * jRes[algKey]["wt"].get<double>();
+		jRes[pAlgName] = alg_bugsy.report();
+		jRes[pAlgName]["walltime"] = searchTimer.seconds();
+		jRes[pAlgName]["utility"] = 
+			jRes[pAlgName]["goal_g"].get<double>() * jRes[pAlgName]["wf"].get<double>() +
+			jRes[pAlgName]["expd"].get<double>() * jRes[pAlgName]["fixed_exp_time"].get<double>() * jRes[pAlgName]["wt"].get<double>();
 	}
+	
+
+	template<typename D, unsigned v0, unsigned v1, unsigned v2, unsigned v3, unsigned v4>
+	void run_bugsy_fixed_rollingbf(D& pDomStack, Json const& jAlgConfig, std::string const& pAlgName, Json& jRes) {
+		using Alg_t = algorithm::bugsy::BugsyImpl<D, true, algorithm::bugsy::SearchMode::RollingBf, v0, v1, v2, v3, v4>;
+		
+		run_util_search<D,Alg_t>(	pDomStack, 
+									jAlgConfig, 
+									pAlgName + "_" + algorithm::bugsy::C_RollingBf::niceNameStr(v0,v1,v2,v3,v4), 
+									jRes);
+	}
+	
+	
+	
 	
 	
 	Json run_tiles_44() {
@@ -215,32 +228,58 @@ namespace mjon661 {
 					std::string algName = std::string("bugsy_") + std::get<2>(weights[j]) + "_";
 
 
-					run_bugsy_fixed<D, 0>(domStack, jAlgConfig, algName, jRes);
+					run_util_search<D, algorithm::bugsy::BugsyImpl<D,true,algorithm::bugsy::SearchMode::Delay>>(domStack, jAlgConfig, algName + "_delay", jRes);
 					
-					run_bugsy_fixed<D, 1,0,0,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,0,0,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,0,0,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,0,0,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,0,1,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,0,1,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,0,1,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,0,1,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,1,0,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,1,0,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,1,0,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,1,0,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,1,1,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,1,1,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,1,1,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,1,1,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,2,0,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,2,0,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,2,0,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,2,0,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,2,1,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,2,1,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,2,1,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed<D, 1,2,1,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,0,0,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,0,0,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,0,0,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,0,0,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,0,1,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,0,1,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,0,1,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,0,1,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,1,0,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,1,0,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,1,0,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,1,0,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,1,1,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,1,1,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,1,1,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 0,1,1,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,0,0,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,0,0,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,0,0,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,0,0,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,0,1,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,0,1,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,0,1,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,0,1,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,1,0,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,1,0,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,1,0,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,1,0,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,1,1,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,1,1,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,1,1,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 1,1,1,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,0,0,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,0,0,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,0,0,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,0,0,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,0,1,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,0,1,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,0,1,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,0,1,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,1,0,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,1,0,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,1,0,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,1,0,1,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,1,1,0,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,1,1,0,1>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,1,1,1,0>(domStack, jAlgConfig, algName, jRes);
+					run_bugsy_fixed_rollingbf<D, 2,1,1,1,1>(domStack, jAlgConfig, algName, jRes);
+
+
 				}
 			}
 		}

@@ -19,41 +19,38 @@
 
 
 
-namespace mjon661 { namespace algorithm {
+namespace mjon661 { namespace algorithm { namespace bugsy {
 
-
-	struct BugsyConstants {
-		enum {
-			Delay=0, RollingBf=1
-		};
-		
-		enum {
-			depth=0, f=1, uRound=2,
-		};
-		
-		
-		static std::string optionStr(std::vector<unsigned> const& ops) {
-			if(ops.size() == 1) {
-				fast_assert(ops[0] == Delay);
-				return "Delay";
-			}
-			
-			if(ops.size() == 5) {
-				fast_assert(ops[0] == RollingBf);
-				std::string s = "RollingBf_";
-				s += ops[1] == depth ? "depth_" : (ops[1] == f ? "f_" : (ops[1] == uRound ? "uRound_" : "error"));
-				s += ops[2] == 0 ? "dropcounts_" : ( ops[2] == 1 ? "keepcounts_" : "error");
-				s += ops[3] == 0 ? "nopr_" : (ops[3] == 1 ? "pr_" : "error");
-				s += ops[4] == 0 ? "nok" : (ops[4] == 1 ? "kopensz" : "error");
-				return s;
-			}
-			
-			
-			gen_assert(false);
-			return "";
-		}
-		
+	enum struct SearchMode {
+		Delay, RollingBf, ExponentialDelay
 	};
+	
+	
+
+	struct C_RollingBf {
+		enum struct E_TgtProp {
+			depth, f, uRound, n
+		};
+		
+		enum struct E_KeepCounts {
+			keep, drop, n
+		};
+		
+		enum struct E_PruneOutliers {
+			prune, nopr, n
+		};
+		
+		enum struct E_Kfactor {
+			none, openlistsz, n
+		};
+		
+		enum struct E_EvalProp {
+			dist, distAndDepth, n
+		};
+	};
+
+
+
 
 
 	template<typename D, typename Node, unsigned... Vp>
@@ -64,7 +61,7 @@ namespace mjon661 { namespace algorithm {
 	
 
 	template<typename D, typename Node>
-	struct CompRemExp<D, Node, BugsyConstants::Delay> {
+	struct CompRemExp<D, Node, SearchMode::Delay> {
 		using Cost = typename D::template Domain<0>::Cost;
 		
 		void reset() {
@@ -88,7 +85,7 @@ namespace mjon661 { namespace algorithm {
 			mExpSinceLast = 0;
 		}
 
-		double eval(Cost d) {
+		double eval(Node* n, Cost h, Cost d) {
 			return d * mLog_curExpDelay;
 		}
 		
@@ -111,11 +108,12 @@ namespace mjon661 { namespace algorithm {
 
 	template<	typename D, 
 				typename Node, 
-				unsigned Use_Prop, 
-				unsigned Do_Keep_Counts, 
-				unsigned Do_Prune_Outliers,
-				unsigned Use_Open_List_Size>
-	struct CompRemExp<D, Node, BugsyConstants::RollingBf, Use_Prop, Do_Keep_Counts, Do_Prune_Outliers, Use_Open_List_Size> {
+				C_RollingBf::E_TgtProp OP_Tgt_Prop, 
+				C_RollingBf::E_KeepCounts OP_Keep_Counts, 
+				C_RollingBf::E_PruneOutliers OP_Prune_Outliers,
+				C_RollingBf::E_Kfactor OP_K_Factor,
+				C_RollingBf::E_EvalProp OP_Eval_Prop>
+	struct CompRemExp<D, Node, SearchMode::RollingBf, OP_Tgt_Prop, OP_Keep_Counts, OP_Prune_Outliers, OP_K_Factor, OP_Eval_Prop> {
 		using Cost = typename D::template Domain<0>::Cost;
 		
 		void reset() {
@@ -127,11 +125,11 @@ namespace mjon661 { namespace algorithm {
 
 		void informExpansion(Node* n, unsigned pExpDelay) {
 			Cost k;
-			if(Use_Prop == BugsyConstants::f)
+			if(OP_Tgt_Prop == C_RollingBf::E_TgtProp::f)
 				k = n->f;
-			else if(Use_Prop == BugsyConstants::depth)
+			else if(OP_Tgt_Prop == C_RollingBf::E_TgtProp::depth)
 				k = n->depth;
-			else if(Use_Prop == BugsyConstants::uRound) {
+			else if(OP_Tgt_Prop == C_RollingBf::E_TgtProp::uRound) {
 				k = std::round(n->u);
 			}
 			else
@@ -155,7 +153,7 @@ namespace mjon661 { namespace algorithm {
 				bfsamples.push_back((double)it->second / itprev->second);
 			}
 			
-			if(Do_Prune_Outliers == 1 && bfsamples.size() >= 3) {
+			if(OP_Prune_Outliers ==C_RollingBf::E_PruneOutliers::prune && bfsamples.size() >= 3) {
 				std::sort(bfsamples.begin(), bfsamples.end());
 				bfsamples.erase(bfsamples.begin());
 				bfsamples.pop_back();
@@ -170,22 +168,27 @@ namespace mjon661 { namespace algorithm {
 			mAvgBf = acc / (mExpCountMap.size() - 1);
 			mLog_pastBf.push_back(mAvgBf);
 			
-			if(Do_Keep_Counts == 0)
+			if(OP_Keep_Counts == C_RollingBf::E_KeepCounts::drop)
 				mExpCountMap.clear();
 			
-			if(Use_Open_List_Size) {
+			if(OP_K_Factor == C_RollingBf::E_Kfactor::openlistsz) {
 				mK = pAlg.mOpenList.size();
 			}
 		}
 		
-		double eval(Cost d) {
-			return std::pow(mAvgBf, d);
+		double eval(Node* n, Cost h, Cost d) {
+			if(OP_Eval_Prop == C_RollingBf::E_EvalProp::dist)
+				return std::pow(mAvgBf, d);
+			else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::distAndDepth)
+				return std::pow(mAvgBf, n->depth + d);
 		}
+		
+		
+		double eval_2(Node* n, Cost h, Cost d) {
 		
 		Json report() {
 			Json j;
 			j["method"] = "RollingBf";
-			j["Do_Keep_Counts"] = Do_Keep_Counts;
 			j["past_bf"] = mLog_pastBf;
 			return j;
 		}
@@ -197,7 +200,20 @@ namespace mjon661 { namespace algorithm {
 	
 
 
-	
+	template<	typename D, 
+				typename Node,
+				C_RollingBf::E_TgtProp OP_Tgt_Prop, 
+				C_RollingBf::E_KeepCounts OP_Keep_Counts, 
+				C_RollingBf::E_PruneOutliers OP_Prune_Outliers,
+				C_RollingBf::E_Kfactor OP_K_Factor,
+				C_RollingBf::E_EvalProp OP_Eval_Prop>
+	struct CompRemExp<D, Node, SearchMode::ExponentialDelay> {
+		
+		
+		
+		
+		CompRemExp<OP_Tgt_Prop, OP_Keep_Counts, OP_Prune_Outliers, OP_K_Factor, OP_Eval_Prop> mCompBf;
+	};
 	
 	
 	
@@ -617,4 +633,4 @@ namespace mjon661 { namespace algorithm {
 		std::vector<double> mTest_exp_delay;
 		std::vector<double> mTest_exp_distHr;
 	};
-}}
+}}}

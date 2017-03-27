@@ -34,7 +34,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		static std::string Str_TgtProp(E_TgtProp i) {return std::vector<std::string>{"depth", "f", "uRound"}.at((unsigned)i);}
 		
 		enum struct E_KeepCounts {
-			keep, drop, n
+			keepcounts, dropcounts, n
 		};
 		static std::string Str_KeepCounts(E_KeepCounts i) {return std::vector<std::string>{"keepcounts", "dropcounts"}.at((unsigned)i);}
 		
@@ -196,7 +196,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mAvgBf = acc / (mExpCountMap.size() - 1);
 			mLog_pastBf.push_back(mAvgBf);
 			
-			if(OP_Keep_Counts == C_RollingBf::E_KeepCounts::drop)
+			if(OP_Keep_Counts == C_RollingBf::E_KeepCounts::dropcounts)
 				mExpCountMap.clear();
 			
 			if(OP_K_Factor == C_RollingBf::E_Kfactor::openlistsz) {
@@ -243,7 +243,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 
 
 
-//Powsum
+//Powsum, geomean
 	
 
 
@@ -387,7 +387,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			while(true) {
 				
 				if(mLog_expd == mParams_expdLimit)
-					break;
+					throw NoSolutionException("expd_limit");
 
 				Node* n = mOpenList.pop();
 					
@@ -436,6 +436,11 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				}
 				
 				j["goal_depth"] = goal_depth;
+			} else {
+				j["goal_g"] = 0;
+				j["goal_f"] = 0;				
+				j["goal_depth"] = 0;
+				
 			}
 			
 			j["exp_f_raw"] = mTest_exp_f;

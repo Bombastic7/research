@@ -34,78 +34,6 @@
 #include "search/ugsa.hpp"
 
 namespace mjon661 {
-	
-	//~ void test_moves() {
-		//~ using D = gridnav::hypernav::DomainRealStack<3, 3>;
-		
-		//~ Json jDomConfig;
-		//~ jDomConfig["map"] = ",random_hills,100,0,10,100,20";
-		//~ jDomConfig["dimsz"] = std::vector<unsigned>{100,100,100};
-		
-		//~ D domStack(jDomConfig);
-		//~ typename D::template Domain<0> dom(domStack);
-		
-		//~ unsigned n=0;
-		
-		//~ std::array<unsigned, 3> s = {1,1,1};
-		
-		//~ for(auto it=dom.getAdjEdges(s); !it.finished(); it.next()) {
-			//~ std::cout << n++ << ": ";
-			//~ dom.prettyPrintState(it.state(), std::cout);
-			//~ std::cout << "   " << it.cost() << "\n";
-		//~ }
-	//~ }
-	
-	
-	//~ struct AstarExpandedNodesSort {
-		
-		//~ template<typename Node>
-		//~ bool operator()(Node* a, Node* b) const {
-			//~ return a->expn < b->expn;
-		//~ }
-	//~ };
-	
-	//~ void test_hypernav_real() {
-		//~ using D = gridnav::hypernav::DomainRealStack<2, 2>;
-		//~ using Alg_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>;
-		
-		//~ Json jDomConfig;
-		//~ jDomConfig["map"] = ",random_cones,100,0,10,20";
-		//~ jDomConfig["dimsz"] = std::vector<unsigned>{1000,1000};
-		
-		//~ D domStack(jDomConfig);
-		//~ domStack.assignInitGoalStates({{500,500}, {999,999}});
-		
-		//~ typename D::template Domain<0> dom(domStack);
-		
-		//~ Alg_t alg(domStack, Json());
-		
-		//~ alg.execute(domStack.getInitState());
-		
-		//~ std::vector<typename Alg_t::Node*> expNodes;
-		
-		//~ for(auto it=alg.mClosedList.begin(); it!=alg.mClosedList.end(); ++it) {
-			//~ if((*it)->expn != (unsigned)-1)
-				//~ expNodes.push_back(*it);
-		//~ }
-		
-		//~ std::sort(expNodes.begin(), expNodes.end(), AstarExpandedNodesSort());
-
-
-		//~ std::vector<unsigned> expStates;
-		
-		//~ for(auto* n : expNodes)
-			//~ expStates.push_back(n->pkd);
-
-		//~ domStack.mCellMap.dumpHeatMap1(1000,1000);
-		//~ domStack.mCellMap.dumpHeatMap2(1000,1000, expStates);
-		//~ domStack.mCellMap.dumpHeatMap3(1000,1000, expStates);
-		
-		
-	//~ }
-	
-	
-	
 
 	
 	std::vector<int> korf_15tiles_100instances(unsigned i) {
@@ -131,26 +59,7 @@ namespace mjon661 {
 	
 	
 
-	template<typename D, typename Alg_t>
-	void run_util_search(D& pDomStack, Json const& jAlgConfig, std::string const& pAlgName, Json& jRes) {
-		using namespace algorithm;
-		
-		Timer searchTimer;
-		
-		Alg_t alg_bugsy(pDomStack, jAlgConfig);
 
-		searchTimer.start();
-		alg_bugsy.execute(pDomStack.getInitState());
-		searchTimer.stop();
-		
-
-		
-		jRes[pAlgName] = alg_bugsy.report();
-		jRes[pAlgName]["walltime"] = searchTimer.seconds();
-		jRes[pAlgName]["utility"] = 
-			jRes[pAlgName]["goal_g"].get<double>() * jRes[pAlgName]["wf"].get<double>() +
-			jRes[pAlgName]["expd"].get<double>() * jRes[pAlgName]["fixed_exp_time"].get<double>() * jRes[pAlgName]["wt"].get<double>();
-	}
 	
 
 	template<typename D, unsigned v0, unsigned v1, unsigned v2, unsigned v3, unsigned v4>
@@ -163,19 +72,387 @@ namespace mjon661 {
 									jRes);
 	}
 	
+	template<typename D>
+	void run_bugsy_fixed_rollingbf_enum(D& pDomStack, Json const& jAlgConfig, std::string const& pAlgName, Json& jRes) {
+		
+		run_bugsy_fixed_rollingbf<D, 0,0,0,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,0,0,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,0,0,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,0,0,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,0,1,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,0,1,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,0,1,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,0,1,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,1,0,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,1,0,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,1,0,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,1,0,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,1,1,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,1,1,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,1,1,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 0,1,1,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,0,0,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,0,0,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,0,0,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,0,0,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,0,1,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,0,1,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,0,1,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,0,1,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,1,0,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,1,0,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,1,0,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,1,0,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,1,1,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,1,1,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,1,1,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 1,1,1,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,0,0,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,0,0,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,0,0,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,0,0,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,0,1,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,0,1,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,0,1,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,0,1,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,1,0,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,1,0,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,1,0,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,1,0,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,1,1,0,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,1,1,0,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,1,1,1,0>(pDomStack, jAlgConfig, pAlgName, jRes);
+		run_bugsy_fixed_rollingbf<D, 2,1,1,1,1>(pDomStack, jAlgConfig, pAlgName, jRes);
+	}
 	
+	
+	
+	//Insert results of Alg_t run on pDomStack into jRes_nonutil[pAlgName], 
+	//	and also into jRes_util[weight][pAlgName_pseudo] with utility value added, for weight in pWeights.
+	template<typename D, typename Alg_t>
+	void run_nonutil_search_fixedexptime(	D& pDomStack,
+											Json const& jAlgConfig, 
+											Json& jRes_nonutil, 
+											Json& jRes_util, 
+											std::string pAlgName,
+											std::vector<std::tuple<double,double,std::string>> pWeights,
+											double pFixedExpTime)
+	{
+		
+		Timer searchTimer;
+		Alg_t alg(pDomStack, jAlgConfig);
+		
+		bool success = false;
+			
+		searchTimer.start();
+		try {
+			alg.execute(domStack.getInitState());
+			searchTimer.stop();
+			success = true;
+		} catch(NoSolutionException const& e) {
+			jRes_nonutil["failed"]["astar"] = e.what();
+		}
+		
+		if(success) {
+			jRes_nonutil["astar"] = alg_astar.report();
+			jRes_nonutil["astar"]["walltime"] = searchTimer.seconds();
+			
+			std::string pseudoNameStr = pAlgName + "_pseudo";
+			
+			for(auto& w : pWeights) {
+				jRes_util[std::get<2>(w)][pseudoNameStr] = jRes_nonutil[pAlgName];
+				jRes[std::get<2>(w)][pseudoNameStr]["utility"] = 
+					jRes[std::get<2>(w)][pseudoNameStr]["goal_g"].get<double>() * std::get<0>(w)
+					+
+					jRes[std::get<2>(w)][pseudoNameStr]["expd"].get<double>() * std::get<1>(w) * pFixedExpTime;
+			}
+		}
+	
+	}
+	
+	
+	
+	//Insert results of Alg_t run on pDomStack, for each weight in pWeights, into jRes[weight][pAlgName].
+	//jAlgConfig is used as base of actual algorithm config; a copy is made and wf/wt added from pWeights.
+	template<typename D, typename Alg_t>
+	void run_util_search_fixedexptime(	D& pDomStack,
+										Json const& jAlgConfig_tmpl, 
+										Json& jRes,
+										std::string const& pAlgName,
+										std::vector<std::tuple<double,double,std::string>> pWeights,
+										double pFixedExpTime)
+	{		
+		Timer searchTimer;
+		
+		Json jAlgConfig = jAlgConfig_tmpl;
+		fast_assert(pFixedExpTime == jAlgConfig_tmpl.at("fixed_exptime").get<double>());
+		
+		for(auto& weight : pWeights) {
+			jAlgConfig["wf"] = std::get<0>(weight);
+			jAlgConfig["wt"] = std::get<1>(weight);
+		
+			Alg_t alg(pDomStack, jAlgConfig);
+		
+			bool success = false;
+		
+			try {
+				searchTimer.start();
+				alg.execute(pDomStack.getInitState());
+				searchTimer.stop();
+				success = true;
+			} catch(NoSolutionException const& e) {
+				jRes[std::get<2>(weight)]["failed"][pAlgName] = e.what();
+			}
+		
+			if(success) {
+				jRes[std::get<2>(weight)][pAlgName] = alg.report();
+				jRes[std::get<2>(weight)][pAlgName]["walltime"] = searchTimer.seconds();
+				jRes[std::get<2>(weight)][pAlgName]["utility"] = 
+					jRes[std::get<2>(weight)][pAlgName]["goal_g"].get<double>() * std::get<0>(weight) +
+					jRes[std::get<2>(weight)][pAlgName]["expd"].get<double>() * pFixedExpTime * std::get<1>(weight);
+			}
+		}
+	}
+	
+	
+	
+	
+	
+	
+	template<typename D>
+	void run_bugsy_rollingbf_allOptions(D& pDomStack,
+										Json const& jAlgConfig_tmpl, 
+										Json& jRes,
+										std::string const& pAlgName,
+										std::vector<std::tuple<double,double,std::string>> pWeights,
+										double pFixedExpTime)
+	{
+	
+	/*	
+	bugsyRollingBfOptions = (
+		('E_TgtProp', ['depth', 'f', 'uRound']),
+		('E_KeepCounts', ['keepcounts', 'dropcounts']),
+		('E_PruneOutliers', ['prune', 'nopr']),
+		('E_Kfactor', ['none', 'openlistsz']),
+		('E_EvalProp', ['dist', 'distAndDepth'])
+	)
+	
+	opToks = [['algorithm::bugsy::C_RollingBf::'+op[0]+'::'+val for val in op[1]] for op in bugsyRollingBfOptions]
+		
+	algTypeTmpl = 'algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,{},{},{},{},{}>;'
+	funcCallStr = 'run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);'
+		
+	allOps = itertools.product(*opToks)
+	
+	for ops in allOps:
+		print '{'
+		print 'using Alg_t=', algTypeTmpl.format(*ops)
+		print funcCallStr
+		print '}'
+	*/
+
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::depth,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::f,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::keepcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::prune,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::none,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::dist>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+{
+using Alg_t=algorithm::bugsy::BugsyImpl<D,algorithm::bugsy::SearchMode::RollingBf,algorithm::bugsy::C_RollingBf::E_TgtProp::uRound,algorithm::bugsy::C_RollingBf::E_KeepCounts::dropcounts,algorithm::bugsy::C_RollingBf::E_PruneOutliers::nopr,algorithm::bugsy::C_RollingBf::E_Kfactor::openlistsz,algorithm::bugsy::C_RollingBf::E_EvalProp::distAndDepth>;
+run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
+}
+
+	}
+	
+
 	
 	
 	
 	Json run_tiles_44() {
-		
 		using D = tiles::TilesGeneric_DomainStack<4,4,true,false,1>;
-		
-		using Alg_Astar_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>;
-		//using Alg_Speedy_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Speedy>;
-		//using Alg_Bugsy_t = algorithm::BugsyImpl<D, true>;
-		//using Alg_Ugsa_t = algorithm::UgsaImpl<D, true>;
-		
+
 		Json jDomConfig, jAlgConfig, jRes;
 		
 		
@@ -183,105 +460,43 @@ namespace mjon661 {
 		jDomConfig["kept"] = std::vector<unsigned>{  1,1,1,1,1,1,1,1,1,1 ,1 ,1 ,1 ,1 ,1 };
 		D domStack(jDomConfig);
 
+		const double fixedExpTime = 3e-6;
 		
-		for(unsigned i=1; i<=1; i++) {
+		
+		for(unsigned i=1; i<=5; i++) {
 			tiles::BoardState<4,4> initState(korf_15tiles_100instances(i));
 			domStack.setInitState(initState);
+			
 			std::string probKey = std::to_string(i);
-			
-			
-			{
-				Alg_Astar_t alg_astar(domStack, Json());
-				//searchTimer.start();
-				//alg_astar.execute(domStack.getInitState());
-				//searchTimer.stop();
-				//jRes[std::to_string(i)]["astar"] = alg_astar.report();
-				//jRes[std::to_string(i)]["astar"]["walltime"] = searchTimer.seconds();
+			jRes[probKey] = Json();
+			jRes.at(probKey)['nonutil'] = Json();
+			jRes.at(probKey)['util'] = Json();
 				
-			}
+			std::vector<std::tuple<double,double,std::string>> weights = {
+				std::tuple<double,double,std::string>{1,1e6,"1e6"},
+				std::tuple<double,double,std::string>{1,1e3, "1e3"},
+				std::tuple<double,double,std::string>{1,1,"1"}
+			};
 			
-			{
-				//Alg_Speedy_t alg_speedy(domStack, Json());
-				//searchTimer.start();
-				//alg_speedy.execute(domStack.getInitState());
-				//searchTimer.stop();
-				//jRes[std::to_string(i)]["speedy"] = alg_speedy.report();
-				//jRes[std::to_string(i)]["speedy"]["walltime"] = searchTimer.seconds();
-			}
+			jAlgConfig["fixed_exptime"] = 3e-6;
+			jAlgConfig["expd_limit"] = 200e3;
+			
+			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>>(
+				domStack, jAlgConfig, jRes.at(probKey).at('nonutil'), jRes.at(probKey).at('util'), "astar", weights, fixedExpTime);
+			
+			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>>(
+				domStack, jAlgConfig, jRes.at(probKey).at('nonutil'), jRes.at(probKey).at('util'), "speedy", weights, fixedExpTime);
+			
+			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Greedy>>(
+				domStack, jAlgConfig, jRes.at(probKey).at('nonutil'), jRes.at(probKey).at('util'), "greedy", weights, fixedExpTime);
 			
 			
-
+			run_util_search_fixedexptime<D, algorithm::bugsy::BugsyImpl<D, algorithm::bugsy::SearchMode::Delay>>(
+				domStack, jAlgConfig, jRes.at(probKey).at('util'), "greedy", weights, fixedExpTime);
 			
-			{
-				
-				std::vector<std::tuple<double,double,std::string>> weights = {
-						std::tuple<double,double,std::string>{1,1e6,"1e6"},
-						std::tuple<double,double,std::string>{1,1e3, "1e3"},
-						std::tuple<double,double,std::string>{1,1,"1"}
-				};
-				for(unsigned j=0; j<1; j++) {
-					jAlgConfig["wf"] = std::get<0>(weights[j]);
-					jAlgConfig["wt"] = std::get<1>(weights[j]);
-					jAlgConfig["fixed_exptime"] = 3e-6;
-					jAlgConfig["expd_limit"] = 500e3;
-					
-					std::string algName = std::string("bugsy_") + std::get<2>(weights[j]) + "_";
+			
+			run_bugsy_rollingbf_allOptions(domStack, jAlgConfig, jRes.at(probKey).at('util'), "bugsy", weights, fixedExpTime);
 
-
-					run_util_search<D, algorithm::bugsy::BugsyImpl<D,true,algorithm::bugsy::SearchMode::Delay>>(domStack, jAlgConfig, algName + "_delay", jRes);
-					
-					run_bugsy_fixed_rollingbf<D, 0,0,0,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,0,0,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,0,0,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,0,0,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,0,1,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,0,1,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,0,1,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,0,1,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,1,0,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,1,0,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,1,0,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,1,0,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,1,1,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,1,1,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,1,1,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 0,1,1,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,0,0,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,0,0,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,0,0,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,0,0,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,0,1,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,0,1,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,0,1,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,0,1,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,1,0,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,1,0,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,1,0,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,1,0,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,1,1,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,1,1,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,1,1,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 1,1,1,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,0,0,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,0,0,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,0,0,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,0,0,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,0,1,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,0,1,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,0,1,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,0,1,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,1,0,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,1,0,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,1,0,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,1,0,1,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,1,1,0,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,1,1,0,1>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,1,1,1,0>(domStack, jAlgConfig, algName, jRes);
-					run_bugsy_fixed_rollingbf<D, 2,1,1,1,1>(domStack, jAlgConfig, algName, jRes);
-
-
-				}
-			}
 		}
 		return jRes;
 	}

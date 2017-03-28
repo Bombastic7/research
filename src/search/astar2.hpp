@@ -12,6 +12,18 @@
 
 namespace mjon661 { namespace algorithm {
 
+	//Standard: plain old A*. g(n) + h(n) = f(n), where g(n) is sum of edge costs of partial path/node n, h(n) is 
+	//	supplied cost heuristic. Open nodes ordered on ascending f(n), with ties broken on max g(n).
+	
+	//Weighted: weighted A*. g(n) + w*h(n) = f(n). Open nodes ordered as in Standard. Tie breaking as in Standard.
+	//	w is user provided weight constant.
+	
+	//Greedy: open nodes ordered on ascending h(n). No tie breaking for equal open nodes.
+	
+	//Speedy: open nodes ordered on ascending d(n), where d(n) is a user supplied distance-to-go heuristic. No tie breaking.
+	
+	//Uninformed: open nodes ordered on ascending g(n).
+
 
 	enum struct Astar2SearchMode {
 		Standard, Weighted, Greedy, Speedy, Uninformed
@@ -74,6 +86,9 @@ namespace mjon661 { namespace algorithm {
 		
 		struct OpenOps {
 			bool operator()(Node * const a, Node * const b) const {
+				if(Search_Mode == Astar2SearchMode::Greedy || Search_Mode == Astar2SearchMode::Speedy)
+					return a->f < b->f;
+				
 				if(a->f != b->f)
 					return a->f < b->f;
 				return a->g > b->g;

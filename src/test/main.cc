@@ -82,21 +82,21 @@ namespace mjon661 {
 			searchTimer.stop();
 			success = true;
 		} catch(NoSolutionException const& e) {
-			jRes_nonutil["failed"]["astar"] = e.what();
+			jRes_nonutil["failed"][pAlgName] = e.what();
 		}
 		
 		if(success) {
-			jRes_nonutil["astar"] = alg.report();
-			jRes_nonutil["astar"]["walltime"] = searchTimer.seconds();
+			jRes_nonutil[pAlgName] = alg.report();
+			jRes_nonutil[pAlgName]["walltime"] = searchTimer.seconds();
 			
 			std::string pseudoNameStr = pAlgName + "_pseudo";
 			
-			for(auto& w : pWeights) {
-				jRes_util[std::get<2>(w)][pseudoNameStr] = jRes_nonutil[pAlgName];
+			for(auto& w : pWeights) {				
+				jRes_util[std::get<2>(w)][pseudoNameStr] = jRes_nonutil.at(pAlgName);
 				jRes_util[std::get<2>(w)][pseudoNameStr]["utility"] = 
-					jRes_util[std::get<2>(w)][pseudoNameStr]["goal_g"].get<double>() * std::get<0>(w)
+					jRes_util[std::get<2>(w)][pseudoNameStr].at("goal_g").get<double>() * std::get<0>(w)
 					+
-					jRes_util[std::get<2>(w)][pseudoNameStr]["expd"].get<double>() * std::get<1>(w) * pFixedExpTime;
+					jRes_util[std::get<2>(w)][pseudoNameStr].at("expd").get<double>() * std::get<1>(w) * pFixedExpTime;
 			}
 		}
 	
@@ -136,12 +136,12 @@ namespace mjon661 {
 				jRes[std::get<2>(weight)]["failed"][pAlgName] = e.what();
 			}
 		
-			if(success) {
+			if(success) {				
 				jRes[std::get<2>(weight)][pAlgName] = alg.report();
 				jRes[std::get<2>(weight)][pAlgName]["walltime"] = searchTimer.seconds();
 				jRes[std::get<2>(weight)][pAlgName]["utility"] = 
-					jRes[std::get<2>(weight)][pAlgName]["goal_g"].get<double>() * std::get<0>(weight) +
-					jRes[std::get<2>(weight)][pAlgName]["expd"].get<double>() * pFixedExpTime * std::get<1>(weight);
+					jRes[std::get<2>(weight)][pAlgName].at("goal_g").get<double>() * std::get<0>(weight) +
+					jRes[std::get<2>(weight)][pAlgName].at("expd").get<double>() * pFixedExpTime * std::get<1>(weight);
 			}
 		}
 	}
@@ -179,11 +179,11 @@ namespace mjon661 {
 		
 	allOps = itertools.product(*opToks)
 	
-	with open("outpy.txt", "w") as f:
+	with open("bugsy_rollingbf_options.inc", "w") as f:
 		for ops in allOps:
 			print('{', file=f)
 			print('using Alg_t=' + algTypeTmpl.format(*ops), file=f)
-			print std::string algNameWithOpsStr = pAlgName +'_'+'C_RollingBf::niceNameStr('+','.join([i for i in ops])+')'
+			print("""std::string algNameWithOpsStr = pAlgName +'_'+'C_RollingBf::niceNameStr("""+','.join([i for i in ops])+')', file=f)
 			print(funcCallStr, file=f)
 			print('}', file=f)
 	*/
@@ -191,7 +191,7 @@ namespace mjon661 {
 {
 using CompRemExp_t = CompRemExp_rollingBf<D,C_RollingBf::E_TgtProp::depth,C_RollingBf::E_KeepCounts::keepcounts,C_RollingBf::E_PruneOutliers::prune,C_RollingBf::E_Kfactor::none,C_RollingBf::E_EvalProp::dist,C_RollingBf::E_BfAvgMethod::bfArMean>;
 using Alg_t=BugsyImpl<D,true,CompRemExp_t>;
-std::string algNameWithOpStr = CompRemExp_t::niceOptionsStr()l
+std::string algNameWithOpsStr = CompRemExp_t::niceOptionsStr();
 run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
 }
 
@@ -214,7 +214,7 @@ run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameW
 		const double fixedExpTime = 3e-6;
 		
 		
-		for(unsigned i=1; i<=5; i++) {
+		for(unsigned i=1; i<=1; i++) {
 			tiles::BoardState<4,4> initState(korf_15tiles_100instances(i));
 			domStack.setInitState(initState);
 			
@@ -224,18 +224,18 @@ run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameW
 			jRes.at(probKey)["util"] = Json();
 				
 			std::vector<std::tuple<double,double,std::string>> weights = {
-				std::tuple<double,double,std::string>{1,1e6,"1e6"},
-				std::tuple<double,double,std::string>{1,1e3, "1e3"},
-				std::tuple<double,double,std::string>{1,1,"1"}
+				std::tuple<double,double,std::string>{1,1e6,"1e6"}//,
+				//std::tuple<double,double,std::string>{1,1e3, "1e3"},
+				//std::tuple<double,double,std::string>{1,1,"1"}
 			};
 			
 			jAlgConfig["fixed_exptime"] = 3e-6;
 			jAlgConfig["expd_limit"] = 200e3;
 			
-			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>>(
-				domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "astar", weights, fixedExpTime);
+			//~ run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>>(
+				//~ domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "astar", weights, fixedExpTime);
 			
-			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>>(
+			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Speedy>>(
 				domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "speedy", weights, fixedExpTime);
 			
 			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Greedy>>(

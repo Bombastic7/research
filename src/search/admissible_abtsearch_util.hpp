@@ -17,6 +17,7 @@
 namespace mjon661 { namespace algorithm {
 
 
+	//template<typename D, typename CompNodeVals_t, typename AlgInfo_t, unsigned L, unsigned Bound>
 	template<typename D, unsigned L, unsigned Bound>
 	class AdmissibleAbtSearch_Util {
 		
@@ -34,6 +35,7 @@ namespace mjon661 { namespace algorithm {
 
 		using BaseState = typename D::template Domain<L-1>::State;
 
+		//using Util_t = typename AlgInfo::Util_t;
 		using Util_t = double;
 		
 

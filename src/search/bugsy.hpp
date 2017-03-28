@@ -201,9 +201,9 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			}
 			
 			if(OP_BFAvgMethod == C_RollingBf::E_BfAvgMethod::bfArMean)
-				mAvgBf = acc / bfSamples.size();
+				mAvgBf = acc / bfsamples.size();
 			else if(OP_BFAvgMethod == C_RollingBf::E_BfAvgMethod::bfGeoMean)
-				mAvgBf = std::pow(acc, 1.0/ bfSamples.size());
+				mAvgBf = std::pow(acc, 1.0/ bfsamples.size());
 
 			mLog_pastBf.push_back(mAvgBf);
 			

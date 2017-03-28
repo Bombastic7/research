@@ -15,8 +15,6 @@
 #include "util/exception.hpp"
 #include "util/time.hpp"
 
-#include "search/hr_module.hpp"
-
 
 
 namespace mjon661 { namespace algorithm { namespace bugsy {

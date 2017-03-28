@@ -202,14 +202,15 @@ run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameW
 	
 	
 	Json run_tiles_44() {
-		using D = tiles::TilesGeneric_DomainStack<4,4,true,false,1>;
+		using D = tiles::TilesGeneric_DomainStack<4,4,true,false,8>;
 
 		Json jDomConfig, jAlgConfig, jRes;
 		
 		
 		jDomConfig["goal"] = std::vector<unsigned>{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-		jDomConfig["kept"] = std::vector<unsigned>{  1,1,1,1,1,1,1,1,1,1 ,1 ,1 ,1 ,1 ,1 };
+		jDomConfig["kept"] = std::vector<unsigned>{  1,2,1,1,2,1,2,2,1,2 ,1 ,1 ,2 ,1 ,2 };
 		D domStack(jDomConfig);
+
 
 		const double fixedExpTime = 3e-6;
 		

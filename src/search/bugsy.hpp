@@ -46,17 +46,26 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		static std::string Str_Kfactor(E_Kfactor i) {return std::vector<std::string>{"nok", "openlistsz"}.at((unsigned)i);}
 		
 		enum struct E_EvalProp {
-			dist, distAndDepth, /*expoDelay,*/ n
+			dist, distAndDepth, dist_powsum, distAndDepth_powsum, exponentialDelay_powsum, n
 		};
-		static std::string Str_EvalProp(E_EvalProp i) {return std::vector<std::string>{"dist", "distAndDepth"}.at((unsigned)i);}
+		static std::string Str_EvalProp(E_EvalProp i) {
+			return std::vector<std::string>{"dist", "distAndDepth", "dist_powsum", "distAndDepth_powsum", "exponentialDelay_powsum"}.at((unsigned)i);
+		}
 
-
-		static std::string niceNameStr(E_TgtProp tgtprop, E_KeepCounts keepcounts, E_PruneOutliers prout, E_Kfactor kfact, E_EvalProp evalprop) {
-			return Str_TgtProp(tgtprop) + "_" + Str_KeepCounts(keepcounts) + "_" + Str_PruneOutliers(prout) + "_" + Str_Kfactor(kfact) + "_" + Str_EvalProp(evalprop);
+		enum E_BfAvgMethod {
+			bfArMean, bfGeoMean, n
+		};
+		static std::string Str_BfAvgMethod(E_BfAvgMethod i) {
+			return std::vector<std::string>{"bfArMean", "bfGeoMean"}.at((unsigned)i);
 		}
 		
-		static std::string niceNameStr(unsigned v0, unsigned v1, unsigned v2, unsigned v3, unsigned v4) {
-			return niceNameStr((E_TgtProp)v0, (E_KeepCounts)v1, (E_PruneOutliers)v2, (E_Kfactor)v3, (E_EvalProp)v4);
+		
+		static std::string niceNameStr(E_TgtProp tgtprop, E_KeepCounts keepcounts, E_PruneOutliers prout, E_Kfactor kfact, E_EvalProp evalprop, E_BfAvgMethod avgm) {
+			return Str_TgtProp(tgtprop) + "_" + Str_KeepCounts(keepcounts) + "_" + Str_PruneOutliers(prout) + "_" + Str_Kfactor(kfact) + "_" + Str_EvalProp(evalprop) + "_" + Str_BfAvgMethod(avgm);
+		}
+		
+		static std::string niceNameStr(unsigned v0, unsigned v1, unsigned v2, unsigned v3, unsigned v4, unsigned v5) {
+			return niceNameStr((E_TgtProp)v0, (E_KeepCounts)v1, (E_PruneOutliers)v2, (E_Kfactor)v3, (E_EvalProp)v4, (E_BfAvgMethod)v5);
 		}
 	
 	};
@@ -119,9 +128,14 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				C_RollingBf::E_KeepCounts OP_Keep_Counts,
 				C_RollingBf::E_PruneOutliers OP_Prune_Outliers,
 				C_RollingBf::E_Kfactor OP_K_Factor,
-				C_RollingBf::E_EvalProp OP_Eval_Prop>
+				C_RollingBf::E_EvalProp OP_Eval_Prop,
+				C_RollingBf::E_BfAvgMethod OP_BFAvgMethod>
 	struct CompRemExp_rollingBf {
 		using Cost = typename D::template Domain<0>::Cost;
+		
+		static std::string niceOptionsStr() {
+			return C_RollingBf::niceNameStr(OP_Tgt_Prop, OP_Keep_Counts, OP_Prune_Outliers, OP_K_Factor, OP_Eval_Prop, OP_BFAvgMethod);
+		}
 		
 		void reset() {
 			mAvgBf = 1;
@@ -131,6 +145,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mAvgDelay = 0;
 			mDelayAcc = 0;
 			mExpansionsThisPhase = 0;
+			mPowSumCache.clear();
+			mPowSumCache.push_back(1);
 		}
 
 		template<typename Node>
@@ -175,10 +191,20 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			double acc = 0;
 			
-			for(auto& i : bfsamples)
-				acc += i;
+			for(auto& i : bfsamples) {
+				if(OP_BFAvgMethod == C_RollingBf::E_BfAvgMethod::bfArMean)
+					acc += i;
+				else if(OP_BFAvgMethod == C_RollingBf::E_BfAvgMethod::bfGeoMean)
+					acc *= i;
+				else
+					gen_assert(false);
+			}
 			
-			mAvgBf = acc / (mExpCountMap.size() - 1);
+			if(OP_BFAvgMethod == C_RollingBf::E_BfAvgMethod::bfArMean)
+				mAvgBf = acc / bfSamples.size();
+			else if(OP_BFAvgMethod == C_RollingBf::E_BfAvgMethod::bfGeoMean)
+				mAvgBf = std::pow(acc, 1.0/ bfSamples.size());
+
 			mLog_pastBf.push_back(mAvgBf);
 			
 			if(OP_Keep_Counts == C_RollingBf::E_KeepCounts::dropcounts)
@@ -190,6 +216,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			mAvgDelay = (double)mDelayAcc / mExpansionsThisPhase;
 			mExpansionsThisPhase = 0;
+			mPowSumCache.clear();
+			mPowSumCache.push_back(1);
 		}
 		
 		template<typename Node>
@@ -198,15 +226,74 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				return mK * std::pow(mAvgBf, d);
 			else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::distAndDepth)
 				return mK * std::pow(mAvgBf, n->depth + d);
-			//~ else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::expoDelay) {
-				//~ return mK * 
-				
-			//~ }
+			
+			else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::dist_powsum)
+				return mK * countSumExpansions(n->depth, d);
+			
+			else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::distAndDepth_powsum)
+				return mK * countSumExpansions(0, n->depth+d);
+
+			else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::exponentialDelay_powsum)
+				return mAvgDelay * powsum(d);
+
 			else
 				gen_assert(false);
 			return 0;
 		}
 		
+		double powsum(unsigned n) {
+			//return:
+			//0 -> 0
+			//1 -> 1
+			//2 -> 1 + bf
+			//3 -> 1 + bf + bf**2
+			//4 -> 1 + bf + bf**2 + bf**3
+			//...
+			
+			if(n == 0)
+				return 0;
+			
+			while(mPowSumCache.size() < n) {
+				unsigned lastValid = mPowSumCache.size()-1;
+				mPowSumCache.resize(mPowSumCache.size()*2);
+				
+				for(unsigned i=lastValid+1; i<mPowSumCache.size(); i++)
+					mPowSumCache[i] = mPowSumCache[i-1] + std::pow(mAvgBf, i);
+			}
+			
+			return mPowSumCache[n-1];
+		}
+		
+
+		
+		double countSumExpansions(unsigned n, unsigned g) {
+			//for each level that must be passed through from n (not including n) to g (not including g), count proportion of 
+			// nodes to however many there are at n.
+			
+			//e.g. (n,g) -> bf**(1) + bf**(2) + ... + bf**(g-n-1)
+			//levels not counted are bf**(0) = 1 = [level of n, already partially explored], and 
+			//	bf**(g-n) = [level of g, which will only be partially explored].
+			
+			slow_assert(n <= g);
+			
+			if(g-n <= 1)
+				//There are no fully explored levels to consider.
+				return 0;
+			
+			unsigned levelsPassed = g-n-1;
+			
+			while(mPowSumCache.size() < levelsPassed+1) {
+				unsigned lastValid = mPowSumCache.size()-1;
+				mPowSumCache.resize(mPowSumCache.size()*2);
+				
+				for(unsigned i=lastValid+1; i<mPowSumCache.size(); i++)
+					mPowSumCache[i] = mPowSumCache[i-1] + std::pow(mAvgBf, i);
+			}
+			
+			return mPowSumCache[levelsPassed] - 1;
+		}
+		
+
 
 		
 		Json report() {
@@ -225,12 +312,13 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		std::map<Cost, unsigned> mExpCountMap;
 		std::vector<double> mLog_pastBf;
+		
+		std::vector<double> mPowSumCache;
 	};
 
 
 
-//Powsum, geomean
-	
+//avg remexp accuracy
 
 
 	template<typename D, bool Use_Fixed_Exp_Time, typename CompRemExp_t>

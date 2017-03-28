@@ -21,10 +21,7 @@
 
 namespace mjon661 { namespace algorithm { namespace bugsy {
 
-	enum struct SearchMode {
-		Delay, RollingBf
-	};
-	
+
 	
 
 	struct C_RollingBf {
@@ -67,16 +64,10 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 
 
 
-
-	template<typename D, typename Node, SearchMode, unsigned... Vp>
-	struct CompRemExp;
-	
-	
-	
 	
 
-	template<typename D, typename Node>
-	struct CompRemExp<D, Node, SearchMode::Delay> {
+	template<typename D>
+	struct CompRemExp_delay {
 		using Cost = typename D::template Domain<0>::Cost;
 		
 		void reset() {
@@ -87,6 +78,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mExpSinceLast = 0;
 		}
 
+		template<typename Node>
 		void informExpansion(Node* n, unsigned pExpDelay) {
 			mLog_nextExpDelayAcc += pExpDelay;
 			mExpSinceLast++;
@@ -100,6 +92,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mExpSinceLast = 0;
 		}
 
+		template<typename Node>
 		double eval(Node* n, Cost h, Cost d) {
 			return d * mLog_curExpDelay;
 		}
@@ -121,22 +114,13 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 	
 	
 
-	template<	typename D, 
-				typename Node, 
-				unsigned I_Tgt_Prop, 
-				unsigned I_Keep_Counts, 
-				unsigned I_Prune_Outliers,
-				unsigned I_K_Factor,
-				unsigned I_Eval_Prop>
-	struct CompRemExp<D, Node, SearchMode::RollingBf, I_Tgt_Prop, I_Keep_Counts, I_Prune_Outliers, I_K_Factor, I_Eval_Prop> {
-		
-		C_RollingBf::E_TgtProp OP_Tgt_Prop = 				(C_RollingBf::E_TgtProp) I_Tgt_Prop;
-		C_RollingBf::E_KeepCounts OP_Keep_Counts =			(C_RollingBf::E_KeepCounts) I_Keep_Counts; 
-		C_RollingBf::E_PruneOutliers OP_Prune_Outliers =	(C_RollingBf::E_PruneOutliers) I_Prune_Outliers;
-		C_RollingBf::E_Kfactor OP_K_Factor =				(C_RollingBf::E_Kfactor) I_K_Factor;
-		C_RollingBf::E_EvalProp OP_Eval_Prop = 				(C_RollingBf::E_EvalProp) I_Eval_Prop; 
-		
-		
+	template<	typename D,
+				C_RollingBf::E_TgtProp OP_Tgt_Prop,
+				C_RollingBf::E_KeepCounts OP_Keep_Counts,
+				C_RollingBf::E_PruneOutliers OP_Prune_Outliers,
+				C_RollingBf::E_Kfactor OP_K_Factor,
+				C_RollingBf::E_EvalProp OP_Eval_Prop>
+	struct CompRemExp_rollingBf {
 		using Cost = typename D::template Domain<0>::Cost;
 		
 		void reset() {
@@ -149,6 +133,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mExpansionsThisPhase = 0;
 		}
 
+		template<typename Node>
 		void informExpansion(Node* n, unsigned pExpDelay) {
 			Cost k;
 			if(OP_Tgt_Prop == C_RollingBf::E_TgtProp::f)
@@ -207,6 +192,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mExpansionsThisPhase = 0;
 		}
 		
+		template<typename Node>
 		double eval(Node* n, Cost h, Cost d) {
 			if(OP_Eval_Prop == C_RollingBf::E_EvalProp::dist)
 				return mK * std::pow(mAvgBf, d);
@@ -247,7 +233,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 	
 
 
-	template<typename D, bool Use_Fixed_Exp_Time, SearchMode Search_Mode, unsigned... Comp_Rem_Exp_Ops>
+	template<typename D, bool Use_Fixed_Exp_Time, typename CompRemExp_t>
 	class BugsyImpl {
 		public:
 
@@ -649,7 +635,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		Node* mGoalNode;
 		Timer mTimer; //Should this be walltime or cputime ??
-		CompRemExp<D, Node, Search_Mode, Comp_Rem_Exp_Ops...> mCompRemExp;
+		CompRemExp_t mCompRemExp;
 		
 		const double mParams_wf, mParams_wt, mParams_fixedExpTime;
 		const unsigned mParams_expdLimit;

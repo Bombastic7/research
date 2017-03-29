@@ -23,7 +23,7 @@ namespace mjon661 {
 		
 		static const unsigned Grow_Fact = 2;
 		static const unsigned Fill_Fact = 3;
-		static const unsigned Max_Table_Size = 409600000;
+		static const unsigned Max_Table_Size = (1<<30) / sizeof(WrappedBase_t*); //Max table size is 1 GB.
 
 		struct Wrapped_t : public WrappedBase_t {
 			Wrapped_t* nxt;

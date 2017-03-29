@@ -15,15 +15,17 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 
 
 
-	template<typename D>
+	template<typename D, unsigned L, unsigned Bound>
 	class BugsyLinearAbtSearch {
 		public:
 
-		using Domain = typename D::template Domain<1>;
+		using Domain = typename D::template Domain<L>;
 		using Cost = typename Domain::Cost;
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 
+		using BaseState = typename D::template Domain<L-1>::State;
+		using AbtSearch_t = BugsyLinearAbtSearch<D, L+1, Bound>;
 		
 		struct Node {
 			double ug, uf;
@@ -89,10 +91,17 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
-			mNodePool			()
+			mNodePool			(),
+			mCache				(mDomain),
+			mAbtSearch			(pDomStack, jConfig)
 		{
 			mCostWeight = 1;
 			mDistWeight = 1;
+			mLog_expdThisPhase = 0;
+			mLog_totExpd = 0;
+			mLog_totCalls = 0;
+			mLog_totSearches = 0;
+			reset();
 		}
 
 		void reset() {
@@ -105,14 +114,33 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mGoalNode = nullptr;
 			mBestExactNode = nullptr;
 		}
+		
+		void insertReport(Json& jReport) {
+			Json j;
+			j["expd_tot"] = mLog_totExpd;
+			j["calls_tot"] = mLog_totCalls;
+			j["searches_tot"] = mLog_totSearches;
+			j["cached_all"] = mCache.size();
+			jReport[std::to_string(L)] = j;
+			mAbtSearch.insertReport(jReport);
+		}
 
 		void setEdgeWeights(double pCostWeight, double pDistWeight) {
 			mCostWeight = pCostWeight;
 			mDistWeight = pDistWeight;
 			mCache.clear();
+			
+			mAbtSearch.setEdgeWeights(pCostWeight, pDistWeight);
+			
+			mLog_expdThisPhase = 0;
+			
+			logDebugStream() << "L=" << L << ": costweight=" << mCostWeight << " distweight=" << mDistWeight << "\n";
+			g_logDebugOfs.flush();
 		}
 		
 		double getUtility(BaseState const& pBaseState) {
+			mLog_totCalls++;
+			
 			State s;
 			PackedState pkd0;
 			
@@ -121,9 +149,11 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			CacheEntry* ent = mCache.retrieve(pkd0);
 			if(!ent) {
-				doSearche(s);
+				mLog_totSearches++;
+				doSearch(s);
 				ent = mCache.retrieve(pkd0);
-				slow_assert(ent && ent->exact);
+				slow_assert(ent);
+				slow_assert(ent->exact);
 			}
 
 			return ent->uh;
@@ -133,7 +163,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			PackedState pkd0;
 			mDomain.packState(s0, pkd0);
 			
-			CacheEntry* ent = mCache.retrieve(pkd0)
+			CacheEntry* ent = mCache.retrieve(pkd0);
 			if(ent && ent->exact) {
 				return ent->uh;
 			}
@@ -142,16 +172,15 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		}
 		
 		void doSearch(State const& s0) {
-			reset();
 			{
 				Node* n0 = mNodePool.construct();
 
 				n0->ug = 		0;
 				n0->parent = 	nullptr;
 
-				evalHr(n0, s0);
-
 				mDomain.packState(s0, n0->pkd);
+				
+				evalHr(n0, s0);
 				
 				mOpenList.push(n0);
 				mClosedList.add(n0);
@@ -176,6 +205,9 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				
 				expand(n, s);
 			}
+			
+			doCaching();
+			reset();
 		}
 		
 		
@@ -183,7 +215,9 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
-
+			mLog_expdThisPhase++;
+			mLog_totExpd++;
+			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
 			for(; !edgeIt.finished(); edgeIt.next()) {
@@ -238,7 +272,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			if(newEntry) {
 				ent->exact = false;
-				ent->uh = 0;
+				ent->uh = mAbtSearch.getUtility(s);
 			}
 			
 			n->uf = n->ug + ent->uh;
@@ -253,8 +287,11 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		void doCaching() {
 			slow_assert(mGoalNode);
 			
-			for(auto it=mClosedList.begin(); it!=mClosedList.begin(); ++it) {
+			for(auto it=mClosedList.begin(); it!=mClosedList.end(); ++it) {
 				Node* n = *it;
+				
+				if(mOpenList.contains(n))
+					continue;
 				
 				double pghr = mGoalNode->uf - n->ug;
 				
@@ -281,15 +318,34 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
 		CacheStore_t mCache;
+		AbtSearch_t mAbtSearch;
 		
 		Node* mGoalNode, *mBestExactNode;
 		double mCostWeight, mDistWeight;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
+		
+		unsigned mLog_expdThisPhase, mLog_totExpd;
+		
+		unsigned mLog_totCalls, mLog_totSearches;
 	};
 	
 	
-	
+	template<typename D, unsigned Bound>
+	struct BugsyLinearAbtSearch<D, Bound, Bound> {
+		
+		using BaseState = typename D::template Domain<Bound-1>::State;
+		
+		BugsyLinearAbtSearch(D&, Json const&) {}
+		
+		void setEdgeWeights(double, double) {}
+		
+		double getUtility(BaseState const&) {
+			return 0;
+		}
+		
+		void insertReport(Json&) {}
+	};
 	
 	
 	
@@ -309,7 +365,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 
-		using AbtSearch_t = BugsyLinearAbtSearch<D>;
+		using AbtSearch_t = BugsyLinearAbtSearch<D, 1, D::Top_Abstract_Level+1>;
 		
 		struct Node {
 			Cost g;
@@ -373,7 +429,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mAbtSearch			(pDomStack, jConfig),
 			mParams_wf			(jConfig.at("wf")),
 			mParams_wt			(jConfig.at("wt")),
-			mParams_fixedExpTime(jConfig.at("fixed_exp_time"))
+			mParams_fixedExpTime(jConfig.at("fixed_exptime"))
 		{}
 
 		void reset() {
@@ -387,7 +443,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			mAvgDelay = 1;
 			mDistWeight = mParams_wt * mParams_fixedExpTime * mAvgDelay;
-			mAbtSearch.setWeights(mParams_wf, mDistWeight);
+			//mAbtSearch.setEdgeWeights(mParams_wf, mDistWeight);
+			mAbtSearch.setEdgeWeights(1,0);
 			
 			mResort_n = 0;
 			mResort_next = 16;
@@ -406,7 +463,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			fast_assert(mGoalNode);
 
 			j["goal_g"] = mGoalNode->g;
-			j["goal_f"] = mGoalNode->f;
+			j["goal_u"] = mGoalNode->u;
 				
 			unsigned goal_depth = 0;
 			for(Node* m = mGoalNode->parent; m; m=m->parent) {
@@ -414,6 +471,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			}
 				
 			j["goal_depth"] = goal_depth;
+			
+			mAbtSearch.insertReport(j);
 			
 			return j;
 		}
@@ -442,7 +501,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 
 			while(true) {
 				if(mLog_expd == mResort_next) {
-					doResort();
+					//doResort();
 				}
 				
 				Node* n = nullptr;
@@ -468,6 +527,16 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		void expand(Node* n, State& s) {
 			mLog_expd++;
 			mDelayAcc += mLog_expd - n->expdGen;
+			
+			if(mLog_expd % 10000 == 0) {
+				logDebugStream() << "opensz=" << mOpenList.size()
+					<< " closedsz=" << mClosedList.getFill()
+					<< " ... bugsyabt expdThisPhase=" << mAbtSearch.mLog_expdThisPhase 
+				<< " mLog_totExpd=" << mAbtSearch.mLog_totExpd
+				<< " cachedStates=" << mAbtSearch.mCache.size() << "\n";
+				g_logDebugOfs.flush();
+			}
+			
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
@@ -519,7 +588,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		
 		void evalHr(Node* n, State const& s) {			
-			n->u = n->g * mParams_wf + mAbtSearch.getUtility(s);
+			//n->u = n->g * mParams_wf + mAbtSearch.getUtility(s);
+			n->u = n->g + mAbtSearch.getUtility(s);
 		}
 		
 		void doResort() {
@@ -529,7 +599,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mDelayAcc = 0;
 			
 			mDistWeight = mParams_wt * mParams_fixedExpTime * mAvgDelay;
-			mAbtSearch.setWeights(mParams_wf, mAvgDelay);
+			mAbtSearch.setEdgeWeights(mParams_wf, mAvgDelay);
 			
 			for(unsigned i=0; i<mOpenList.size(); i++) {
 				State s;
@@ -541,8 +611,6 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			mResort_n++;
 			mResort_next *= 2;
-			
-			mLog_curDistFact = mLog_curExpTime * mParams_wt;
 		}
 
 

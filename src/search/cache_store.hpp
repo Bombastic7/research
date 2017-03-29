@@ -85,6 +85,9 @@ namespace mjon661 { namespace algorithm {
 			return mStore.end();
 		}
 
+		unsigned size() {
+			return mStore.getFill();
+		}
 		
 		private:
 		Store_t mStore;

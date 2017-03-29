@@ -9,6 +9,7 @@
 #include "util/json.hpp"
 #include "util/exception.hpp"
 
+#include "search/admissible_abtsearch.hpp"
 
 namespace mjon661 { namespace algorithm {
 
@@ -29,6 +30,10 @@ namespace mjon661 { namespace algorithm {
 		Standard, Weighted, Greedy, Speedy, Uninformed
 	};
 	
+	enum struct Astar2HrMode {
+		DomainHr, AbtHr
+	};
+	
 	template<typename = void>
 	std::string astar2SearchModeStr(Astar2SearchMode m) {
 		if(m == Astar2SearchMode::Standard)
@@ -41,9 +46,22 @@ namespace mjon661 { namespace algorithm {
 			return std::string("Speedy");
 		return std::string("Uninformed");
 	}
+	
+	template<typename = void>
+	std::string astar2HrModeStr(Astar2HrMode m) {
+		if(m == Astar2HrMode::DomainHr)
+			return "DomainHr";
+		else if(m == Astar2HrMode::AbtHr)
+			return "AbtHr";
+		else
+			gen_assert(false);
+		return "";
+	}
+	
 
 
-	template<typename D, Astar2SearchMode Search_Mode>
+
+	template<typename D, Astar2SearchMode Search_Mode, Astar2HrMode Hr_Mode>
 	class Astar2Impl {
 		public:
 
@@ -52,6 +70,60 @@ namespace mjon661 { namespace algorithm {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 
+		
+		
+		template<Astar2HrMode, typename = void>
+		struct HrModule;
+		
+		template<typename Ign>
+		struct HrModule<Astar2HrMode::DomainHr, Ign> {
+			HrModule(D& pDomStack, Domain const& pDomain, Json const& jConfig) :
+				mDomain(pDomain)
+			{}
+			
+			Cost costHeuristic(State const& s) {
+				return mDomain.costHeuristic(s);
+			}
+			
+			Cost distanceHeuristic(State const& s) {
+				return mDomain.distanceHeuristic(s);
+			};
+						
+			void insertReport(Json& jReport) {}
+			
+			private:
+			Domain const& mDomain;
+		};
+		
+		template<typename Ign>
+		struct HrModule<Astar2HrMode::AbtHr, Ign> {
+			HrModule(D& pDomStack, Domain const& pDomain, Json const& jConfig) :
+				mAbtSearch_cost(pDomStack, jConfig),
+				mAbtSearch_dist(pDomStack, jConfig)
+			{}
+			
+			Cost costHeuristic(State const& s) {
+				return mAbtSearch_cost.getHrVal(s);
+			}
+			
+			Cost distanceHeuristic(State const& s) {
+				return mAbtSearch_dist.getHrVal(s);
+			};
+			
+			void insertReport(Json& jReport) {
+				Json j;
+				j["cost_abt"] = Json();
+				mAbtSearch_cost.insertReport(j.at("cost_abt"));
+				j["dist_abt"] = Json();
+				mAbtSearch_dist.insertReport(j.at("dist_abt"));
+				jReport["hrmod"] = j;
+			}
+			
+			private:
+			AdmissibleAbtSearch<D,1,D::Top_Abstract_Level+1,true> mAbtSearch_cost;
+			AdmissibleAbtSearch<D,1,D::Top_Abstract_Level+1,false> mAbtSearch_dist;
+		};
+		
 		
 		struct Node {
 			Cost g, f;
@@ -116,7 +188,8 @@ namespace mjon661 { namespace algorithm {
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
-			mNodePool			()
+			mNodePool			(),
+			mHrModule			(pDomStack, mDomain, jConfig)
 		{
 			if(Search_Mode == Astar2SearchMode::Weighted)
 				mHrWeight = jConfig.at("weight");
@@ -189,6 +262,7 @@ namespace mjon661 { namespace algorithm {
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
 			j["search_mode"] = astar2SearchModeStr(Search_Mode);
+			j["hr_mode"] = astar2HrModeStr(Hr_Mode);
 			
 			if(Search_Mode == Astar2SearchMode::Weighted)
 				j["hr_weight"] = mHrWeight;
@@ -209,6 +283,8 @@ namespace mjon661 { namespace algorithm {
 			j["exp_g_raw"] = mTest_exp_g;
 			j["exp_h_raw"] = mTest_exp_h;
 			j["exp_depth_raw"] = mTest_exp_depth;
+			
+			mHrModule.insertReport(j);
 			
 			return j;
 		}
@@ -280,26 +356,24 @@ namespace mjon661 { namespace algorithm {
 
 		void evalHr(Node* n, State const& s) {
 			if(Search_Mode == Astar2SearchMode::Standard)
-				n->f = n->g + getCostHr(s);
+				n->f = n->g + mHrModule.costHeuristic(s);
 			else if(Search_Mode == Astar2SearchMode::Weighted)
-				n->f = n->g + mHrWeight * getCostHr(s);
+				n->f = n->g + mHrWeight * mHrModule.costHeuristic(s);
 			else if(Search_Mode == Astar2SearchMode::Greedy)
-				n->f = getCostHr(s);
+				n->f = mHrModule.costHeuristic(s);
 			else if(Search_Mode == Astar2SearchMode::Speedy)
-				n->f = mDomain.distanceHeuristic(s);
+				n->f = mHrModule.distanceHeuristic(s);
 			else
 				n->f = n->g;
 		}
 		
-		Cost getCostHr(State const& s) {
-			return mDomain.costHeuristic(s);
-		}		
-		
+
 
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
+		HrModule<Hr_Mode> mHrModule;
 		
 		Node* mGoalNode;
 		double mHrWeight;

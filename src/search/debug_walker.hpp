@@ -15,6 +15,7 @@ namespace mjon661 { namespace algorithm {
 		
 		using Domain = typename DomStack::template Domain<L>;
 		using State = typename Domain::State;
+		using PackedState = typename Domain::PackedState;
 		using Cost = typename Domain::Cost;
 		
 		
@@ -29,12 +30,21 @@ namespace mjon661 { namespace algorithm {
 			doWalk(s0, expdTot);
 		}
 		
-		void doWalk(State const& s0, unsigned expdTot) {
+		void doWalk(State const& s, unsigned expdTot) {
+			PackedState pkd;
+			mDomain.packState(s, pkd);
+			doWalk_packed(pkd, expdTot);
+		}
+		
+		void doWalk_packed(PackedState const& pkd0, unsigned expdTot) {
 			
-			State s = s0;
+			PackedState pkd = pkd0;
 			unsigned expdThisLevel = 0;
 			
 			while(true) {
+				State s;
+				mDomain.unpackState(s, pkd);
+				
 				std::cout << "----------------\nLevel=" << L << "\nTotal expd=" << expdTot+expdThisLevel << "\nexpd=" << expdThisLevel << "\n";
 				if(mDomain.checkGoal(s))
 					std::cout << "goal=true\n";
@@ -57,23 +67,32 @@ namespace mjon661 { namespace algorithm {
 					std::cout << "\n\n";
 				}
 
-				std::cout << ":";
-
 				std::string comnd;
-				std::getline(std::cin, comnd);
+				
+				while(true) {
+					std::cout << ":";
+				
+					std::getline(std::cin, comnd);
 
-				if(comnd == "p") {
-					std::cout << "\n\n";
-					return;
-				}
-				else if(comnd == "a") {
-					std::cout << "\n\n";
-					mNxtLevel.executeFromParentState(s, expdTot+expdThisLevel);
-				}
-				else {
-					unsigned adjn = std::stol(comnd);
-					s = adjEdges.at(adjn).first;
-					expdThisLevel++;
+					if(comnd == "p") {
+						std::cout << "\n\n";
+						return;
+					}
+					else if(comnd == "a") {
+						std::cout << "\n\n";
+						mNxtLevel.executeFromParentState(s, expdTot+expdThisLevel);
+					}
+					else {
+						//unsigned adjn = std::stol(comnd);
+						char* p;
+						unsigned adjn = std::strtoul(comnd.c_str(), &p, 10);
+						if(p != comnd.c_str() + comnd.size())
+							continue;
+						
+						mDomain.packState(adjEdges.at(adjn).first, pkd);
+						expdThisLevel++;
+						break;
+					}
 				}
 			}
 		}

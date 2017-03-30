@@ -16,7 +16,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 
 
 	template<typename D, unsigned L, unsigned Bound>
-	class BugsyLinearAbtSearch {
+	class BugsyExpAbtSearch1 {
 		public:
 
 		using Domain = typename D::template Domain<L>;
@@ -25,7 +25,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		using PackedState = typename Domain::PackedState;
 
 		using BaseState = typename D::template Domain<L-1>::State;
-		using AbtSearch_t = BugsyLinearAbtSearch<D, L+1, Bound>;
+		using AbtSearch_t = BugsyExpAbtSearch1<D, L+1, Bound>;
 		
 		struct Node {
 			double ug, uf;
@@ -443,8 +443,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			mAvgDelay = 1;
 			mDistWeight = mParams_wt * mParams_fixedExpTime * mAvgDelay;
-			//mAbtSearch.setEdgeWeights(mParams_wf, mDistWeight);
-			mAbtSearch.setEdgeWeights(1,0);
+			mAbtSearch.setEdgeWeights(mParams_wf, mDistWeight);
+			//mAbtSearch.setEdgeWeights(1,0);
 			
 			mResort_n = 0;
 			mResort_next = 16;
@@ -501,7 +501,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 
 			while(true) {
 				if(mLog_expd == mResort_next) {
-					//doResort();
+					doResort();
 				}
 				
 				Node* n = nullptr;
@@ -588,8 +588,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		
 		void evalHr(Node* n, State const& s) {			
-			//n->u = n->g * mParams_wf + mAbtSearch.getUtility(s);
-			n->u = n->g + mAbtSearch.getUtility(s);
+			n->u = n->g * mParams_wf + mAbtSearch.getUtility(s);
+			//n->u = n->g + mAbtSearch.getUtility(s);
 		}
 		
 		void doResort() {

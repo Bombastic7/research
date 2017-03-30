@@ -6,7 +6,6 @@ $(BUILDDIR)/test:\
 	$(OBJDIR)/test/main.o\
 	$(DEPDIR)/test/main.d\
 	$(BUILDDIR)/libs/app.a\
-	$(BUILDDIR)/libs/search.a\
 	$(BUILDDIR)/libs/util.a\
 	$(BUILDDIR)/libs/domain.a
 	@echo $@
@@ -15,7 +14,6 @@ $(BUILDDIR)/test:\
 		-Wl,--start-group\
 		$(OBJDIR)/test/main.o\
 		$(BUILDDIR)/libs/app.a\
-		$(BUILDDIR)/libs/search.a\
 		$(BUILDDIR)/libs/util.a\
 		$(BUILDDIR)/libs/domain.a\
 		-Wl,--end-group
@@ -26,7 +24,6 @@ $(BUILDDIR)/test2:\
 	$(OBJDIR)/test/test2.o\
 	$(DEPDIR)/test/test2.d\
 	$(BUILDDIR)/libs/app.a\
-	$(BUILDDIR)/libs/search.a\
 	$(BUILDDIR)/libs/util.a\
 	$(BUILDDIR)/libs/domain.a
 	@echo $@
@@ -35,7 +32,6 @@ $(BUILDDIR)/test2:\
 		-Wl,--start-group\
 		$(OBJDIR)/test/test2.o\
 		$(BUILDDIR)/libs/app.a\
-		$(BUILDDIR)/libs/search.a\
 		$(BUILDDIR)/libs/util.a\
 		$(BUILDDIR)/libs/domain.a\
 		-Wl,--end-group

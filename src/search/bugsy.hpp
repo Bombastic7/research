@@ -457,9 +457,6 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 
 			while(true) {
-				
-				if(mLog_expd == mParams_expdLimit)
-					throw NoSolutionException("expd_limit");
 
 				Node* n = mOpenList.pop();
 					
@@ -477,6 +474,9 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				
 				if(mLog_expd == mResort_next)
 					doResort();
+								
+				if(mLog_expd == mParams_expdLimit)
+					throw NoSolutionException("expd_limit");
 			}
 		}
 		

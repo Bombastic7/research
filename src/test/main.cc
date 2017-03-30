@@ -8,28 +8,17 @@
 #include <string>
 #include <utility>
 #include <tuple>
-#include "domain/gridnav/blocked/graph.hpp"
-#include "domain/pancake/fwd.hpp"
-#include "domain/tiles/fwd.hpp"
-//#include "domain/star_abt.hpp"
 
 #include "util/debug.hpp"
 #include "util/json.hpp"
+//#include "domain/gridnav/blocked/graph.hpp"
+//#include "domain/pancake/fwd.hpp"
+#include "domain/tiles/fwd.hpp"
+//#include "domain/gridnav/hypernav/hypernav_real.hpp"
+//#include "domain/test_graph.hpp"
 
-//#include "search/hastar/v2/hastar.hpp"
-
-#include "search/solution.hpp"
-
-#include "domain/test_graph.hpp"
-#include "search/ugsa/v6/ugsa.hpp"
-
-#include "search/admissible_abtsearch2.hpp"
-#include "search/astar.hpp"
 #include "search/bugsy.hpp"
-#include "search/bugsy_abt.hpp"
-#include "search/debug_walker.hpp"
-
-#include "domain/gridnav/hypernav/hypernav_real.hpp"
+#include "search/bugsy_abt_lin.hpp"
 #include "search/astar2.hpp"
 
 
@@ -173,38 +162,7 @@ namespace mjon661 {
 	
 	using namespace algorithm::bugsy;
 	
-	/*	
-	bugsyRollingBfOptions = (
-		('E_TgtProp', ['depth', 'f', 'uRound']),
-		('E_KeepCounts', ['keepcounts', 'dropcounts']),
-		('E_PruneOutliers', ['prune', 'nopr']),
-		('E_Kfactor', ['none', 'openlistsz']),
-		('E_EvalProp', ['dist', 'distAndDepth']),
-		('E_BfAvgMethod', ['bfArMean', 'bfGeoMean'])
-	)
-
-	opToks = [['C_RollingBf::'+op[0]+'::'+val for val in op[1]] for op in bugsyRollingBfOptions]
-		
-	algTypeTmpl = 'BugsyImpl<D,true,CompRemExp_rollingBf<D,{},{},{},{},{}>>;'
-	funcCallStr = 'run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);'
-		
-	allOps = itertools.product(*opToks)
-	
-	with open("bugsy_rollingbf_options.inc", "w") as f:
-		for ops in allOps:
-			print('{', file=f)
-			print('using Alg_t=' + algTypeTmpl.format(*ops), file=f)
-			print("""std::string algNameWithOpsStr = pAlgName +'_'+'C_RollingBf::niceNameStr("""+','.join([i for i in ops])+')', file=f)
-			print(funcCallStr, file=f)
-			print('}', file=f)
-	*/
-
-{
-using CompRemExp_t = CompRemExp_rollingBf<D,C_RollingBf::E_TgtProp::depth,C_RollingBf::E_KeepCounts::keepcounts,C_RollingBf::E_PruneOutliers::prune,C_RollingBf::E_Kfactor::none,C_RollingBf::E_EvalProp::dist,C_RollingBf::E_BfAvgMethod::bfArMean>;
-using Alg_t=BugsyImpl<D,true,CompRemExp_t>;
-std::string algNameWithOpsStr = CompRemExp_t::niceOptionsStr();
-run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameWithOpsStr, pWeights, pFixedExpTime);
-}
+	#include "bugsy_rollingbf_options.inc"
 
 	}
 	
@@ -224,10 +182,7 @@ run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameW
 		D domStack(jDomConfig);
 
 
-		const double fixedExpTime = 3e-6;
-		
-		
-		for(unsigned i=1; i<=1; i++) {
+		for(unsigned i=6; i<=6; i++) {
 			tiles::BoardState<4,4> initState(korf_15tiles_100instances(i));
 			domStack.setInitState(initState);
 			
@@ -237,32 +192,33 @@ run_util_search_fixedexptime<D,Alg_t>(pDomStack, jAlgConfig_tmpl, jRes, algNameW
 			jRes.at(probKey)["util"] = Json();
 				
 			std::vector<std::tuple<double,double,std::string>> weights = {
-				std::tuple<double,double,std::string>{1,1e6,"1e6"}//,
-				//std::tuple<double,double,std::string>{1,1e3, "1e3"},
-				//std::tuple<double,double,std::string>{1,1,"1"}
+				std::tuple<double,double,std::string>{1,1e6,"1e6"},
+				std::tuple<double,double,std::string>{1,1e3, "1e3"},
+				std::tuple<double,double,std::string>{1,1,"1"}
 			};
 			
-			jAlgConfig["fixed_exptime"] = 3e-6;
-			jAlgConfig["expd_limit"] = 200e3;
+			double fixedExpTime = 3e-6;
+			jAlgConfig["fixed_exptime"] = fixedExpTime;
+			//jAlgConfig["expd_limit"] = 200e3;
 			
-			//~ run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard>>(
-				//~ domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "astar", weights, fixedExpTime);
+			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard, algorithm::Astar2HrMode::DomainHr>>(
+				domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "astar", weights, fixedExpTime);
 			
-			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Speedy>>(
+			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Speedy, algorithm::Astar2HrMode::DomainHr>>(
 				domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "speedy", weights, fixedExpTime);
 			
-			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Greedy>>(
+			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Greedy, algorithm::Astar2HrMode::DomainHr>>(
 				domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "greedy", weights, fixedExpTime);
 			
 			
 			run_util_search_fixedexptime<D, algorithm::bugsy::BugsyImpl<D, true, algorithm::bugsy::CompRemExp_delay<D>>>(
-				domStack, jAlgConfig, jRes.at(probKey).at("util"), "greedy", weights, fixedExpTime);
+				domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_delay", weights, fixedExpTime);
 			
 			
-			run_bugsy_rollingbf_allOptions(domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy", weights, fixedExpTime);
+			run_bugsy_rollingbf_allOptions(domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_rollingbf", weights, fixedExpTime);
 			
 			run_util_search_fixedexptime<D, algorithm::bugsy::BugsyAbtSearchBase<D>>(
-				domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_delay_abt", weights, fixedExpTime);
+				domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_delayAbt", weights, fixedExpTime);
 
 		}
 		return jRes;

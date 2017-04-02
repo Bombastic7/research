@@ -36,7 +36,7 @@ namespace mjon661 { namespace algorithm {
 		struct CacheEntry {
 			PackedState pkd;
 			bool exact;
-			double h;
+			Cost h;
 		};
 		using CacheStore_t = CacheStore<Domain, CacheEntry>;
 
@@ -144,7 +144,7 @@ namespace mjon661 { namespace algorithm {
 			mDomain.packState(s, pkd0);
 			
 			CacheEntry* ent = mCache.retrieve(pkd0);
-			if(!ent) {
+			if(!ent || !ent->exact) {
 				mLog_totSearches++;
 				doSearch(s);
 				ent = mCache.retrieve(pkd0);
@@ -211,7 +211,7 @@ namespace mjon661 { namespace algorithm {
 				
 				mLog_gend++;
 				
-				double kid_g = Min_Cost ? n->g + edgeIt.cost() : n->g + 1;
+				Cost kid_g = Min_Cost ? n->g + edgeIt.cost() : n->g + 1;
 
 				Node* kid_dup = mClosedList.find(kid_pkd);
 

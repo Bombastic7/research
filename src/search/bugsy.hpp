@@ -498,89 +498,17 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			j["comp_remexp"] = mCompRemExp.report();
 			
-			if(mGoalNode) {
-				j["goal_g"] = mGoalNode->g;
-				j["goal_f"] = mGoalNode->f;
-				
-				unsigned goal_depth = 0;
-				for(Node* m = mGoalNode->parent; m; m=m->parent) {
-					goal_depth++;
-				}
-				
-				j["goal_depth"] = goal_depth;
-			} else {
-				j["goal_g"] = 0;
-				j["goal_f"] = 0;				
-				j["goal_depth"] = 0;
-				
+			fast_assert(mGoalNode);
+			
+			j["goal_g"] = mGoalNode->g;
+			j["goal_f"] = mGoalNode->f;
+			
+			unsigned goal_depth = 0;
+			for(Node* m = mGoalNode->parent; m; m=m->parent) {
+				goal_depth++;
 			}
 			
-			j["exp_f_raw"] = mTest_exp_f;
-			j["exp_u_raw"] = mTest_exp_u;
-			j["exp_ucorr_raw"] = mTest_exp_ucorr;
-			j["exp_uh_raw"] = mTest_exp_uh;
-			j["exp_depth_raw"] = mTest_exp_depth;
-			j["exp_delay_raw"] = mTest_exp_delay;
-			j["exp_disthr_raw"] = mTest_exp_distHr;
-			
-			std::map<Cost, unsigned> flevel_exp;
-			
-			for(auto cst : mTest_exp_f)
-				flevel_exp[cst]++;
-			
-			std::vector<Cost> flevel_cost;
-			std::vector<unsigned> flevel_n;
-			std::vector<double> flevel_bf;
-
-			for(auto it = flevel_exp.begin(); it!=flevel_exp.end(); ++it) {
-				flevel_cost.push_back(it->first);
-				flevel_n.push_back(it->second);
-			}
-			
-			if(flevel_n.size() > 1)
-				for(unsigned i=0; i<flevel_n.size()-1; i++)
-					flevel_bf.push_back((double)flevel_n[i+1] / flevel_n[i]);
-			
-			j["exp_f"] = flevel_cost;
-			j["exp_n"] = flevel_n;
-			j["exp_bf"] = flevel_bf;
-			
-			j["bf_count_map"] = countTrueBf();
-			
-			std::vector<double> expectedBf, expectedBf_hr;
-			
-			for(Node* n = mGoalNode; n; n=n->parent) {
-				unsigned trueRemExp = mLog_expd - n->expdN;
-				unsigned trueDistToGo = mGoalNode->depth - n->depth;
-				double bf = std::pow(trueRemExp, 1.0/trueDistToGo);
-				expectedBf.push_back(bf);
-			}
-			for(Node* n = mGoalNode; n; n=n->parent) {
-				State s;
-				mDomain.unpackState(s, n->pkd);
-				unsigned trueRemExp = mLog_expd - n->expdN;
-				double bf = std::pow(trueRemExp, 1.0/mDomain.distanceHeuristic(s));
-				expectedBf_hr.push_back(bf);
-			}
-			
-			
-			
-			j["expected_bf"] = expectedBf;
-			j["expected_bf_hr"] = expectedBf_hr;
-			
-			
-			
-			std::vector<double> absRemExpError, ratRemExpError;
-			
-			for(Node* n = mGoalNode; n; n=n->parent) {
-				unsigned trueRemExp = mLog_expd - n->expdN;
-				absRemExpError.push_back((double)trueRemExp - n->remexp);
-				ratRemExpError.push_back((double)n->remexp / trueRemExp);
-			}
-			j["true_remexp_error_abs"] = absRemExpError;
-			j["true_remexp_error_rat"] = ratRemExpError;
-			
-			
+			j["goal_depth"] = goal_depth;
 			
 			return j;
 		}
@@ -595,7 +523,6 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			//mTest_exp_depth.push_back(n->depth);
 			//mTest_exp_delay.push_back(mLog_expd - n->expdGen);
 			//mTest_exp_distHr.push_back(n->depth + mDomain.distanceHeuristic(s));
-			n->expdN = mLog_expd;
 			
 			informExpansion(n);
 			
@@ -668,7 +595,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			if(!Use_Fixed_Exp_Time) {
 				mTimer.stop();
 				mTimer.start();
-				mLog_curExpTime = mTimer.seconds() / expThisPhase;
+				mLog_curExpTime = mTimer.cpuSeconds() / expThisPhase;
 			}
 
 			mCompRemExp.update(*this);
@@ -687,32 +614,6 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mLog_curDistFact = mLog_curExpTime * mParams_wt;
 		}
 		
-		
-		std::vector<unsigned> countTrueBf() {
-			std::map<Node*, unsigned> childCountMap;
-			std::map<unsigned, unsigned> bfCountMap;
-			
-			for(auto it=mClosedList.begin(); it!=mClosedList.end(); ++it) {
-				if(mOpenList.contains(*it))
-					continue;
-				childCountMap[(*it)->parent] += 1;
-			}
-			
-			for(auto it=childCountMap.begin(); it!=childCountMap.end(); ++it) {
-				bfCountMap[it->second]++;
-			}
-			
-			std::vector<unsigned> countPairs;
-			
-			for(auto it=bfCountMap.begin(); it!=bfCountMap.end(); ++it) {
-				if(countPairs.size() < it->first+1)
-					countPairs.resize(it->first + 1, 0);
-				countPairs.at(it->first) = it->second;
-			}
-			
-			return countPairs;
-		}
-		
 
 		Domain mDomain;
 		OpenList_t mOpenList;
@@ -720,7 +621,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		NodePool_t mNodePool;
 		
 		Node* mGoalNode;
-		Timer mTimer; //Should this be walltime or cputime ??
+		Timer mTimer;
 		CompRemExp_t mCompRemExp;
 		
 		const double mParams_wf, mParams_wt, mParams_fixedExpTime;

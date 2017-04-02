@@ -357,6 +357,13 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		none, HAstar_cost, HAstar_dist
 	};
 
+	std::string bugsyAbtSearchBase_Imitate_Str(BugsyAbtSearchBase_Imitate e) {
+		if(e == BugsyAbtSearchBase_Imitate::none) return "none";
+		if(e == BugsyAbtSearchBase_Imitate::HAstar_cost) return "HAstar_cost";
+		if(e == BugsyAbtSearchBase_Imitate::HAstar_dist) return "HAstar_dist";
+		gen_assert(false);
+		return "";
+	}
 	
 	
 	template<typename D, BugsyAbtSearchBase_Imitate Do_Imitate = BugsyAbtSearchBase_Imitate::none>
@@ -376,6 +383,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			PackedState pkd;
 			Node* parent;
 			unsigned expdGen;
+			
+			unsigned depth; //.....
 		};
 		
 
@@ -432,7 +441,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mAbtSearch			(pDomStack, jConfig),
 			mParams_wf			(jConfig.at("wf")),
 			mParams_wt			(jConfig.at("wt")),
-			mParams_fixedExpTime(jConfig.at("fixed_exptime"))
+			mParams_fixedExpTime(jConfig.count("fixed_exptime") ? jConfig.at("fixed_exptime").get<double>() : 0),
+			mParams_expdLimit	(jConfig.count("expd_limit") ? jConfig.at("expd_limit").get<double>() : 0)
 		{}
 
 		void reset() {
@@ -474,6 +484,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			j["wf"] = mParams_wf;
 			j["wt"] = mParams_wt;
 			j["fixed_exp_time"] = mParams_fixedExpTime;
+			j["expd_limit"] = mParams_expdLimit;
 			
 			fast_assert(mGoalNode);
 
@@ -504,6 +515,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				n0->g = 		0;
 				n0->parent = 	nullptr;
 				n0->expdGen =	0;
+				n0->depth =		0;
 				
 				evalHr(n0, s0);
 
@@ -514,11 +526,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			}			
 			
 
-			while(true) {
-				if(Do_Imitate == BugsyAbtSearchBase_Imitate::none && mLog_expd == mResort_next) {
-					doResort();
-				}
-				
+			while(true) {				
 				Node* n = nullptr;
 				try {
 					n = mOpenList.pop();
@@ -535,23 +543,19 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				}
 				
 				expand(n, s);
+				
+				if(Do_Imitate == BugsyAbtSearchBase_Imitate::none && mLog_expd == mResort_next)
+					doResort();
+				
+				if(mLog_expd == mParams_expdLimit)
+					throw NoSolutionException("expd_limit");
 			}
 		}		
 
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
-			mDelayAcc += mLog_expd - n->expdGen;
-			
-			if(mLog_expd % 10000 == 0) {
-				logDebugStream() << "opensz=" << mOpenList.size()
-					<< " closedsz=" << mClosedList.getFill()
-					<< " ... bugsyabt expdThisPhase=" << mAbtSearch.mLog_expdThisPhase 
-				<< " mLog_totExpd=" << mAbtSearch.mLog_totExpd
-				<< " cachedStates=" << mAbtSearch.mCache.size() << "\n";
-				g_logDebugOfs.flush();
-			}
-			
+			mDelayAcc += mLog_expd - n->expdGen;			
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
@@ -575,6 +579,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 						kid_dup->g			= kid_g;
 						kid_dup->parent		= n;
 						kid_dup->expdGen	= mLog_expd;
+						kid_dup->depth		= n->depth + 1;
 						
 						evalHr(kid_dup, edgeIt.state());
 
@@ -592,6 +597,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 					kid_node->pkd 		= kid_pkd;
 					kid_node->parent	= n;
 					kid_node->expdGen	= mLog_expd;
+					kid_node->depth		= n->depth + 1;
 					
 					evalHr(kid_node, edgeIt.state());
 					
@@ -603,8 +609,10 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		
 		void evalHr(Node* n, State const& s) {			
-			n->u = n->g * mParams_wf + mAbtSearch.getUtility(s);
-			//n->u = n->g + mAbtSearch.getUtility(s);
+			if(Do_Imitate == BugsyAbtSearchBase_Imitate::none)
+				n->u = n->g * mParams_wf + mAbtSearch.getUtility(s);
+			else
+				n->u = n->g + mAbtSearch.getUtility(s);
 		}
 		
 		void doResort() {
@@ -614,7 +622,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mDelayAcc = 0;
 			
 			mDistWeight = mParams_wt * mParams_fixedExpTime * mAvgDelay;
-			mAbtSearch.setEdgeWeights(mParams_wf, mAvgDelay);
+			mAbtSearch.setEdgeWeights(mParams_wf, mDistWeight);
 			
 			for(unsigned i=0; i<mOpenList.size(); i++) {
 				State s;
@@ -644,6 +652,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		unsigned mResort_next, mResort_n;
 		
 		const double mParams_wf, mParams_wt, mParams_fixedExpTime;
+		
+		const unsigned mParams_expdLimit;
 	};
 	
 	

@@ -4,11 +4,13 @@
 #include <chrono>
 #include <iostream>
 #include <string>
+#include <ctime>
+
 
 namespace mjon661 {
 	std::string prettyTimestamp();
 	
-	struct Timer {
+	struct WallTimer {
 		using Clock = std::chrono::high_resolution_clock;
 		using StdChronoDuration = std::chrono::duration<double>;
 		
@@ -22,5 +24,23 @@ namespace mjon661 {
 		StdChronoDuration mStdChronoDuration;
 	};
 	
-
+	
+	struct CpuTimer {
+		void start();
+		void stop();
+		double seconds();
+		
+		std::clock_t mStartTime, mEndTime;
+	};
+	
+	
+	struct Timer {
+		void start();
+		void stop();
+		double wallSeconds();
+		double cpuSeconds();
+		
+		WallTimer mWallTimer;
+		CpuTimer mCpuTimer;
+	};
 }

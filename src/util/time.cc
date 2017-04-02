@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <ctime>
 
 namespace mjon661 {
 	std::string prettyTimestamp() {
@@ -18,16 +19,50 @@ namespace mjon661 {
 	}
 	
 	
-	void Timer::start() {
+	void WallTimer::start() {
 		mStartTime = Clock::now();
 	}
 	
-	void Timer::stop() {
+	void WallTimer::stop() {
 		mEndTime = Clock::now();
 		mStdChronoDuration = mEndTime - mStartTime;
 	}
 	
-	double Timer::seconds() {
+	double WallTimer::seconds() {
 		return mStdChronoDuration.count();
 	}
+	
+	
+	
+	void CpuTimer::start() {
+		mStartTime = std::clock();
+	}
+	
+	void CpuTimer::stop() {
+		mEndTime = std::clock();
+	}
+	
+	double CpuTimer::seconds() {
+		return (double)(mEndTime - mStartTime) / CLOCKS_PER_SEC;
+	}
+	
+	
+	void Timer::start() {
+		mWallTimer.start();
+		mCpuTimer.start();
+	}
+	
+	void Timer::stop() {
+		mWallTimer.stop();
+		mCpuTimer.stop();
+	}
+	
+	double Timer::wallSeconds() {
+		return mWallTimer.seconds();
+	}
+	
+	double Timer::cpuSeconds() {
+		return mCpuTimer.seconds();
+	}
+	
 }

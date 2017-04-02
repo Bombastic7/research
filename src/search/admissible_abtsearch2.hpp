@@ -1,6 +1,5 @@
 #pragma once
 
-#include <limits>
 #include <string>
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
@@ -8,139 +7,40 @@
 #include "search/solution.hpp"
 #include "util/debug.hpp"
 #include "util/json.hpp"
-
-#include "search/admissible_abtsearch.hpp"
+#include "util/exception.hpp"
 #include "search/cache_store.hpp"
+
 
 namespace mjon661 { namespace algorithm {
 
 
-	/*
-	 * 	Informed search.
-	 * 	If Minimise_Cost is true, doSearch() finds the minimum cost path. If false, doSearch finds the minimum length path.
-	 * 	doSearch() returns the path cost and path length for the found path.
-	 * 	Homomorphic abstraction assumed.
-	 * 
-	 * 	Each Node tracks cost-so-far (aliased as x()), cost-so-far + heuristic (y()), and the other value as w().
-	 * 
-	 * 	Minimise_Cost == true:
-	 * 		x() = g
-	 * 		y() = g + h
-	 * 		w() = depth
-	 * 		getprim() returns g
-	 * 		getsec() returns depth
-	 * 
-	 * 	Minimise_Cost == false:
-	 * 		x() = depth
-	 * 		y() = depth + d,	where d is a distance-to-go heuristic value.
-	 * 		w() = g
-	 * 		getprim() returns depth
-	 * 		getsec() returns g
-	 * 
-	 * 	CacheEntry keeps cost and distance values (h and d members) per state. 
-	 * 	If Minimise_Cost is true, prim() is h, sec() is d. Otherwise its vice-versa.
-	 * 	h and d may be lower bounds or exact.
-	 * 	
-	 * 	Algorithm uses Optimal path caching (path from init to goal gives exact cost-to-go for states on path),	
-	 * 	and P-g heuristic for nodes expanded that aren't on the open list when goal was found 
-	 * 	([goal node cost] - [n cost] = lower bound for [cost-to-go of n]).
-	 * 
-	 * 
-	 */
 
-
-
-	template<typename D, unsigned L, unsigned Bound, bool Minimise_Cost>
+	template<typename D, unsigned L, unsigned Bound, bool Min_Cost>
 	class AdmissibleAbtSearch2 {
-
 		public:
-		
+
 		using Domain = typename D::template Domain<L>;
 		using Cost = typename Domain::Cost;
-		using Operator = typename Domain::Operator;
-		using OperatorSet = typename Domain::OperatorSet;
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
-		using Edge = typename Domain::Edge;
 
 		using BaseState = typename D::template Domain<L-1>::State;
-
-
-		template<bool B, typename = void>
-		struct NodeImpl {
-			using AbtSearch = AdmissibleAbtSearch<D, L+1, Bound, true>;
-			using PrimVal_t = Cost;
-			using SecVal_t = unsigned;
-			
-			Cost g, f;
-			unsigned depth;
-			
-			static Cost& getprim(Cost& pg, unsigned& pdepth) {return pg;}
-			static unsigned& getsec(Cost& pg, unsigned& pdepth) {return pdepth;}
-			Cost& y() {return f;}
-			Cost& x() {return g;}
-			unsigned& w() {return depth;}
-			
+		using AbtSearch_t = AdmissibleAbtSearch<D, L+1, Bound, Min_Cost>;
+		
+		struct Node {
+			Cost x,y,w;
 			PackedState pkd;
-			Operator in_op, parent_op;
-			NodeImpl<B>* parent;
+			Node* parent;
 		};
 		
-		template<typename Ign>
-		struct NodeImpl<false, Ign> {
-			using AbtSearch = AdmissibleAbtSearch<D, L+1, Bound, false>;
-			using PrimVal_t = unsigned;
-			using SecVal_t = Cost;
-			
-			Cost g;
-			unsigned depth, dtot;
-			
-			static unsigned& getprim(Cost& pg, unsigned& pdepth) {return pdepth;}
-			static Cost& getsec(Cost& pg, unsigned& pdepth) {return pg;}
-			unsigned& y() {return dtot;}
-			unsigned& x() {return depth;}
-			Cost& w() {return g;}
-			
+		struct CacheEntry {
 			PackedState pkd;
-			Operator in_op, parent_op;
-			NodeImpl<false, Ign>* parent;
-		};
-		
-		using Node = NodeImpl<Minimise_Cost>;
-		using AbtSearch = typename Node::AbtSearch;
-		using PrimVal_t = typename Node::PrimVal_t;
-		using SecVal_t = typename Node::SecVal_t;
-		
-		static const SecVal_t Null_Sec = std::numeric_limits<SecVal_t>::max();
-		
-		
-		template<bool B, typename = void>
-		struct CacheEntryImpl {
-			PackedState pkd;
-			Cost h;
-			unsigned d;
 			bool exact;
-			
-			Cost& prim() {return h;}
-			unsigned& sec() {return d;}
+			Cost hx, w;
 		};
-		
-		template<typename Ign>
-		struct CacheEntryImpl<false, Ign> {
-			PackedState pkd;
-			Cost h;
-			unsigned d;
-			bool exact;
-			
-			unsigned& prim() {return d;}
-			Cost& sec() {return h;}
-		};
-		
-		using CacheEntry = CacheEntryImpl<Minimise_Cost>;
 		using CacheStore_t = CacheStore<Domain, CacheEntry>;
-		
-		
-		
+
+
 		struct ClosedOps {
 			ClosedOps(Domain const& pDomain) :
 				mDomain(pDomain)
@@ -164,19 +64,13 @@ namespace mjon661 { namespace algorithm {
 		
 		struct OpenOps {
 			bool operator()(Node * const a, Node * const b) const {
-				if(a->y() != b->y())
-					return a->y() < b->y();
-				
-				if(a->x() != b->x())
-					return a->x() > b->x();
-				
-				return a->w() < b->w();
+				if(a->y != b->y)
+					return a->y < b->y;
+				return a->x > b->x;
 			}
 		};
 		
 		
-		
-
 		using OpenList_t = OpenList<Node, Node, OpenOps>;
 		
 		using ClosedList_t = ClosedList<Node, 
@@ -189,273 +83,273 @@ namespace mjon661 { namespace algorithm {
 		using NodePool_t = NodePool<Node, typename ClosedList_t::Wrapped_t>;
 		
 		
-
+		
+		
+		
+		
 		AdmissibleAbtSearch2(D& pDomStack, Json const& jConfig) :
-			mAbtSearch			(pDomStack, jConfig),
 			mDomain				(pDomStack),
-			mDomStack			(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mCache				(mDomain),
-			mBestExactNode		(nullptr)
-		{}
+			mAbtSearch			(pDomStack, jConfig)
+		{
+			mLog_totExpd = 0;
+			mLog_totCalls = 0;
+			mLog_totSearches = 0;
+			reset();
+		}
 
-		
 		void reset() {
-			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			mOpenList.clear();
 			mClosedList.clear();
 			mNodePool.clear();
+
+			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
+			
+			mGoalNode = nullptr;
 			mBestExactNode = nullptr;
 		}
 		
-		void clearCache() {
-			mCache.clear();
-			mAbtSearch.clearCache();
-		}
-		
-		
-		bool doSearch_ParentState(BaseState const& pBaseState, Cost& out_h, unsigned& out_d) {
-			State s0 = mDomain.abstractParentState(pBaseState);
-			return doSearch(s0, out_h, out_d);
-		}
-		
-		bool doSearch(State const& s0, Cost& out_h, unsigned& out_d) {
-			reset();
-			{
-				PackedState pkd0;
-				
-				mDomain.packState(s0, pkd0);
-				
-				CacheEntry* ent = mCache.retrieve(pkd0);
+		void insertReport(Json& jReport) {
+			Json j;
+			j["expd_tot"] = mLog_totExpd;
+			j["calls_tot"] = mLog_totCalls;
+			j["searches_tot"] = mLog_totSearches;
+			j["cached_all"] = mCache.size();
 			
-				if(ent && ent->exact) {
-					out_h = ent->h;
-					out_d = ent->d;
-					return false;
-				}
-				
-				bool miss = mCache.get(pkd0, ent);
-					
-				if(miss) {
-					ent->exact = false;
-					ent->sec() = Null_Sec;
-	
-					mAbtSearch.doSearch_ParentState(s0, ent->prim());
-				}
+			unsigned exactCached = 0;
+			
+			for(auto it=mCache.begin(); it != mCache.end(); ++it) {
+				if((*it)->exact)
+					exactCached++;
+			}
+			
+			j["cached_exact"] = exactCached;
+			
+			jReport[std::to_string(L)] = j;
+			mAbtSearch.insertReport(jReport);
+		}
 
 
+		
+		std::pair<Cost, Cost> getHrVals(BaseState const& pBaseState) {
+			mLog_totCalls++;			
+			
+			State s;
+			PackedState pkd0;
+			
+			s = mDomain.abstractParentState(pBaseState);
+			mDomain.packState(s, pkd0);
+			
+			CacheEntry* ent = mCache.retrieve(pkd0);
+			if(!ent || !ent->exact) {
+				mLog_totSearches++;
+				doSearch(s);
+				ent = mCache.retrieve(pkd0);
+				slow_assert(ent);
+				slow_assert(ent->exact);
+			}
+			
+			return {ent->hx, ent->w};
+		}
+		
+		std::pair<Cost, Cost> execute(State const& pState) {
+			mLog_totCalls++;			
+
+			PackedState pkd0;
+			mDomain.packState(pState, pkd0);
+			
+			CacheEntry* ent = mCache.retrieve(pkd0);
+			if(!ent || !ent->exact) {
+				mLog_totSearches++;
+				doSearch(pState);
+				ent = mCache.retrieve(pkd0);
+				slow_assert(ent);
+				slow_assert(ent->exact);
+			}
+			
+			return {ent->hx, ent->w};
+		}
+
+		
+		void doSearch(State const& s0) {
+			{
 				Node* n0 = mNodePool.construct();
-				
-				n0->pkd =		pkd0;
-				n0->x() = 		0;
-				n0->w() =		0;
-				n0->in_op = 	mDomain.getNoOp();
-				n0->parent_op = mDomain.getNoOp();
+
+				n0->x = 		0;
+				n0->w =			0;
 				n0->parent = 	nullptr;
 
-				n0->y() = ent->prim();
+				mDomain.packState(s0, n0->pkd);
+				
+				evalHr(n0, s0);
 				
 				mOpenList.push(n0);
 				mClosedList.add(n0);
-			}
+			}			
 			
 
-			Node* goalNode = nullptr;
-			
-			while(true) {				
-				Node* n = mOpenList.pop();
-					
+			while(true) {
+				Node* n = nullptr;
+				try {
+					n = mOpenList.pop();
+				}
+				catch(AssertException const& e) {
+					throw NoSolutionException("");
+				}
 				State s;
 				mDomain.unpackState(s, n->pkd);
 
-
-				if(mDomain.checkGoal(s) || n == mBestExactNode) {
-					goalNode = n;
-					
-					if(mDomain.checkGoal(s))
-						slow_assert(goalNode->y() == goalNode->x());
-
+				if(mBestExactNode == n || mDomain.checkGoal(s)) {
+					mGoalNode = n;
 					break;
 				}
 				
 				expand(n, s);
 			}
 			
+			doCaching();
+			reset();
+		}
+		
+		void expand(Node* n, State& s) {
+			mLog_expd++;
+			mLog_totExpd++;
 
-			for(auto it = mClosedList.begin(); it != mClosedList.end(); ++it) {
+			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
+			
+			for(; !edgeIt.finished(); edgeIt.next()) {
+				
+				PackedState kid_pkd;
+				mDomain.packState(edgeIt.state(), kid_pkd);
+								
+				if(n->pkd == kid_pkd)
+					continue;
+				
+				mLog_gend++;
+
+				Cost kid_x = Min_Cost ? n->x + edgeIt.cost() : n->x + 1;
+				Cost kid_w = Min_Cost ? n->w + 1 : n->w + edgeIt.cost();
+
+				Node* kid_dup = mClosedList.find(kid_pkd);
+
+				if(kid_dup) {
+					mLog_dups++;
+					if(kid_dup->x > kid_x) {
+						kid_dup->x			= kid_x;
+						kid_dup->w			= kid_w;
+						kid_dup->parent		= n;
+						
+						evalHr(kid_dup, edgeIt.state());
+
+						if(!mOpenList.contains(kid_dup)) {
+							mLog_reopnd++;
+						}
+
+						mOpenList.pushOrUpdate(kid_dup);
+					}
+				}
+				else {
+					Node* kid_node 		= mNodePool.construct();
+
+					kid_node->x 		= kid_x;
+					kid_node->w			= kid_w;
+					kid_node->pkd 		= kid_pkd;
+					kid_node->parent	= n;
+
+					evalHr(kid_node, edgeIt.state());
+					
+					mOpenList.push(kid_node);
+					mClosedList.add(kid_node);
+				}
+			}
+		}
+		
+		
+		void evalHr(Node* n, State const& s) {
+			CacheEntry* ent;
+			
+			bool newEntry = mCache.get(n->pkd, ent);
+			
+			if(newEntry) {
+				ent->exact = false;
+				ent->hx = mAbtSearch.getHrVal(s);
+			}
+			
+			n->y = n->x + ent->hx;
+			
+			if(ent->exact) {
+				if(!mBestExactNode || mBestExactNode->y > n->y)
+					mBestExactNode = n;
+			}
+		}
+		
+		
+		void doCaching() {
+			slow_assert(mGoalNode);
+			
+			for(auto it=mClosedList.begin(); it!=mClosedList.end(); ++it) {
 				Node* n = *it;
 				
 				if(mOpenList.contains(n))
 					continue;
 				
+				double pghr = mGoalNode->y - n->x;
+				
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
-
-				if(ent->exact)
-					continue;
-
-				PrimVal_t pg = goalNode->y() - n->x();
-				slow_assert(pg >= 0);
 				
-				if(ent->prim() < pg) {
-					ent->prim() = pg;
-				}
+				if(pghr > ent->hx)
+					ent->hx = pghr;
 			}
 			
-			for(Node* n = goalNode; n != nullptr; n = n->parent) {
+			for(Node* n=mGoalNode; n; n=n->parent) {
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
-				
-				SecVal_t secVal = goalNode->w() - n->w();
 				
 				if(!ent->exact) {
-					slow_assert(ent->sec() == Null_Sec);
-					ent->sec() = secVal;
 					ent->exact = true;
+					ent->w = mGoalNode->w - n->w;
 				}
 			}
 			
-			if(Minimise_Cost) {
-				out_h = goalNode->y();
-				out_d = goalNode->w();
-			}
-			else {
-				out_h = goalNode->w();
-				out_d = goalNode->y();
-			}
-
-			return true;
-		}
-		
-		
-		private:
-		
-		void expand(Node* n, State& s) {
-			mLog_expd++;
-			
-			OperatorSet ops = mDomain.createOperatorSet(s);
-			
-			for(unsigned i=0; i<ops.size(); i++) {
-				if(ops[i] == n->parent_op)
-					continue;
-				
-				mLog_gend++;
-				considerkid(n, s, ops[i]);
-			}
-		}
-		
-		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
-
-			Edge		edge 		= mDomain.createEdge(pParentState, pInOp);
-			Cost		kid_g		= pParentNode->g + edge.cost();
-			unsigned	kid_depth 	= pParentNode->depth + 1;
-			PrimVal_t&	kid_x		= Node::getprim(kid_g, kid_depth);
-			SecVal_t&	kid_w		= Node::getsec(kid_g, kid_depth);
-
-			PackedState kid_pkd;
-			mDomain.packState(edge.state(), kid_pkd);
-
-			Node* kid_dup = mClosedList.find(kid_pkd);
-
-			if(kid_dup) {
-				mLog_dups++;
-				if(kid_dup->x() > kid_x) {
-					kid_dup->y()		-= kid_dup->x();
-					kid_dup->y()		+= kid_x;
-					kid_dup->x()		= kid_x;
-					kid_dup->w()		= kid_w;
-					kid_dup->in_op		= pInOp;
-					kid_dup->parent_op	= edge.parentOp();
-					kid_dup->parent		= pParentNode;
-
-					if(!mOpenList.contains(kid_dup)) {
-						mLog_reopnd++;
-					}
-					
-					mOpenList.pushOrUpdate(kid_dup);
-					
-					CacheEntry* ent = mCache.retrieve(kid_pkd);
-					slow_assert(ent);
-						
-					if(ent->exact) {
-						slow_assert(mBestExactNode);
-						
-						if(mBestExactNode->y() > kid_dup->y()) {
-							mBestExactNode = kid_dup;
-							slow_assert(ent->sec() != Null_Sec);
-							kid_dup->w() += ent->sec();
-						}
-					}
-				}
-			} else {
-				
-				Node* kid_node 		= mNodePool.construct();
-				
-				CacheEntry* ent = nullptr;
-				
-				bool miss = mCache.get(kid_pkd, ent);
-			
-				if(miss) {
-					ent->exact = false;
-					ent->sec() = Null_Sec;
-					mAbtSearch.doSearch_ParentState(edge.state(), ent->prim());
-				}
-
-				kid_node->x() 		= kid_x;
-				kid_node->w()		= kid_w;
-				kid_node->pkd 		= kid_pkd;
-				kid_node->in_op 	= pInOp;
-				kid_node->parent_op = edge.parentOp();
-				kid_node->parent	= pParentNode;
-				kid_node->y()		= kid_x + ent->prim();
-				
-				mOpenList.push(kid_node);
-				mClosedList.add(kid_node);
-				
-				if(ent->exact && (!mBestExactNode || mBestExactNode->y() > kid_node->y())) {
-					mBestExactNode = kid_node;
-					slow_assert(ent->sec() != Null_Sec);
-					kid_node->w() += ent->sec();
-				}
-			}
-			
-			mDomain.destroyEdge(edge);
 		}
 		
 
-		AbtSearch				mAbtSearch;
-		const Domain			mDomain;
-		D const&				mDomStack;
-
-		OpenList_t 				mOpenList;
-		ClosedList_t 			mClosedList;
-		NodePool_t 				mNodePool;
+		Domain mDomain;
+		OpenList_t mOpenList;
+		ClosedList_t mClosedList;
+		NodePool_t mNodePool;
+		CacheStore_t mCache;
+		AbtSearch_t mAbtSearch;
 		
-		CacheStore_t			mCache;
-		Node*					mBestExactNode;
+		Node* mGoalNode, *mBestExactNode;
+		double mCostWeight, mDistWeight;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
+		
+		unsigned mLog_totExpd;
+		
+		unsigned mLog_totCalls, mLog_totSearches;
 	};
 	
 	
-	template<typename D, unsigned Bound, bool Minimise_Cost>
-	struct AdmissibleAbtSearch2<D, Bound, Bound, Minimise_Cost> {
+	template<typename D, unsigned Bound, bool Min_Cost>
+	struct AdmissibleAbtSearch2<D, Bound, Bound, Min_Cost> {
 		
-		using Domain = typename D::template Domain<Bound-1>;
-		using Cost = typename Domain::Cost;
-		using State = typename Domain::State;
+		using BaseState = typename D::template Domain<Bound-1>::State;
 		
-		AdmissibleAbtSearch2(D& pDomStack, Json const&) {}
+		AdmissibleAbtSearch2(D&, Json const&) {}
 		
-		bool doSearch_ParentState(State const&, Cost& out_h, unsigned& out_d) {
-			out_h = 0;
-			out_d = 0;
-			return true;
+		double getHrVals(BaseState const&) {
+			return {0,0};
 		}
 		
-		void reset() {}
-		void clearCache() {}
-	};	
+		void insertReport(Json&) {}
+	};
+	
+
+	
 }}

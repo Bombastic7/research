@@ -1,8 +1,7 @@
 
 
 
-
-$(BUILDDIR)/test:\
+$(ROOTDIR)/experiment/tiles15/run_tiles15:\
 	$(OBJDIR)/test/main.o\
 	$(DEPDIR)/test/main.d\
 	$(BUILDDIR)/libs/app.a\
@@ -17,9 +16,8 @@ $(BUILDDIR)/test:\
 		$(BUILDDIR)/libs/util.a\
 		$(BUILDDIR)/libs/domain.a\
 		-Wl,--end-group
+
 		
-
-
 $(BUILDDIR)/test2:\
 	$(OBJDIR)/test/test2.o\
 	$(DEPDIR)/test/test2.d\
@@ -37,10 +35,8 @@ $(BUILDDIR)/test2:\
 		-Wl,--end-group
 		
 
-
-
 .PHONY: tests
-tests: $(BUILDDIR)/test $(BUILDDIR)/test2
+tests: $(ROOTDIR)/experiment/tiles15/run_tiles15
 
 
 

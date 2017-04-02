@@ -19,6 +19,7 @@
 
 #include "search/bugsy.hpp"
 #include "search/bugsy_abt_lin.hpp"
+#include "search/bugsy_abt_exp1.hpp"
 #include "search/astar2.hpp"
 
 
@@ -59,13 +60,13 @@ namespace mjon661 {
 	
 	
 	
-	//Insert results of Alg_t run on pDomStack into jRes_nonutil[pAlgName], 
-	//	and also into jRes_util[weight][pAlgName_pseudo] with utility value added, for weight in pWeights.
+	//Insert results of Alg_t run on pDomStack into jRes_nonutil[pAlgName], and inserts pseudo-entries for 
+	//	each weight in pWeights into jRes_util[weight][pAlgName].
 	template<typename D, typename Alg_t>
 	void run_nonutil_search_fixedexptime(	D& pDomStack,
 											Json const& jAlgConfig, 
-											Json& jRes_nonutil, 
-											Json& jRes_util, 
+											Json& jRes_nonutil,
+											Json& jRes_util,
 											std::string pAlgName,
 											std::vector<std::tuple<double,double,std::string>> pWeights,
 											double pFixedExpTime)
@@ -74,32 +75,29 @@ namespace mjon661 {
 		Timer searchTimer;
 		Alg_t alg(pDomStack, jAlgConfig);
 		
-		bool success = false;
-			
-		searchTimer.start();
 		try {
+			searchTimer.start();
 			alg.execute(pDomStack.getInitState());
 			searchTimer.stop();
-			success = true;
-		} catch(NoSolutionException const& e) {
-			jRes_nonutil["failed"][pAlgName] = e.what();
-		}
-		
-		if(success) {
+			
 			jRes_nonutil[pAlgName] = alg.report();
-			jRes_nonutil[pAlgName]["walltime"] = searchTimer.seconds();
+			jRes_nonutil[pAlgName]["walltime"] = searchTimer.wallSeconds();
+			jRes_nonutil[pAlgName]["cputime"] = searchTimer.cpuSeconds();
 			
-			std::string pseudoNameStr = pAlgName + "_pseudo";
-			
-			for(auto& w : pWeights) {				
-				jRes_util[std::get<2>(w)][pseudoNameStr] = jRes_nonutil.at(pAlgName);
-				jRes_util[std::get<2>(w)][pseudoNameStr]["utility"] = 
-					jRes_util[std::get<2>(w)][pseudoNameStr].at("goal_g").get<double>() * std::get<0>(w)
-					+
-					jRes_util[std::get<2>(w)][pseudoNameStr].at("expd").get<double>() * std::get<1>(w) * pFixedExpTime;
+			for(auto& weight : pWeights) {
+				std::string pseudoAlgName = pAlgName;
+				jRes_util[std::get<2>(weight)][pseudoAlgName] = jRes_nonutil[pAlgName];
+				
+				Json& jEntryRef = jRes_util[std::get<2>(weight)][pseudoAlgName];
+				
+				jEntryRef["utility"] = 
+					std::get<0>(weight) * jEntryRef["goal_g"].get<double>() + 
+					std::get<1>(weight) * jEntryRef["expd"].get<double>() * pFixedExpTime;
 			}
-		}
-	
+		} 
+		catch(NoSolutionException const& e) {
+			jRes_nonutil[pAlgName]["failed"] = e.what();
+		}	
 	}
 	
 	
@@ -119,30 +117,32 @@ namespace mjon661 {
 		Json jAlgConfig = jAlgConfig_tmpl;
 		fast_assert(pFixedExpTime == jAlgConfig_tmpl.at("fixed_exptime").get<double>());
 		
-		for(auto& weight : pWeights) {
-			jAlgConfig["wf"] = std::get<0>(weight);
-			jAlgConfig["wt"] = std::get<1>(weight);
-		
-			Alg_t alg(pDomStack, jAlgConfig);
-		
-			bool success = false;
-		
+		for(auto& weight : pWeights) {			
+			jRes[std::get<2>(weight)][pAlgName] = Json();
+			Json& jEntryRef = jRes[std::get<2>(weight)][pAlgName];
+			
 			try {
+				jAlgConfig["wf"] = std::get<0>(weight);
+				jAlgConfig["wt"] = std::get<1>(weight);
+				
+				Alg_t alg(pDomStack, jAlgConfig);
+				
 				searchTimer.start();
 				alg.execute(pDomStack.getInitState());
 				searchTimer.stop();
-				success = true;
-			} catch(NoSolutionException const& e) {
-				jRes[std::get<2>(weight)]["failed"][pAlgName] = e.what();
+				
+				jEntryRef = alg.report();
+				
+				jEntryRef["walltime"] = searchTimer.wallSeconds();
+				jEntryRef["cputime"] = searchTimer.cpuSeconds();
+
+				jEntryRef["utility"] = 
+					std::get<0>(weight) * jEntryRef["goal_g"].get<double>() + 
+					std::get<1>(weight) * jEntryRef["expd"].get<double>() * pFixedExpTime;
 			}
-		
-			if(success) {				
-				jRes[std::get<2>(weight)][pAlgName] = alg.report();
-				jRes[std::get<2>(weight)][pAlgName]["walltime"] = searchTimer.seconds();
-				jRes[std::get<2>(weight)][pAlgName]["utility"] = 
-					jRes[std::get<2>(weight)][pAlgName].at("goal_g").get<double>() * std::get<0>(weight) +
-					jRes[std::get<2>(weight)][pAlgName].at("expd").get<double>() * pFixedExpTime * std::get<1>(weight);
-			}
+			catch(NoSolutionException const& e) {
+				jEntryRef["failed"] = e.what();
+			}	
 		}
 	}
 	
@@ -210,6 +210,11 @@ namespace mjon661 {
 			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Greedy, algorithm::Astar2HrMode::DomainHr>>(
 				domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "greedy", weights, fixedExpTime);
 			
+			const unsigned expdLimit = jRes.at(probKey).at("nonutil").at("astar").at("expd").get<unsigned>() + 100;
+			logDebugStream() << "expdLimit=" << expdLimit << "\n";
+			
+			jAlgConfig["expd_limit"] = expdLimit;
+			jAlgConfig["time_limit"] = jRes.at(probKey).at("nonutil").at("astar").at("cputime").get<unsigned>() + 25;
 			
 			run_util_search_fixedexptime<D, algorithm::bugsy::BugsyImpl<D, true, algorithm::bugsy::CompRemExp_delay<D>>>(
 				domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_delay", weights, fixedExpTime);
@@ -219,14 +224,35 @@ namespace mjon661 {
 			
 			run_util_search_fixedexptime<D, algorithm::bugsy::BugsyAbtSearchBase<D>>(
 				domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_delayAbt", weights, fixedExpTime);
-
+			
+			run_util_search_fixedexptime<D, algorithm::bugsy::BugsyExpSearchBase1<D>>(
+				domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_expAbt1", weights, fixedExpTime);
 		}
 		return jRes;
 	}
-
 }
 
 int main(int argc, const char* argv[]) {
 	std::cout << mjon661::run_tiles_44().dump(4) << "\n";
-	//Bugsy abt remexp = k*bf^depth
 }
+
+
+
+
+
+/*
+ * Generates the following data for the 15puzzle.
+ * 
+ * 	<problem>:
+ * 		"nonutil":
+ * 			<nonutil alg>:
+ * 				goal_g, goal_depth, expd, walltime, cputime... OR "failed"
+ * 
+ * 		"util":
+ * 			<weight>:
+ * 				<util alg>:
+ * 					goal_g, goal_depth, expd, walltime, cputime... OR "failed"
+ * 				
+ *	
+ * 	Non-utility-cognizant algorithms are given a pseudo-entry in "util"/weight branch with appropriate utility calculated.
+ */

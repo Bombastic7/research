@@ -9,6 +9,7 @@
 #include "search/astar2.hpp"
 #include "search/enum_util_results.hpp"
 #include "search/bugsy_abt_lin.hpp"
+#include "search/bugsy_abt_exp1.hpp"
 #include "search/debug_walker.hpp"
 #include "domain/tiles/fwd.hpp"
 
@@ -38,7 +39,7 @@ namespace mjon661 {
 		
 
 		{
-			algorithm::EnumUtilSolutions<D, algorithm::EnumUtilSolutionsHrMode::DomainHr> alg(domStack, Json());
+			algorithm::bugsy::BugsyExpAbtSearch1<D> alg(domStack, Json());
 			
 			alg.execute(domStack.getInitState());
 			

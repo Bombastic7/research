@@ -125,6 +125,7 @@ namespace mjon661 { namespace algorithm {
 		
 		void execute(State const& s0) {
 			{
+				reset();
 				AdmissibleAbtSearch2<D, 0, D::Top_Abstract_Level, true> search_mincost(mDomStack, Json());
 				AdmissibleAbtSearch2<D, 0, D::Top_Abstract_Level, false> search_mindist(mDomStack, Json());
 				
@@ -135,12 +136,14 @@ namespace mjon661 { namespace algorithm {
 				mMaxCost = mindistres.second;
 				mMinDist = mindistres.first;
 				mMaxDist = mincostres.second;
+				
+				logDebugStream() << mMinCost << " " << mMaxCost << " " << mMinDist << " " << mMaxDist << "\n";
+				g_logDebugOfs.flush();
 			}
 			doSearch(s0);
 		}
 		
 		void doSearch(State const& s0) {
-			reset();
 			{
 				Node n0;
 
@@ -163,7 +166,9 @@ namespace mjon661 { namespace algorithm {
 				State s;
 				mDomain.unpackState(s, n.pkd);
 
-				if(mDomain.checkGoal(s)) {
+				if(mDomain.checkGoal(s)) {				
+					slow_assert(n->g >= mMinCost && n->depth >= mMinDist);
+					slow_assert(n->g <= mMaxCost && n->depth <= mMaxDist);
 					bool newSolInfo = true;
 					
 					for(auto& solinfo : mSolutionsInfo) {
@@ -224,8 +229,7 @@ namespace mjon661 { namespace algorithm {
 				
 				Cost kid_g = n.g + edgeIt.cost();
 				unsigned kid_depth = n.depth + 1;
-				
-				slow_assert(kid_g >= mMinCost && kid_depth >= mMinDist);
+
 				
 				if(kid_g + mHrModule.costHeuristic(s) <= mMaxCost &&
 					kid_depth + mHrModule.distanceHeuristic(s) <= mMaxDist) {

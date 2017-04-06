@@ -25,9 +25,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		static double compUtil(Cost cst, unsigned depth, double mCostWeight, double mDepthWeight, double mAvgBranchingFactor) {
 			return mCostWeight * cst + mDepthWeight * std::pow(mAvgBranchingFactor, depth);
 		}
-		
-		
 	};
+	
 
 	template<typename D, unsigned L, unsigned Bound>
 	class BugsyExpAbtSearch1_abt {
@@ -60,7 +59,9 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			{}
 			
 			size_t operator()(CacheKey const& k) const {
-				return mDomain.hash(k.first);
+				size_t h = mDomain.hash(k.first);
+				h ^= k.second;
+				return h;
 			}
 			
 			Domain const& mDomain;
@@ -285,7 +286,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 					kid_node->g			= kid_g;
 					kid_node->depth		= kid_depth;
 					
-					evalHr(kid_dup, edgeIt.state());
+					evalHr(kid_node, edgeIt.state());
 					
 					mOpenList.push(kid_node);
 					mClosedList.add(kid_node);
@@ -295,7 +296,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		
 		void evalHr(Node* n, State const& s) {
-			auto hrvals = mAbtSearch.getUtilityPath(s, n->depth);
+			std::pair<Cost, unsigned> hrvals = mAbtSearch.getUtilityPath(s, n->depth);
 			n->uf = BugsyExpAbtSearch1_common<>::compUtil(n->g + hrvals.first, n->depth + hrvals.second, mCostWeight, mDistWeight, mBranchingFactor);
 		}
 
@@ -346,7 +347,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 	
 	
 	
-	template<typename D>
+	template<typename D, bool OP_Clear_Exp_Counter>
 	class BugsyExpAbtSearch1 {
 		public:
 
@@ -420,6 +421,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mParams_wf			(jConfig.at("wf")),
 			mParams_wt			(jConfig.at("wt")),
 			mParams_fixedExpTime(jConfig.at("fixed_exptime")),
+			mParams_hardBf		(jConfig.count("hard_bf") ? jConfig.at("hard_bf").get<unsigned>() : -1),
 			mParams_expdLimit	(jConfig.count("expd_limit") ? jConfig.at("expd_limit").get<unsigned>() : (unsigned)-1),
 			mParams_timeLimit	(jConfig.count("time_limit") ? jConfig.at("time_limit").get<unsigned>() : 0)
 		{}
@@ -433,7 +435,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			mGoalNode = nullptr;
 			
-			mAvgBranchingFactor = 1;
+			mAvgBranchingFactor = mParams_hardBf == -1 ? 1 : mParams_hardBf;
 
 			mCostWeight = mParams_wf;
 			mDistWeight = mParams_wt * mParams_fixedExpTime;
@@ -460,6 +462,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			j["fixed_exp_time"] = mParams_fixedExpTime;
 			j["expd_limit"] = mParams_expdLimit;
 			j["time_limit"] = mParams_timeLimit;
+			j["hard_bf"] = mParams_hardBf;
 			
 			fast_assert(mGoalNode);
 
@@ -589,12 +592,12 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		
 		void evalHr(Node* n, State const& s) {
-			auto hrvals = mAbtSearch.getUtilityPath(s, 0);
+			std::pair<Cost, unsigned> hrvals = mAbtSearch.getUtilityPath(s, 0);
 			n->u = BugsyExpAbtSearch1_common<>::compUtil(n->g + hrvals.first, hrvals.second, mCostWeight, mDistWeight, mAvgBranchingFactor);
 		}
 		
 		void doResort() {
-			if(mLog_expCounter.size() > 1) {
+			if(mLog_expCounter.size() > 1 && mParams_hardBf != -1) {
 				std::vector<double> bfsamples;
 			
 				auto it = mLog_expCounter.begin(), itprev = mLog_expCounter.begin();
@@ -609,8 +612,14 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 					mAvgBranchingFactor += *it;
 				
 				mAvgBranchingFactor /= bfsamples.size();
+				mLog_pastBf.push_back(mAvgBranchingFactor);
 			}
-
+			
+			if(OP_Clear_Exp_Counter)
+				mLog_expCounter.clear();
+			
+			mDistWeight = mParams_wt * mParams_fixedExpTime * mOpenList.size();
+			
 			mAbtSearch.setEdgeWeights(mCostWeight, mDistWeight, mAvgBranchingFactor);
 			
 			for(unsigned i=0; i<mOpenList.size(); i++) {
@@ -644,7 +653,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		unsigned mResort_next, mResort_n;
 		
-		const double mParams_wf, mParams_wt, mParams_fixedExpTime;
+		const double mParams_wf, mParams_wt, mParams_fixedExpTime, mParams_hardBf;
 		const unsigned mParams_expdLimit, mParams_timeLimit;
 		CpuTimer mLog_timer;
 		

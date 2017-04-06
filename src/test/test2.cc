@@ -6,49 +6,31 @@
 
 #include "util/json.hpp"
 
-#include "search/astar2.hpp"
-#include "search/enum_util_results.hpp"
-#include "search/bugsy_abt_lin.hpp"
-#include "search/bugsy_abt_exp1.hpp"
-#include "search/debug_walker.hpp"
-#include "domain/tiles/fwd.hpp"
+//#include "search/astar2.hpp"
+//#include "search/enum_util_results.hpp"
+//#include "search/bugsy_abt_lin.hpp"
+//#include "search/bugsy_abt_exp1.hpp"
+//#include "search/debug_walker.hpp"
+//#include "domain/tiles/fwd.hpp"
 
 
 namespace mjon661 {
 	
 
-	
-	
 	static void run() {
-		using D = tiles::TilesGeneric_DomainStack<3,3,true,false,5>;
+		std::vector<unsigned> foo {0,1,2,3};
 		
-		Json jDomConfig, jRes;
+		Json j;
+		std::cout << j.dump(2) << "\n\n";
 		
-		jDomConfig["goal"] = std::vector<unsigned>{0,1,2,3,4,5,6,7,8};
-		jDomConfig["kept"] = std::vector<unsigned>{  5,4,3,2,1,1,1,1};
-
-		D domStack(jDomConfig);
+		j["a"] = {};
+		std::cout << j.dump(2) << "\n\n";
+		j["b"].push_back(1);
+		std::cout << j.dump(2) << "\n\n";
 		
-		std::stringstream ss;
-		domStack.getInitState().prettyPrint(ss);
-		jRes["init_state"] = ss.str();
-		
-		ss.clear();
-		domStack.mGoalState.prettyPrint(ss);
-		jRes["goal_state"] = ss.str();
-		
-
-		{
-			algorithm::bugsy::BugsyExpAbtSearch1<D> alg(domStack, Json());
-			
-			alg.execute(domStack.getInitState());
-			
-			jRes["alg_report"] = alg.report();
-			
-			std::cout << jRes.dump(4) << "\n";
-		}
+		j["c"].push_back(foo);
+		std::cout << j.dump(2) << "\n\n";
 	}
-	
 }
 
 

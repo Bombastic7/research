@@ -166,70 +166,151 @@ namespace mjon661 {
 
 	}
 	
-
+		//~ run_util_search_fixedexptime<D, algorithm::bugsy::BugsyAbtSearchBase<D>>(
+			//~ pDomStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_delayabt", weights, fixedExpTime);
 	
 	
 	
-	Json run_tiles_44() {
-		using D = tiles::TilesGeneric_DomainStack<4,4,true,false,8>;
-
-		Json jDomConfig, jAlgConfig, jRes;
+	
+	/*
+	 * Generates the following data for the 15puzzle.
+	 * 
+	 * 	<problem>:
+	 * 		"nonutil":
+	 * 			<nonutil alg>:
+	 * 				goal_g, goal_depth, expd, walltime, cputime... OR "failed"
+	 * 
+	 * 		"util":
+	 * 			<weight>:
+	 * 				<util alg>:
+	 * 					goal_g, goal_depth, expd, walltime, cputime... OR "failed"
+	 * 				
+	 *	
+	 * 	Non-utility-cognizant algorithms are given a pseudo-entry in "util"/weight branch with appropriate utility calculated.
+	 */
+ 	
+ 	template<typename D>
+	static Json run_searches_fixedexptime(D& pDomStack) {
+		const double fixedExpTime = 3e-6;
 		
+		Json jAlgConfig, jRes;
 		
-		jDomConfig["goal"] = std::vector<unsigned>{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-		//jDomConfig["kept"] = std::vector<unsigned>{  1,2,1,1,2,1,2,2,1,2 ,1 ,1 ,2 ,1 ,2 };
-		jDomConfig["kept"] = std::vector<unsigned>{  8,7,6,5,4,3,2,1,1, 1, 1, 1, 1, 1, 1};
-		D domStack(jDomConfig);
+		jAlgConfig["fixed_exptime"] = fixedExpTime;
+		
+		std::vector<std::tuple<double,double,std::string>> weights = {
+			std::tuple<double,double,std::string>{1,1e6,"1e6"},
+			std::tuple<double,double,std::string>{1,1e3, "1e3"},
+			std::tuple<double,double,std::string>{1,1,"1"}
+		};
+		
+		std::string probKey = std::to_string(i);
+		jRes[probKey] = Json();
+		jRes.at(probKey)["nonutil"] = Json();
+		jRes.at(probKey)["util"] = Json();
+		
+		run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard, algorithm::Astar2HrMode::DomainHr>>(
+			pDomStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "astar", weights, fixedExpTime);
+		
+		run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Speedy, algorithm::Astar2HrMode::DomainHr>>(
+			pDomStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "speedy", weights, fixedExpTime);
+		
+		run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Greedy, algorithm::Astar2HrMode::DomainHr>>(
+			pDomStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "greedy", weights, fixedExpTime);
+		
+		const unsigned expdLimit = jRes.at(probKey).at("nonutil").at("astar").at("expd").get<unsigned>() + 100;
+		jAlgConfig["expd_limit"] = expdLimit;
+		
+		run_bugsy_rollingbf_allOptions(pDomStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_rollingbf", weights, fixedExpTime);
+
+		return jRes;
+	}
+	
 
 
-		for(unsigned i=6; i<=6; i++) {
-			tiles::BoardState<4,4> initState(korf_15tiles_100instances(i));
-			domStack.setInitState(initState);
-			
-			std::string probKey = std::to_string(i);
-			jRes[probKey] = Json();
-			jRes.at(probKey)["nonutil"] = Json();
-			jRes.at(probKey)["util"] = Json();
-				
-			std::vector<std::tuple<double,double,std::string>> weights = {
-				std::tuple<double,double,std::string>{1,1e6,"1e6"},
-				std::tuple<double,double,std::string>{1,1e3, "1e3"},
-				std::tuple<double,double,std::string>{1,1,"1"}
-			};
-			
-			double fixedExpTime = 3e-6;
-			jAlgConfig["fixed_exptime"] = fixedExpTime;
-			//jAlgConfig["expd_limit"] = 200e3;
-			
-			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard, algorithm::Astar2HrMode::DomainHr>>(
-				domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "astar", weights, fixedExpTime);
-			
-			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Speedy, algorithm::Astar2HrMode::DomainHr>>(
-				domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "speedy", weights, fixedExpTime);
-			
-			run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Greedy, algorithm::Astar2HrMode::DomainHr>>(
-				domStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "greedy", weights, fixedExpTime);
-			
-			const unsigned expdLimit = jRes.at(probKey).at("nonutil").at("astar").at("expd").get<unsigned>() + 100;
-			logDebugStream() << "expdLimit=" << expdLimit << "\n";
-			
-			jAlgConfig["expd_limit"] = expdLimit;
-			jAlgConfig["time_limit"] = jRes.at(probKey).at("nonutil").at("astar").at("cputime").get<unsigned>() + 25;
-			
-			run_util_search_fixedexptime<D, algorithm::bugsy::BugsyImpl<D, true, algorithm::bugsy::CompRemExp_delay<D>>>(
-				domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_delay", weights, fixedExpTime);
-			
-			
-			run_bugsy_rollingbf_allOptions(domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_rollingbf", weights, fixedExpTime);
-			
-			run_util_search_fixedexptime<D, algorithm::bugsy::BugsyAbtSearchBase<D>>(
-				domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_delayAbt", weights, fixedExpTime);
-			
-			run_util_search_fixedexptime<D, algorithm::bugsy::BugsyExpSearchBase1<D>>(
-				domStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_expAbt1", weights, fixedExpTime);
+
+
+	template<bool Use_Weight>
+	Json run_simple_tiles_33() {
+		using D = tiles::TilesGeneric_DomainStack<3,3,true,Use_Weight,1>;
+		
+		Json jDomConfig, jRes;
+		
+		jDomConfig["goal"] = std::vector<unsigned>{0,1,2,3,4,5,6,7,8};
+		jDomConfig["kept"] = std::vector<unsigned>{  1,1,1,1,1,1,1,1};
+		
+		D domStack(jDomConfig, Json());
+		
+		for(unsigned i=1; i<=10; i++) {
+			domStack.setInitState(domStack.randInitState(i));
+			jRes[std::to_string(i)] = run_searches_fixedexptime(domStack);
 		}
 		return jRes;
 	}
+	
+
+	template<bool Use_Weight>
+	Json run_simple_tiles_34() {
+		using D = tiles::TilesGeneric_DomainStack<3,3,true,Use_Weight,1>;
+		
+		Json jDomConfig, jRes;
+		
+		jDomConfig["goal"] = std::vector<unsigned>{0,1,2,3,4,5,6,7,8,9,10,11};
+		jDomConfig["kept"] = std::vector<unsigned>{  1,1,1,1,1,1,1,1,1, 1, 1};
+		
+		D domStack(jDomConfig, Json());
+		
+		for(unsigned i=1; i<=10; i++) {
+			domStack.setInitState(domStack.randInitState(i));
+			jRes[std::to_string(i)] = run_searches_fixedexptime(domStack);
+		}
+		return jRes;
+	}
+	
+	template<bool Use_Weight>
+	Json run_simple_tiles_44() {
+		using D = tiles::TilesGeneric_DomainStack<3,3,true,Use_Weight,1>;
+		
+		Json jDomConfig, jRes;
+		
+		jDomConfig["goal"] = std::vector<unsigned>{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+		jDomConfig["kept"] = std::vector<unsigned>{  1,1,1,1,1,1,1,1,1, 1, 1, 1, 1, 1, 1};
+		
+		D domStack(jDomConfig, Json());
+		
+		for(unsigned i=1; i<=10; i++) {
+			tiles::BoardState<4,4> initState(korf_15tiles_100instances(i));
+			domStack.setInitState(initState);
+			jRes[std::to_string(i)] = run_searches_fixedexptime(domStack);
+		}
+		return jRes;
+	}
+	
+	
+	template<unsigned N, bool Use_Weight>
+	Json run_simple_pancake() {
+		using D = pancake::Pancake_DomainStack_IgnoreAbt<N, N/2, 1, true, Use_Weight>;
+		
+		Json jRes;
+		
+		D domStack(jDomConfig, Json());
+		
+		for(unsigned i=1; i<=10; i++) {
+			domStack.setInitState(domStack.randInitState());
+			jRes[std::to_string(i)] = run_searches_fixedexptime(domStack);
+		}
+		return jRes;
+	}
+	
+	
+	template<unsigned H, unsigned W>
+	Json run_simple_gridnav(unsigned pMapSeed) {
+		using D = 
+		
+	}
+	
+	
+	
+	
 }
 
 int main(int argc, const char* argv[]) {
@@ -240,19 +321,4 @@ int main(int argc, const char* argv[]) {
 
 
 
-/*
- * Generates the following data for the 15puzzle.
- * 
- * 	<problem>:
- * 		"nonutil":
- * 			<nonutil alg>:
- * 				goal_g, goal_depth, expd, walltime, cputime... OR "failed"
- * 
- * 		"util":
- * 			<weight>:
- * 				<util alg>:
- * 					goal_g, goal_depth, expd, walltime, cputime... OR "failed"
- * 				
- *	
- * 	Non-utility-cognizant algorithms are given a pseudo-entry in "util"/weight branch with appropriate utility calculated.
- */
+

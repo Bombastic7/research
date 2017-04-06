@@ -79,12 +79,35 @@ namespace mjon661 { namespace pancake {
 			
 			return s;
 		}
+		
+		typename Domain<0>::State randInitState(unsigned pN) const {
+			PancakeStack<N> s;
+			
+			for(unsigned i=0; i<N; i++)
+				s[i] = i;
+			
+			std::mt19937 randgen;
+			
+			pN *= 117;
+			pN += 23;
+			
+			while(pN > 0) {
+				std::shuffle(s.begin(), s.end(), randgen);
+				pN--;
+			}
+			
+			return s;
+		}
 
 
 		Pancake_DomainStack_IgnoreAbt(Json const& jConfig) :
-			mCakeDropLevel(prepCakeDropLevel(jConfig)),
-			mInitState(jConfig.at("init").get<std::vector<cake_t>>())
-		{}
+			mCakeDropLevel(prepCakeDropLevel(jConfig))
+		{
+			if(jConfig.count("init"))
+				mInitState = PancakeStack<N>(jConfig.at("init").get<std::vector<cake_t>>());
+			else
+				randInitState(0);
+		}
 
 
 		const std::array<cake_t, N> mCakeDropLevel;

@@ -342,7 +342,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			{}
 			
 			bool finished() const {
-				return mPos == mAdjCells.n;
+				unsigned n = mAdjCells.n;
+				return mPos == n;
 			}
 			
 			unsigned state() const {
@@ -357,12 +358,13 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			
 			typename CellGraph_t::Cost_t cost() const {
 				slow_assert(!finished());
+				slow_assert(mPos < mAdjCells.n);
 				return mCellGraph.getMoveCost(mState, mAdjCells.adjCells[mPos]);
 			}
 			
 			unsigned mState;
 			unsigned mPos;
-			typename CellGraph_t::AdjacentCells const& mAdjCells;
+			const typename CellGraph_t::AdjacentCells mAdjCells;
 			CellGraph_t mCellGraph;
 		};
 		
@@ -424,6 +426,22 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		void prettyPrintState(State const& s, std::ostream& out) const {
 			out << "[" << s << ", " << s%mCellGraph.getWidth() << ", " << s/mCellGraph.getWidth() << "]";
 		}
+		
+		void drawCells(std::ostream& out) const {
+			for(unsigned h=0; h<mCellGraph.getHeight(); h++) {
+				for(unsigned w=0; w<mCellGraph.getWidth(); w++) {
+					if(mCellGraph.isOpen(h*mCellGraph.getWidth() + w))
+						out << ".";
+					else
+						out << "0";
+					if((w+1) % 5 == 0)
+						out << " ";
+				}
+				out << "\n";
+				if((h+1) % 5 == 0)
+					out << "\n";
+			}
+		}
 
 		private:
 		CellGraph_t const& mCellGraph;
@@ -466,7 +484,10 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 						continue;
 					
 					for(auto edgeIt = dom.getAdjEdges(i); !edgeIt.finished(); edgeIt.next()) {
-						mEdges.back().at(mTrns[0][i]).push_back({mTrns[0][edgeIt.state()], edgeIt.cost()});
+						unsigned dst = mTrns[0].at(edgeIt.state());
+						Cost cst = edgeIt.cost();
+
+						mEdges.back().at(mTrns[0][i]).push_back({dst,cst});
 						isTrivial = false;
 					}
 				}
@@ -474,68 +495,91 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 					return;
 			}
 			
+			//~ for(unsigned bs=0; bs<mCellGraph.size(); bs++) {
+				//~ if(!mCellGraph.isOpen(bs))
+					//~ continue;
+				//~ std::cout << bs << " -> " << mTrns[0][bs] << "\n";
+				//~ std::cout << "\t";
+				
+				//~ for(auto const& e : mEdges[0][mTrns[0][bs]]) {
+					//~ std::cout << e.first << " ";
+				//~ }
+				//~ std::cout << "\n";
+			//~ }
+			//~ return;
+			
 			//mTrns[0]: size=baseHeight*baseWidth. Bijection of base state to its 'normalised' 
 			//	version (i.e. [0,basesize-1] to [0, no. of open cells-1]).
 			//mEdges[0]: size=no. of open cells. Element i is a vector of edges for normalised state i, with form {dst norm state,cost}.
 			
 			while(true) {
-				std::vector<std::vector<std::pair<unsigned,Cost>>> const& curEdges = mEdges.back();
-				
-				mTrns.push_back(std::vector<unsigned>(curEdges.size()));
-				std::vector<unsigned>& abtTrns = mTrns.back();
-				std::fill(abtTrns.begin(), abtTrns.end(), (unsigned)-1);				
-				
-				std::vector<std::pair<unsigned, unsigned>> hubRankVec;
-				for(unsigned i=0; i<curEdges.size(); i++)
-					hubRankVec.push_back({curEdges[i].size(), i});
-				
-				std::sort(hubRankVec.begin(), hubRankVec.end(), HubPrioComp());
-				
-				std::vector<unsigned> singletonStates;
-				
-				for(unsigned i=0; i<hubRankVec.size(); i++)
-					if(doAssignAbtMapping(hubRankVec[i].second, i, 0) == 1)
-						singletonStates.push_back(hubRankVec[i].second);
-				
-				slow_assert(std::find(abtTrns.begin(), abtTrns.end(), (unsigned)-1) == abtTrns.end());
-				
-				slow_assert(mathutil::uniqueElements(singletonStates));
-				
-				for(auto ss : singletonStates) {
-					for(auto const& e : curEdges.at(ss)) {
-						abtTrns.at(ss) = abtTrns.at(e.first);
-						break;
-					}
-				}
-					unsigned nAbtStates = 0;
 				{
-					std::map<unsigned, unsigned> abtStateRelabel;
-					for(unsigned i=0; i<abtTrns.size(); i++) {
-						if(abtStateRelabel.count(abtTrns[i]) == 0)
-							abtStateRelabel[abtTrns[i]] = nAbtStates++;
-						abtTrns[i] = abtStateRelabel.at(abtTrns[i]);
+					std::vector<std::vector<std::pair<unsigned,Cost>>> const& curEdges = mEdges.back();
+					
+					mTrns.push_back(std::vector<unsigned>(curEdges.size()));
+					std::vector<unsigned>& abtTrns = mTrns.back();
+					std::fill(abtTrns.begin(), abtTrns.end(), (unsigned)-1);				
+					
+					std::vector<std::pair<unsigned, unsigned>> hubRankVec;
+					for(unsigned i=0; i<curEdges.size(); i++)
+						hubRankVec.push_back({curEdges[i].size(), i});
+					
+					std::sort(hubRankVec.begin(), hubRankVec.end(), HubPrioComp());
+					
+					std::vector<unsigned> singletonStates;
+					
+					for(unsigned i=0; i<hubRankVec.size(); i++)
+						if(doAssignAbtMapping(hubRankVec[i].second, i, 0) == 1)
+							singletonStates.push_back(hubRankVec[i].second);
+					
+					slow_assert(std::find(abtTrns.begin(), abtTrns.end(), (unsigned)-1) == abtTrns.end());
+					
+					slow_assert(mathutil::uniqueElements(singletonStates));
+					
+					for(auto ss : singletonStates) {
+						for(auto const& e : curEdges.at(ss)) {
+							abtTrns.at(ss) = abtTrns.at(e.first);
+							break;
+						}
 					}
+						unsigned nAbtStates = 0;
+					{
+						std::map<unsigned, unsigned> abtStateRelabel;
+						for(unsigned i=0; i<abtTrns.size(); i++) {
+							if(abtStateRelabel.count(abtTrns[i]) == 0)
+								abtStateRelabel[abtTrns[i]] = nAbtStates++;
+							abtTrns[i] = abtStateRelabel.at(abtTrns[i]);
+						}
+					}
+					
+					mEdges.push_back(std::vector<std::vector<std::pair<unsigned,Cost>>>(nAbtStates));
 				}
 				
-				mEdges.push_back(std::vector<std::vector<std::pair<unsigned,Cost>>>(nAbtStates));
+				
+				std::vector<unsigned> const& abtTrns = mTrns.back();
 				std::vector<std::vector<std::pair<unsigned,Cost>>>& abtEdges = mEdges.back();
+				std::vector<std::vector<std::pair<unsigned,Cost>>> const& curEdges = mEdges.at(mEdges.size()-2);
 				
 				bool isTrivial = true;
 				
-				for(unsigned src=0; src<nAbtStates; src++) {
-					for(auto const& e : curEdges.at(src)) {
-						unsigned dst = abtTrns[e.first];
+				for(unsigned i=0; i<curEdges.size(); i++) {
+					unsigned src = abtTrns.at(i);
+
+					for(auto const& e : curEdges.at(i)) {
+						unsigned dst = abtTrns.at(e.first);
 						Cost cst = e.second;
-						
+
 						if(src == dst)
 							continue;
 						
 						isTrivial = false;
 						
-						bool newEntry = false;
+						bool newEntry = true;
 						for(auto& e : abtEdges.at(src))
-							if(e.first == dst && e.second > cst)
+							if(e.first == dst && e.second > cst) {
 								e.second = cst;
+								newEntry = false;
+							}
 						
 						if(newEntry)
 							abtEdges.at(src).push_back({dst, cst});
@@ -673,6 +717,35 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		unsigned mParam_abtRadius;
 	};
 
+	template<typename CellGraph_t>
+	struct GridNavTestStack {
+		
+		static const unsigned Top_Abstract_Level = 0;
+		
+		template<unsigned L>
+		struct Domain : GridNav_BaseDomain<CellGraph_t> {
+			Domain(GridNavTestStack<CellGraph_t> const& pStack) :
+				GridNav_BaseDomain<CellGraph_t>(pStack.mCellGraph, pStack.mGoalState)
+			{}
+		};
+		
+		unsigned getInitState() const {
+			return mInitState;
+		}
+		
+		GridNavTestStack(Json const& jConfig) :
+			mCellGraph(jConfig.at("height"), jConfig.at("width"), jConfig.at("map"))
+		{
+			mInitState = 0;
+			mGoalState = 0;
+			while(!mCellGraph.isOpen(mInitState)) mInitState++; //if mInitState is greater than map size, isOpen will throw.
+			while(!mCellGraph.isOpen(mGoalState)) mGoalState++;
+		}
+		
+		CellGraph_t mCellGraph;
+		unsigned mInitState, mGoalState;
+		
+	};
 	
 	//~ template<typename CellGraph_t, unsigned Top_Abt>
 	//~ class GridNav_StarAbtStack {

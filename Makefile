@@ -2,7 +2,7 @@ CXX:=g++-5
 CC:=gcc-5
 
 DEFS:=-DDEBUGLEVEL=2 -DNDEBUG=1
-FLAGS:=-Wall -Werror -g -O3 $(DEFS)
+FLAGS:=-Wall -Werror -g -O0 $(DEFS)
 CXXFLAGS:=$(FLAGS) -std=c++0x
 LDFLAGS:=$(FLAGS) -std=c++0x
 

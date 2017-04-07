@@ -50,6 +50,18 @@ namespace mjon661 {
 		
 		starAbtInfo.dumpToFile("gridnav_dump.json");
 		
+		starAbtInfo.drawAll(std::cout);
+		
+		
+		gridnav::dim2::StarAbtStackInfo<CellGraph_t> starAbtInfo2("gridnav_dump.json");
+		
+		fast_assert(starAbtInfo == starAbtInfo2);	
+		starAbtInfo2.drawAll(std::cout);
+		
+		
+		
+		std::cout << starAbtInfo.hash() << "\n" << starAbtInfo2.hash() << "\n";
+		
 		//Alg_t alg(domStack, Json());
 		
 		//alg.execute(domStack.getInitState());

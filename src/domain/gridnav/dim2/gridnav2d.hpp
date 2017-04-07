@@ -10,6 +10,7 @@
 #include <utility>
 #include <algorithm>
 #include <sstream>
+#include <functional>
 
 #include "util/debug.hpp"
 #include "util/math.hpp"
@@ -470,6 +471,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 				GridNav_BaseDomain<CellGraph_t> dom(mCellGraph, (unsigned)-1);
 				
 				mTrns.push_back(std::vector<unsigned>(mCellGraph.size()));
+				std::fill(mTrns[0].begin(), mTrns[0].end(), (unsigned)-1);
+				
 				unsigned c = 0;
 				
 				for(unsigned i=0; i<mCellGraph.size(); i++)
@@ -653,16 +656,22 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			mWidth = j.at("base_width");
 			mParam_abtRadius = j.at("abt_radius");
 			
-			for(unsigned i=0; i<j.at("n_levels"); i++) {
-				mTrns.push_back(j.at("trns").at(i).get_ref<std::vector<unsigned>&>());
+			for(unsigned i=0; i<j.at("n_levels").get<unsigned>(); i++) {
+				mTrns.push_back(j.at("trns").at(i).get<std::vector<unsigned>>());
 				
-				std::vector<std::vector<unsigned>> const& edgesDst = j.at("edges_dst").at(i).get_ref<std::vector<std::vector<unsigned>>&>();
-				std::vector<std::vector<unsigned>> const& edgesCst = j.at("edges_cst").at(i).get_ref<std::vector<std::vector<std::string>>&>();
-		
-				mEdges.push_back();
+				Json const& levelEdges_dst = j.at("edges_dst").at(i);
+				Json const& levelEdges_cst = j.at("edges_cst").at(i);
 				
-				for(unsigned j=0; j<edgesDst.size(); j++) {
-					mEdges.back().push_back({edgesDst[j], edgesCst[j]});
+				mEdges.emplace_back();
+				
+				for(unsigned j=0; j<levelEdges_dst.size(); j++) {
+					Json const& stateEdges_dst = levelEdges_dst.at(j);
+					Json const& stateEdges_cst = levelEdges_cst.at(j);
+					
+					mEdges.back().emplace_back();
+					for(unsigned k=0; k<stateEdges_dst.size(); k++) {
+						mEdges.back().back().push_back({stateEdges_dst[k], CellGraph_t::costFromString(stateEdges_cst[k])});
+					}
 				}
 			}
 		}
@@ -678,8 +687,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		std::vector<std::vector<std::vector<std::pair<unsigned,Cost>>>> const& getEdges(unsigned i) const {
 			return mEdges.at(i);
 		}
-			
-		void dumpToFile(std::string const& pOutStr) const {			
+		
+		Json prepJsonObj() const {
 			Json jOut;
 			
 			jOut["n_levels"] = getNlevels();
@@ -703,11 +712,76 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 					}
 				}
 			}
-
+			return jOut;
+		}
+		
+		bool operator==(StarAbtStackInfo<CellGraph_t> const& o) const {
+			Json a = prepJsonObj(), b = o.prepJsonObj();
+			return std::hash<Json>{}(a) == std::hash<Json>{}(b);
+		}
+		
+		size_t hash() const {
+			return std::hash<Json>{}(prepJsonObj());
+		}
+			
+		void dumpToFile(std::string const& pOutStr) const {
+			Json jOut = prepJsonObj();
 			std::ofstream ofs(pOutStr);
 			fast_assert(ofs);
 			
 			ofs << jOut.dump(2);
+		}
+		
+		void drawAll(std::ostream& out) const {
+			std::vector<unsigned> curState(mHeight*mWidth);
+			for(unsigned i=0; i<curState.size(); i++)
+				curState[i] = mTrns.at(0).at(i);
+			
+			unsigned lvl = 0;
+			while(true) {
+				drawGraph(curState, out);
+				drawEdges(lvl, out);
+				std::cout << "\n";
+				
+				lvl++;
+				
+				if(lvl == getNlevels())
+					break;
+				
+				for(unsigned i=0; i<curState.size(); i++)
+					if(curState[i] != (unsigned)-1)
+						curState[i] = mTrns.at(lvl).at(curState[i]);
+				
+				
+			}
+		}
+		
+		void drawGraph(std::vector<unsigned> const& v, std::ostream& out) const {
+			for(unsigned h=0; h<mHeight; h++) {
+				for(unsigned w=0; w<mWidth; w++) {
+					if(v.at(h*mWidth + w) == (unsigned)-1)
+						out << ".";
+					else
+						out << v.at(h*mWidth + w) % 10;
+					if((w+1) % 5 == 0)
+						out << " ";
+				}
+				out << "\n";
+				if((h+1) % 5 == 0)
+					out << "\n";
+			}
+		}
+		
+		void drawEdges(unsigned pLevel, std::ostream& out) const {
+			for(unsigned i=0; i<mEdges.at(pLevel).size(); i++) {
+				std::cout << i << ": ";
+				
+				for(unsigned j=0; j<mEdges.at(pLevel).at(i).size(); j++) {
+					std::cout << "(" << mEdges.at(pLevel).at(i).at(j).first << "," << mEdges.at(pLevel).at(i).at(j).second << ") ";
+				}
+				
+				std::cout << "\n";
+			}
 		}
 		
 		private:
@@ -716,6 +790,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		unsigned mHeight, mWidth;
 		unsigned mParam_abtRadius;
 	};
+
+
+
 
 	template<typename CellGraph_t>
 	struct GridNavTestStack {

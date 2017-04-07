@@ -31,11 +31,11 @@ namespace mjon661 { namespace gridnav {
 			public:
 			
 			OpenCellIterator& operator++() {
-				if(mIdx == mInst.getSize())
+				if(mIdx == mInst.size())
 					return *this;
 				++mIdx;
 				while(true) {
-					bool v = mIdx < mInst.getSize();
+					bool v = mIdx < mInst.size();
 					if(!v)
 						break;
 					
@@ -71,11 +71,11 @@ namespace mjon661 { namespace gridnav {
 				mInst(pInst),
 				mIdx(0)
 			{
-				slow_assert(pInst.mCells.size() == pInst.getSize());
+				slow_assert(pInst.mCells.size() == pInst.size());
 				if(pAtEnd)
-					mIdx = mInst.getSize();
+					mIdx = mInst.size();
 				else
-					while(mIdx < mInst.getSize() && !mInst.isOpen(mIdx))
+					while(mIdx < mInst.size() && !mInst.isOpen(mIdx))
 						++mIdx;
 			}
 			
@@ -278,7 +278,7 @@ namespace mjon661 { namespace gridnav {
 			return mCells;
 		}
 		
-		unsigned getSize() const {
+		unsigned size() const {
 			return mSize;
 		}
 		

@@ -14,21 +14,13 @@
 #include "util/debug.hpp"
 #include "util/math.hpp"
 #include "util/json.hpp"
-#include "domain/star_abt.hpp"
 #include "util/hash.hpp"
+
+#include "domain/gridnav/cellmap_blocked.hpp"
 
 
 namespace mjon661 { namespace gridnav { namespace dim2 {
 
-
-	enum struct Cell_t {
-		Open, Blocked, Null
-	};
-	
-	enum struct CardDir_t {
-		N, S, W, E, NW, NE, SW, SE
-	};
-	
 
 
 	inline unsigned manhat(unsigned pState, unsigned pGoal, unsigned pWidth) {
@@ -52,148 +44,29 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 
 		return s;
 	}
-	
-	template<typename = void>
-	class CellMap {
-		
-		public:
-		
-		class OpenCellIterator {
-			public:
-			
-			OpenCellIterator& operator++() {
-				if(mIdx == mInst.getSize())
-					return *this;
-				++mIdx;
-				while(true) {
-					bool v = mIdx < mInst.getSize();
-					if(!v)
-						break;
-					
-					bool o = mInst.isOpen(mIdx);
-					if(o)
-						break;
-					++mIdx;
-				}
-				/*
-				do {
-					++mIdx;
-				} while(mIdx < mInst.getSize() && !mInst.isOpen(mIdx));
-				*/
-				return *this;
-			}
-			
-			bool operator==(OpenCellIterator const& o) {
-				return mIdx == o.mIdx;
-			}
-			
-			bool operator!=(OpenCellIterator const& o) {
-				return mIdx != o.mIdx;
-			}
-			
-			unsigned operator*() {
-				return mIdx;
-			}
-			
-			private:
-			friend CellMap<void>;
-			
-			OpenCellIterator(CellMap<void> const& pInst, bool pAtEnd) :
-				mInst(pInst),
-				mIdx(0)
-			{
-				slow_assert(pInst.mCells.size() == pInst.getSize());
-				if(pAtEnd)
-					mIdx = mInst.getSize();
-				else
-					while(mIdx < mInst.getSize() && !mInst.isOpen(mIdx))
-						++mIdx;
-			}
-			
-			CellMap<void> const& mInst;
-			unsigned mIdx;
-		};
-		
-		
-		CellMap(unsigned pSize, std::string const& pMapFile) :
-			mSize(pSize),
-			mCells(mSize)
-		{
-			if(pMapFile[0] == '.') {
-				unsigned seed = std::strtol(pMapFile.c_str()+1, nullptr, 10);
-				initRandomMap(seed);
-			}
-			else {
-				std::ifstream ifs(pMapFile);
-				
-				if(!ifs)
-					throw std::runtime_error("Could not open map file");
 
-				for(unsigned i=0; i<mSize; i++) {
-					int v;
-					Cell_t c;
-					ifs >> v;
-					c = (Cell_t)v;
-					
-					gen_assert(c == Cell_t::Open || c == Cell_t::Blocked);
-					mCells[i] = c;
-				}
-			}
-		}
-		
-		
-		std::vector<Cell_t> const& cells() const {
-			return mCells;
-		}
-		
-		unsigned getSize() const {
-			return mSize;
-		}
-		
-		bool isOpen(unsigned i) const {
-			slow_assert(i < mSize, "%u %u", i, mSize);
-			return cells()[i] == Cell_t::Open;
-		}
-		
-		OpenCellIterator begin() const {
-			return OpenCellIterator(*this, false);
-		}
-		
-		OpenCellIterator end() const {
-			return OpenCellIterator(*this, true);
-		}
-		
-		private:
-		
-		void initRandomMap(unsigned seed) {
-			std::mt19937 gen(5489u + seed);
-			std::uniform_real_distribution<double> d(0.0,1.0);
-			
-			for(unsigned i=0; i<mSize; i++) {
-				mCells[i] = d(gen) <= 0.35 ? Cell_t::Blocked : Cell_t::Open;
-			}
-			
-			logDebugStream() << "Random CellMap init. seed=" << seed << ", blockedprob=0.35" << "\n";
-		}
-		
-		const unsigned mSize;
-		std::vector<Cell_t> mCells;
-	};
-	
 	
 	
 	template<bool Use_LifeCost>
-	class CellGraph_4 : public CellMap<> {
+	class CellGraph_4 : public CellMapBlocked<> {
 		public:
 		using Cost_t = int;
 
+		static std::string costToString(Cost_t c) {
+			return std::to_string(c);
+		}
+		
+		static Cost_t costFromString(std::string const& s) {
+			return std::stoul(s);
+		}
+		
 		struct AdjacentCells {
 			unsigned n;
 			std::array<unsigned, 4> adjCells;
 		};
 		
 		CellGraph_4(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
-			CellMap(pHeight*pWidth, pMapFile),
+			CellMapBlocked<>(pHeight*pWidth, pMapFile),
 			mHeight(pHeight),
 			mWidth(pWidth)
 		{}
@@ -232,18 +105,34 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 	
 	
 	template<bool Use_LifeCost>
-	class CellGraph_8 : public CellMap<> {
-		using Cost_t = float;
+	class CellGraph_8 : public CellMapBlocked<> {
+		//using Cost_t = float;
 		
 		//??static constexpr Cost_t Diag_Mv_Cost = 1.41421356237309504880168872420969807857;
 
+		struct Cost_t {
+			unsigned short dg, st;
+			
+		};
+		
+		static std::string costToString(Cost_t c) {
+			return std::to_string(c.dg) + "," + std::to_string(c.st);
+		}
+		
+		static Cost_t costFromString(std::string const& s) {
+			Cost_t c;
+			char* p;
+			c.dg = std::strtol(s.c_str(), &p, 10);
+			c.st = std::strtol(p+1, &p, 10);
+		}
+	
 		struct AdjacentCells {
 			unsigned n;
 			std::array<unsigned, 8> adjCells;
 		};
 		
 		CellGraph_8(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
-			CellMap(pHeight*pWidth, pMapFile),
+			CellMapBlocked<>(pHeight*pWidth, pMapFile),
 			mHeight(pHeight),
 			mWidth(pWidth)
 		{}
@@ -284,9 +173,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			Cost_t cst = Use_LifeCost ? src/mWidth : 1;
 
 			if(src%mWidth != dst%mWidth && src/mWidth != dst/mWidth)
-				cst *= Diag_Mv_Cost;
+				return {1,0};
 			
-			return cst;
+			return {0,1};
 		}
 		
 		unsigned getHeight() const {
@@ -365,8 +254,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		
 		void compHrVals(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
 			if(!Use_Hr) {
-				out_h = 0;
-				out_d = 0;
+				out_h = {0,0};
+				out_d = {0,0};
 				return;
 			}
 			
@@ -382,8 +271,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			
 			int dx = std::abs(pPos % pWidth - pGoal % pWidth), dy = std::abs(pPos / pWidth - pGoal / pWidth);
 				
-			out_h = std::abs(dx-dy) + mathutil::min(dx, dy) * Diag_Mv_Cost;
-			out_d = mathutil::max(dx, dy);
+			out_h = {mathutil::min(dx, dy), std::abs(dx-dy)};
+			out_d = {0, mathutil::max(dx, dy)};
 		}
 		
 		void lifeCostHeuristics(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
@@ -396,8 +285,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			int dy = std::abs(y - gy);
 			
 			if(dx <= dy) {
-				out_h = verticalPathFactor(pPos, gy);
-				out_d = dy;
+				out_h = {0, verticalPathFactor(pPos, gy)};
+				out_d = {0, dy};
 				return;
 			}
 			
@@ -408,8 +297,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			int botRow = mathutil::min(y, y) - down;
 			int across = extra - 2*down;
 			
-			out_h = verticalPathFactor(y, botRow) + across * botRow + verticalPathFactor(botRow, gy);
-			out_d = dx;
+			out_h = {0, verticalPathFactor(y, botRow) + across * botRow + verticalPathFactor(botRow, gy)};
+			out_d = {0, dx};
 		}
 	};
 
@@ -440,47 +329,43 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		using State = unsigned;
 		using PackedState = unsigned;
 		using Cost = typename CellGraph_t::Cost_t;
-		using Operator = unsigned;
 		
 		static const bool Is_Perfect_Hash = true;
-		
-		struct OperatorSet : public CellGraph_t::AdjacentCells {
-			OperatorSet(typename CellGraph_t::AdjacentCells const& o) :
-				CellGraph_t::AdjacentCells(o)
+
+
+		struct AdjEdgeIterator {
+			AdjEdgeIterator(unsigned s, CellGraph_t const& pCellGraph) :
+				mState(s),
+				mPos(0),
+				mAdjCells(pCellGraph.getAdjacentCells(s)),
+				mCellGraph(pCellGraph)
 			{}
 			
-			unsigned size() {
-				return this->n;
+			bool finished() const {
+				return mPos == mAdjCells.n;
 			}
 			
-			Operator const& operator[](unsigned i) {
-				return this->adjCells[i];
-			}
-		};
-		
-		struct Edge {
-			Edge(unsigned pState, Cost pCost, unsigned pParentOp) :
-				mState(pState),
-				mCost(pCost),
-				mParentOp(pParentOp)
-			{}
-			
-			unsigned& state() {
-				return mState;
+			unsigned state() const {
+				slow_assert(!finished());
+				return mAdjCells.adjCells[mPos];
 			}
 			
-			Cost cost() {
-				return mCost;
+			void next() {
+				slow_assert(!finished());
+				mPos++;
 			}
 			
-			unsigned parentOp() {
-				return mParentOp;
+			typename CellGraph_t::Cost_t cost() const {
+				slow_assert(!finished());
+				return mCellGraph.getMoveCost(mState, mAdjCells.adjCells[mPos]);
 			}
 			
 			unsigned mState;
-			const Cost mCost;
-			unsigned mParentOp;
+			unsigned mPos;
+			typename CellGraph_t::AdjacentCells const& mAdjCells;
+			CellGraph_t mCellGraph;
 		};
+		
 		
 		
 		GridNav_BaseDomain(CellGraph_t const& pCellGraph, unsigned pGoalState) :
@@ -488,10 +373,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			mGoalState(pGoalState)
 		{}
 		
-		Operator getNoOp() const {
-			return (unsigned)-1;
-		}
-		
+
 		State getGoalState() const {
 			return mGoalState;
 		}
@@ -503,18 +385,12 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		void unpackState(State& pState, PackedState const& pPacked) const {
 			pState = pPacked;
 		}
-		
-		Edge createEdge(State pState, Operator op) const {
-			return Edge(op, mCellGraph.getMoveCost(pState, op), pState);
+
+		AdjEdgeIterator getAdjEdges(unsigned s) const {
+			slow_assert(mCellGraph.isOpen(s));
+			return AdjEdgeIterator(s, mCellGraph);
 		}
-		
-		void destroyEdge(Edge&) const {
-		}
-		
-		OperatorSet createOperatorSet(unsigned pState) const {
-			return OperatorSet(mCellGraph.getAdjacentCells(pState));
-		}
-		
+
 		size_t hash(PackedState pPacked) const {
 			return pPacked;
 		}
@@ -545,29 +421,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			return a == b;
 		}
 
-		//~ bool compare(PackedState const& a, PackedState const& b) const {
-			//~ return a == b;
-		//~ }
-		
-		void prettyPrint(State const& s, std::ostream& out) const {
+		void prettyPrintState(State const& s, std::ostream& out) const {
 			out << "[" << s << ", " << s%mCellGraph.getWidth() << ", " << s/mCellGraph.getWidth() << "]";
 		}
-		
-		//~ void prettyPrint(Operator const& op, std::ostream &out) const {
-
-		//~ }
-		
-		
-		using StateIterator = typename CellGraph_t::OpenCellIterator;
-		
-		StateIterator stateBegin() const {
-			return mCellGraph.begin();
-		}
-		
-		StateIterator stateEnd() const {
-			return mCellGraph.end();
-		}
-		
 
 		private:
 		CellGraph_t const& mCellGraph;
@@ -576,15 +432,16 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 	
 	
 	
-	template<CellGraph_t>
+	template<typename CellGraph_t>
 	struct StarAbtStackGenerator {
-		StarAbtStack(unsigned pHeight, unsigned pWidth, unsigned pAbtRadius, const std::string& pMapStr) :
+		using Cost = typename CellGraph_t::Cost_t;
+		
+		StarAbtStackGenerator(unsigned pHeight, unsigned pWidth, unsigned pAbtRadius, const std::string& pMapStr) :
 			mHeight(pHeight),
 			mWidth(pWidth),
 			mMapStr(pMapStr),
-			mCellGraph(pMapStr),
-			mParam_abtRadius(pAbtRadius),
-			mDomain(mCellGraph, (unsigned)-1)
+			mCellGraph(pHeight, pWidth, pMapStr),
+			mParam_abtRadius(pAbtRadius)
 		{
 			makeLevels();
 			fast_assert(mTrns.size() == mEdges.size());
@@ -592,23 +449,24 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 
 		void makeLevels() {
 			{
-				mTrns.push_back(std::vector<unsigned>(mCellMap.size()));
+				GridNav_BaseDomain<CellGraph_t> dom(mCellGraph, (unsigned)-1);
+				
+				mTrns.push_back(std::vector<unsigned>(mCellGraph.size()));
 				unsigned c = 0;
 				
-				for(unsigned i=0; i<mCellMap.size(); i++)
-					if(mCellMap.isOpen(i))
-						mTrns[i] = c++;
+				for(unsigned i=0; i<mCellGraph.size(); i++)
+					if(mCellGraph.isOpen(i))
+						mTrns[0][i] = c++;
 
 				bool isTrivial = true;
-				mEdges.push_back(std::vector<std::vector<unsigned>>(c));
+				mEdges.push_back(std::vector<std::vector<std::pair<unsigned, Cost>>>(c));
 				
 				for(unsigned i=0; i<mCellGraph.size(); i++) {
 					if(!mCellGraph.isOpen(i))
 						continue;
 					
-					for(auto edgeIt = mDomain.getAdjEdges(i); !edgeIt.finished(); edgeIt.next()) {
-						unsigned cost = edgeIt.cost() == 1 ? 1 : 2;
-						mEdges.back().at(mTrns[i]).push_back({mTrns[edgeIt.state()], cost});
+					for(auto edgeIt = dom.getAdjEdges(i); !edgeIt.finished(); edgeIt.next()) {
+						mEdges.back().at(mTrns[0][i]).push_back({mTrns[0][edgeIt.state()], edgeIt.cost()});
 						isTrivial = false;
 					}
 				}
@@ -621,11 +479,11 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			//mEdges[0]: size=no. of open cells. Element i is a vector of edges for normalised state i, with form {dst norm state,cost}.
 			
 			while(true) {
+				std::vector<std::vector<std::pair<unsigned,Cost>>> const& curEdges = mEdges.back();
+				
 				mTrns.push_back(std::vector<unsigned>(curEdges.size()));
 				std::vector<unsigned>& abtTrns = mTrns.back();
-				std::fill(abtTrns.begin(), abtTrns.end(), (unsigned)-1);
-				
-				std::vector<std::vector<std::pair<unsigned,Cost>>> const& curEdges = mEdges.back();
+				std::fill(abtTrns.begin(), abtTrns.end(), (unsigned)-1);				
 				
 				std::vector<std::pair<unsigned, unsigned>> hubRankVec;
 				for(unsigned i=0; i<curEdges.size(); i++)
@@ -635,13 +493,13 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 				
 				std::vector<unsigned> singletonStates;
 				
-				for(unsigned i=0; i<hubRankPrio.size(); i++)
-					if(doAssignAbtMapping(hubRankPrio[i].second, i, 0) == 1)
-						singletonStates.push_back(hubRankPrio[i].second);
+				for(unsigned i=0; i<hubRankVec.size(); i++)
+					if(doAssignAbtMapping(hubRankVec[i].second, i, 0) == 1)
+						singletonStates.push_back(hubRankVec[i].second);
 				
 				slow_assert(std::find(abtTrns.begin(), abtTrns.end(), (unsigned)-1) == abtTrns.end());
 				
-				slow_assert(uniqueElements(singletonStates));
+				slow_assert(mathutil::uniqueElements(singletonStates));
 				
 				for(auto ss : singletonStates) {
 					for(auto const& e : curEdges.at(ss)) {
@@ -659,23 +517,30 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 					}
 				}
 				
-				mEdges.push_back(std::vector<std::pair<unsigned,Cost>>(nAbtStates));
-				std::vector<std::pair<unsigned,Cost>>& abtEdges = mEdges.back();
+				mEdges.push_back(std::vector<std::vector<std::pair<unsigned,Cost>>>(nAbtStates));
+				std::vector<std::vector<std::pair<unsigned,Cost>>>& abtEdges = mEdges.back();
 				
 				bool isTrivial = true;
 				
 				for(unsigned src=0; src<nAbtStates; src++) {
 					for(auto const& e : curEdges.at(src)) {
 						unsigned dst = abtTrns[e.first];
-						unsigned cst = e.second;
+						Cost cst = e.second;
 						
 						if(src == dst)
 							continue;
 						
 						isTrivial = false;
 						
-						abtEdges.at(src).push_back({dst, cst});
+						bool newEntry = false;
+						for(auto& e : abtEdges.at(src))
+							if(e.first == dst && e.second > cst)
+								e.second = cst;
+						
+						if(newEntry)
+							abtEdges.at(src).push_back({dst, cst});
 					}
+					std::sort(abtEdges.at(src).begin(), abtEdges.at(src).end());
 				}
 
 				if(isTrivial)
@@ -685,7 +550,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		
 		
 		
-		unsigned doAssignAbtMapping(unsigned s, unsigned a, unsigned curDepth) const {
+		unsigned doAssignAbtMapping(unsigned s, unsigned a, unsigned curDepth) {
 			if(mTrns.back().at(s) != (unsigned)-1 || curDepth > mParam_abtRadius)
 				return 0;
 			
@@ -704,8 +569,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			}
 		};
 		
-		
-		
+
 		
 		std::vector<std::vector<unsigned>> mTrns;
 		std::vector<std::vector<std::vector<std::pair<unsigned,Cost>>>> mEdges;
@@ -714,12 +578,12 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		const std::string mMapStr;
 		const CellGraph_t mCellGraph;
 		const unsigned mParam_abtRadius;
-		GridNav_BaseDomain<CellGraph_t> mDomain;
 	};
 	
 	
 	template<typename CellGraph_t>
 	struct StarAbtStackInfo {
+		using Cost = typename CellGraph_t::Cost_t;
 		
 		StarAbtStackInfo() {
 			mHeight = mWidth = mParam_abtRadius = (unsigned)-1;
@@ -737,7 +601,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		
 		StarAbtStackInfo(std::string const& pDumpFileStr) {
 			Json j;
-			std::ifstream ifs(pDumpFilestr);
+			std::ifstream ifs(pDumpFileStr);
 			fast_assert(ifs);
 			j << ifs;
 			
@@ -749,7 +613,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 				mTrns.push_back(j.at("trns").at(i).get_ref<std::vector<unsigned>&>());
 				
 				std::vector<std::vector<unsigned>> const& edgesDst = j.at("edges_dst").at(i).get_ref<std::vector<std::vector<unsigned>>&>();
-				std::vector<std::vector<unsigned>> const& edgesCst = j.at("edges_cst").at(i).get_ref<std::vector<std::vector<unsigned>>&>();
+				std::vector<std::vector<unsigned>> const& edgesCst = j.at("edges_cst").at(i).get_ref<std::vector<std::vector<std::string>>&>();
 		
 				mEdges.push_back();
 				
@@ -771,7 +635,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			return mEdges.at(i);
 		}
 			
-		void dumpToFile(std::string const& pOutStr) const {
+		void dumpToFile(std::string const& pOutStr) const {			
 			Json jOut;
 			
 			jOut["n_levels"] = getNlevels();
@@ -782,14 +646,16 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			for(unsigned i=0; i<getNlevels(); i++) {
 				jOut["trns"].push_back(mTrns[i]);
 				
-				jOut["edges"].push_back(Json::array_t);
+				jOut["edges_dst"].push_back(Json::array_t());
+				jOut["edges_cst"].push_back(Json::array_t());
+				
 				for(unsigned s=0; s<mEdges.at(i).size(); s++) {
-					jOut.at("edges_dst").back().push_back(Json::array_t);
-					jOut.at("edges_cst").back().push_back(Json::array_t);
+					jOut.at("edges_dst").back().push_back(Json::array_t());
+					jOut.at("edges_cst").back().push_back(Json::array_t());
 					
 					for(auto const& e : mEdges.at(i).at(s)) {
 						jOut.at("edges_dst").back().back().push_back(e.first);
-						jOut.at("edges_cst").back().back().push_back(e.second);
+						jOut.at("edges_cst").back().back().push_back(CellGraph_t::costToString(e.second));
 					}
 				}
 			}

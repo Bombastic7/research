@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <sstream>
 #include <functional>
+#include <map>
 
 #include "util/debug.hpp"
 #include "util/math.hpp"
@@ -490,8 +491,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 	
 	template<typename CG>
 	std::vector<std::pair<unsigned, unsigned>> prepHubRankList(StarAbt_LevelInfo<CG> const& lvlinfo) {
-		std::vector<std::pair<unsigned, unsigned>> v(lvlinfo.trns.size());
-		for(unsigned i=0; i<lvlinfo.trns.size(); i++)
+		std::vector<std::pair<unsigned, unsigned>> v(lvlinfo.stateEdges.size());
+		for(unsigned i=0; i<lvlinfo.stateEdges.size(); i++)
 			v[i] = {lvlinfo.stateEdges[i].size(), i};
 		
 		std::sort(v.begin(), v.end(), HubPrioComp());
@@ -505,8 +506,11 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 								unsigned maxDepth, 
 								StarAbt_LevelInfo<CG> const& curLvl,
 								StarAbt_LevelInfo<CG>& abtLvl) {
+		std::cout << abtLvl.trns.size() << " " << s << "\n";//.....
+		
 		if(abtLvl.trns[s] != (unsigned)-1 || curDepth > maxDepth)
 			return 0;
+		
 		
 		abtLvl.trns[s] = a;
 		unsigned c = 1;
@@ -518,7 +522,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 	}
 	
 	template<typename CG>
-	void relabelAbtStates(StarAbt_LevelInfo<CG>& abtLvl) {
+	unsigned relabelAbtStates(StarAbt_LevelInfo<CG>& abtLvl) {
 		std::map<unsigned, unsigned> rl;
 		unsigned c = 0;
 		
@@ -529,10 +533,12 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 				rl[lbl] = c++;
 			abtLvl.trns[i] = rl[lbl];			
 		}
+		
+		return c;
 	}
 	
 	template<typename CG>
-	void assignAbtMapping(unsigned maxDepth, StarAbt_LevelInfo<CG> const& curLvl, StarAbt_LevelInfo<CG>& abtLvl) {
+	unsigned assignAbtMapping(unsigned maxDepth, StarAbt_LevelInfo<CG> const& curLvl, StarAbt_LevelInfo<CG>& abtLvl) {
 		
 		abtLvl.trns.resize(curLvl.stateEdges.size());
 		std::fill(abtLvl.trns.begin(), abtLvl.trns.end(), (unsigned)-1);
@@ -553,11 +559,11 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			}
 		}
 		
-		relabelAbtStates(abtLvl);
+		return relabelAbtStates(abtLvl);
 	}
 	
 	template<typename CG>
-	bool mapAbtEdges(StarAbt_LevelInfo<CG> const& curLvl, StarAbt_LevelInfo<CG>& abtLvl) {
+	bool mapAbtEdges(unsigned nAbtStates, StarAbt_LevelInfo<CG> const& curLvl, StarAbt_LevelInfo<CG>& abtLvl) {
 		std::map<unsigned, std::map<unsigned, typename CG::Cost_t>> abtEdges;
 		
 		for(unsigned i=0; i<curLvl.stateEdges.size(); i++) {
@@ -577,7 +583,6 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		}
 
 		bool isTrivial = true;
-		unsigned nAbtStates = abtEdges.size();
 		abtLvl.stateEdges.resize(nAbtStates);
 		
 		for(auto abtStateIt=abtEdges.cbegin(); abtStateIt!=abtEdges.cend(); ++abtStateIt) {
@@ -585,6 +590,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			
 			for(auto const& e : abtStateIt->second) {
 				unsigned dst = e.first;
+				fast_assert(src < abtLvl.stateEdges.size());
 				abtLvl.stateEdges[src].push_back({dst, e.second});
 				isTrivial = false;
 			}
@@ -597,8 +603,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 	bool fillAbtLevelInfo(unsigned maxDepth, StarAbt_LevelInfo<CG> const& curLvl, StarAbt_LevelInfo<CG>& abtLvl) {
 		fast_assert(abtLvl.stateEdges.empty() && abtLvl.trns.empty());
 		
-		assignAbtMapping(maxDepth, curLvl, abtLvl);
-		return mapAbtEdges(curLvl, abtLvl);		
+		unsigned nAbtStates = assignAbtMapping(maxDepth, curLvl, abtLvl);
+		return mapAbtEdges(nAbtStates, curLvl, abtLvl);		
 	}
 
 
@@ -624,7 +630,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			
 			bool isTrivial = true;
 			levelsInfo[0].stateEdges.resize(c);
-			for(unsigned i; i<pCellGraph.size(); i++) {
+			for(unsigned i=0; i<pCellGraph.size(); i++) {
 				if(!pCellGraph.isOpen(i))
 					continue;
 				unsigned src = levelsInfo[0].trns[i];

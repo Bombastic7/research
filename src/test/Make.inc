@@ -33,7 +33,25 @@ $(BUILDDIR)/test2:\
 		$(BUILDDIR)/libs/util.a\
 		$(BUILDDIR)/libs/domain.a\
 		-Wl,--end-group
+
+
 		
+$(BUILDDIR)/test3:\
+	$(OBJDIR)/test/test3.o\
+	$(DEPDIR)/test/test3.d\
+	$(BUILDDIR)/libs/app.a\
+	$(BUILDDIR)/libs/util.a\
+	$(BUILDDIR)/libs/domain.a
+	@echo $@
+	@mkdir -p $(@D)
+	@$(CXX) $(CXXFLAGS) $(LDFLAGS) -I$(SRCDIR) -o $@\
+		-Wl,--start-group\
+		$(OBJDIR)/test/test3.o\
+		$(BUILDDIR)/libs/app.a\
+		$(BUILDDIR)/libs/util.a\
+		$(BUILDDIR)/libs/domain.a\
+		-Wl,--end-group
+			
 
 .PHONY: tests
 tests: $(ROOTDIR)/experiment/tiles15/run_tiles15
@@ -42,5 +60,4 @@ tests: $(ROOTDIR)/experiment/tiles15/run_tiles15
 
 -include $(DEPDIR)/test/main.d
 -include $(DEPDIR)/test/test2.d
-
-
+-include $(DEPDIR)/test/test3.d

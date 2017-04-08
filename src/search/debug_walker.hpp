@@ -19,7 +19,7 @@ namespace mjon661 { namespace algorithm {
 		using Cost = typename Domain::Cost;
 		
 		
-		DebugWalkerImpl(DomStack const& pStack) :
+		DebugWalkerImpl(DomStack& pStack) :
 			mDomain(pStack),
 			mNxtLevel(pStack)
 		{}
@@ -104,7 +104,7 @@ namespace mjon661 { namespace algorithm {
 
 	template<typename DomStack, unsigned L>
 	struct DebugWalkerImpl<DomStack, L, L> {
-		DebugWalkerImpl(DomStack const&) {}
+		DebugWalkerImpl(DomStack&) {}
 		
 		template<typename BS>
 		void executeFromParentState(BS const& bs, unsigned) {
@@ -117,7 +117,7 @@ namespace mjon661 { namespace algorithm {
 	template<typename DomStack>
 	struct DebugWalker {
 		
-		DebugWalker(DomStack const& pDomStack, Json const& jConfig) :
+		DebugWalker(DomStack& pDomStack, Json const& jConfig) :
 			mImpl(pDomStack)
 		{}
 		

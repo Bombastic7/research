@@ -19,6 +19,13 @@
 
 namespace mjon661 {
 	
+	
+	//~ static void makeAbtStack() {
+			//~ using CellGraph_t = gridnav::dim2::CellGraph<4,false,true>;
+		
+		
+	//~ }
+	
 
 	static void run() {
 		//gridnav::dim2::StarAbtStackInfo<gridnav::dim2::CellGraph<4,false,false>> abtStackInfo(20,20,2,",fill");
@@ -27,9 +34,9 @@ namespace mjon661 {
 		
 		
 		using CellGraph_t = gridnav::dim2::CellGraph<4,false,true>;
-		using D = gridnav::dim2::GridNavTestStack<CellGraph_t>;
+		using D = gridnav::dim2::GridNav_StarAbtStack<CellGraph_t, 3>;
 		
-		//using Alg_t = algorithm::DebugWalker<D>;
+		using Alg_t = algorithm::DebugWalker<D>;
 		
 		Json jDomConfig;
 		jDomConfig["height"] = 5;
@@ -53,18 +60,19 @@ namespace mjon661 {
 		starAbtInfo.drawAll(std::cout);
 		
 		
-		gridnav::dim2::StarAbtStackInfo<CellGraph_t> starAbtInfo2("gridnav_dump.json");
 		
-		fast_assert(starAbtInfo == starAbtInfo2);	
-		starAbtInfo2.drawAll(std::cout);
+		//gridnav::dim2::StarAbtStackInfo<CellGraph_t> starAbtInfo2("gridnav_dump.json");
+		
+		///fast_assert(starAbtInfo == starAbtInfo2);	
+///starAbtInfo2.drawAll(std::cout);
 		
 		
 		
-		std::cout << starAbtInfo.hash() << "\n" << starAbtInfo2.hash() << "\n";
+		//std::cout << starAbtInfo.hash() << "\n" << starAbtInfo2.hash() << "\n";
 		
-		//Alg_t alg(domStack, Json());
+		Alg_t alg(domStack, Json());
 		
-		//alg.execute(domStack.getInitState());
+		alg.execute(domStack.getInitState());
 	}
 }
 

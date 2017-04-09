@@ -505,9 +505,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 								unsigned curDepth, 
 								unsigned maxDepth, 
 								StarAbt_LevelInfo<CG> const& curLvl,
-								StarAbt_LevelInfo<CG>& abtLvl) {
-		std::cout << abtLvl.trns.size() << " " << s << "\n";//.....
-		
+								StarAbt_LevelInfo<CG>& abtLvl) {		
 		if(abtLvl.trns[s] != (unsigned)-1 || curDepth > maxDepth)
 			return 0;
 		
@@ -577,7 +575,10 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 				
 				typename CG::Cost_t cst = curLvl.stateEdges[i][j].cst;
 
-				if(abtEdges[src][dst] > cst)
+				if(abtEdges[src].count(dst) == 0)
+					abtEdges[src][dst] = cst;
+				
+				else if(abtEdges[src][dst] > cst)
 					abtEdges[src][dst] = cst;
 			}
 		}
@@ -604,7 +605,16 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		fast_assert(abtLvl.stateEdges.empty() && abtLvl.trns.empty());
 		
 		unsigned nAbtStates = assignAbtMapping(maxDepth, curLvl, abtLvl);
-		return mapAbtEdges(nAbtStates, curLvl, abtLvl);		
+		bool isTrivial = mapAbtEdges(nAbtStates, curLvl, abtLvl);
+		
+		//~ for(auto const& l : abtLvl.stateEdges) {
+			//~ for(auto const& e : l) {
+				//~ fast_assert(e.cst != 0);//.......
+			//~ }
+		//~ }
+		std::cout << "beep\n";//........
+		
+		return isTrivial;
 	}
 
 
@@ -676,10 +686,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 				else
 					curState[i] = (unsigned)-1;
 			}
-			
+
 			drawGraph(curState, out);
-			drawEdges(levelsInfo[0], out);
-			
 			
 			for(unsigned lvl=0; lvl<levelsInfo.size(); lvl++) {
 				auto const& li = levelsInfo[lvl];

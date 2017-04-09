@@ -107,14 +107,13 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 	
 	
 	template<bool Use_LifeCost>
-	class CellGraph_8 : public CellMapBlocked<> {
+	struct CellGraph_8 : public CellMapBlocked<> {
 		//using Cost_t = float;
 		
 		//??static constexpr Cost_t Diag_Mv_Cost = 1.41421356237309504880168872420969807857;
 
 		struct Cost_t {
 			unsigned short dg, st;
-			
 		};
 		
 		static std::string costToString(Cost_t c) {
@@ -172,12 +171,12 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		}
 		
 		Cost_t getMoveCost(unsigned src, unsigned dst) const {
-			Cost_t cst = Use_LifeCost ? src/mWidth : 1;
+			unsigned row = Use_LifeCost ? src/mWidth : 1;
 
 			if(src%mWidth != dst%mWidth && src/mWidth != dst/mWidth)
-				return {1,0};
+				return {row,0};
 			
-			return {0,1};
+			return {0,row};
 		}
 		
 		unsigned getHeight() const {
@@ -191,6 +190,11 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		private:
 		const unsigned mHeight, mWidth;
 	};
+	
+	std::ostream& operator<<(std::ostream& out, typename CellGraph_8<false>::Cost_t const& cst) {
+		out << "(" << cst.dg << "," << cst.st << ")";
+		return out;
+	}
 	
 	
 	template<bool Use_LifeCost, bool Use_Hr>
@@ -385,6 +389,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		
 		static const bool Is_Perfect_Hash = true;
 		
+		using AdjEdgeIterator = typename CellGraph_t::AdjEdgeIterator;
 		
 		
 		GridNav_BaseDomain(CellGraph_t const& pCellGraph, unsigned pGoalState) :
@@ -524,13 +529,12 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		if(abtLvl.trns[s] != (unsigned)-1 || curDepth > maxDepth)
 			return 0;
 		
-		
 		abtLvl.trns[s] = a;
 		unsigned c = 1;
 		
 		for(auto const& e : curLvl.stateEdges[s])
 			c += doAssignAbtMapping(e.dst, a, curDepth+1, maxDepth, curLvl, abtLvl);
-		
+
 		return c;
 	}
 	
@@ -544,7 +548,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			
 			if(rl.count(lbl) == 0)
 				rl[lbl] = c++;
-			abtLvl.trns[i] = rl[lbl];			
+			abtLvl.trns[i] = rl[lbl];
 		}
 		
 		return c;
@@ -561,7 +565,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		std::vector<unsigned> singletonStates;
 		for(unsigned i=0; i<hublist.size(); i++) {
 			if(doAssignAbtMapping(hublist[i].second, hublist[i].second, 0, maxDepth, curLvl, abtLvl) == 1)
-				singletonStates.push_back(i);
+				singletonStates.push_back(hublist[i].second);
 		}
 		
 		for(auto ss : singletonStates) {
@@ -725,9 +729,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 					if(curState[i] != (unsigned)-1)
 						curState[i] = li.trns.at(curState[i]);
 				
+				out << "\n\n\n";
 				drawGraph(curState, out);
-				drawEdges(li, out);
-				std::cout << "\n";				
+				drawEdges(li, out);			
 			}
 		}
 		
@@ -749,13 +753,13 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		
 		void drawEdges(StarAbt_LevelInfo<CG> const& li, std::ostream& out) const {
 			for(unsigned i=0; i<li.stateEdges.size(); i++) {
-				std::cout << i << ": ";
+				out << i << ": ";
 				
 				for(unsigned j=0; j<li.stateEdges[i].size(); j++) {
-					std::cout << "(" << li.stateEdges[i][j].dst << "," << li.stateEdges[i][j].cst << ") ";
+					out << "(" << li.stateEdges[i][j].dst << "," << li.stateEdges[i][j].cst << ") ";
 				}
 				
-				std::cout << "\n";
+				out << "\n";
 			}
 		}
 
@@ -932,7 +936,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 					continue;
 				}
 				
-				if(!mStackInfo.mCellGraph.isOpen(s0) || !mStackInfo.mCellGraph.isOpen(sg)) {
+				if(!mCellGraph.isOpen(s0) || !mCellGraph.isOpen(sg)) {
 					continue;
 				}
 
@@ -964,6 +968,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			mCellGraph(mHeight, mWidth, jConfig.at("map")),
 			mStackInfo(mCellGraph, jConfig.at("abt_radius"))
 		{
+			fast_assert(Top_Abstract_Level == mStackInfo.levelsInfo.size()-1);
 		}
 		
 		

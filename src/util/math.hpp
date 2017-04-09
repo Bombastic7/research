@@ -23,6 +23,10 @@
 
 namespace mjon661 { namespace mathutil {
 
+	const double C_PI = 3.1415926535897932384626433832795028841968;
+	const double C_SQRT2 = 1.41421356237309504880168872420969807857;
+	
+
 	constexpr uint64_t factorial64(uint64_t n) {
 		return n == 0 ? 1 : n * factorial64(n-1);
 	}

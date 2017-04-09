@@ -287,8 +287,17 @@ namespace mjon661 { namespace algorithm {
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
 				
-				if(!ent->exact)
+				if(!ent->exact) {
+					
+					//~ {
+						//~ State s;
+						//~ mDomain.unpackState(s, n->pkd);
+						//~ logDebugStream() << "Made exact (" << L << "): ";
+						//~ mDomain.prettyPrintState(s, g_logDebugOfs);
+						//~ g_logDebugOfs << " " << ent->h << "\n";
+					//~ }
 					ent->exact = true;
+				}
 			}
 			
 		}

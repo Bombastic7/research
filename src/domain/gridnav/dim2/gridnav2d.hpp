@@ -694,6 +694,16 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			return levelsInfo;
 		}
 		
+		Json report() const {
+			Json j;
+			j["top_level"] = levelsInfo.size() - 1;
+			for(unsigned i=0; i<levelsInfo.size(); i++) {
+				j[std::to_string(i) + "_states"] = levelsInfo[i].stateEdges.size();
+			}
+			return j;
+			
+		}
+		
 		unsigned abstractBaseState(unsigned bs, unsigned lvl) const {
 			if(lvl == 0)
 				return bs;

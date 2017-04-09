@@ -54,7 +54,7 @@ $(BUILDDIR)/test3:\
 			
 
 .PHONY: tests
-tests: $(ROOTDIR)/experiment/tiles15/run_tiles15
+tzests: $(ROOTDIR)/experiment/tiles15/run_tiles15
 
 
 

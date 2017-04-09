@@ -12,7 +12,7 @@
 #include "util/debug.hpp"
 #include "util/json.hpp"
 //#include "domain/gridnav/blocked/graph.hpp"
-//#include "domain/pancake/fwd.hpp"
+#include "domain/pancake/fwd.hpp"
 #include "domain/tiles/fwd.hpp"
 //#include "domain/gridnav/hypernav/hypernav_real.hpp"
 //#include "domain/test_graph.hpp"
@@ -22,6 +22,7 @@
 #include "search/bugsy_abt_exp1.hpp"
 #include "search/astar2.hpp"
 
+#include "domain/gridnav/dim2/gridnav2d.hpp"
 
 
 namespace mjon661 {
@@ -203,24 +204,23 @@ namespace mjon661 {
 			std::tuple<double,double,std::string>{1,1,"1"}
 		};
 		
-		std::string probKey = std::to_string(i);
-		jRes[probKey] = Json();
-		jRes.at(probKey)["nonutil"] = Json();
-		jRes.at(probKey)["util"] = Json();
+
+		jRes["nonutil"] = Json();
+		jRes["util"] = Json();
 		
 		run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard, algorithm::Astar2HrMode::DomainHr>>(
-			pDomStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "astar", weights, fixedExpTime);
+			pDomStack, jAlgConfig, jRes.at("nonutil"), jRes.at("util"), "astar", weights, fixedExpTime);
 		
 		run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Speedy, algorithm::Astar2HrMode::DomainHr>>(
-			pDomStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "speedy", weights, fixedExpTime);
+			pDomStack, jAlgConfig, jRes.at("nonutil"), jRes.at("util"), "speedy", weights, fixedExpTime);
 		
 		run_nonutil_search_fixedexptime<D, algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Greedy, algorithm::Astar2HrMode::DomainHr>>(
-			pDomStack, jAlgConfig, jRes.at(probKey).at("nonutil"), jRes.at(probKey).at("util"), "greedy", weights, fixedExpTime);
+			pDomStack, jAlgConfig, jRes.at("nonutil"), jRes.at("util"), "greedy", weights, fixedExpTime);
 		
-		const unsigned expdLimit = jRes.at(probKey).at("nonutil").at("astar").at("expd").get<unsigned>() + 100;
+		const unsigned expdLimit = jRes.at("nonutil").at("astar").at("expd").get<unsigned>() + 100;
 		jAlgConfig["expd_limit"] = expdLimit;
 		
-		run_bugsy_rollingbf_allOptions(pDomStack, jAlgConfig, jRes.at(probKey).at("util"), "bugsy_rollingbf", weights, fixedExpTime);
+		run_bugsy_rollingbf_allOptions(pDomStack, jAlgConfig, jRes.at("util"), "bugsy_rollingbf", weights, fixedExpTime);
 
 		return jRes;
 	}
@@ -292,7 +292,7 @@ namespace mjon661 {
 		
 		Json jRes;
 		
-		D domStack(jDomConfig, Json());
+		D domStack(Json(), Json());
 		
 		for(unsigned i=1; i<=10; i++) {
 			domStack.setInitState(domStack.randInitState());
@@ -302,11 +302,22 @@ namespace mjon661 {
 	}
 	
 	
-	template<unsigned H, unsigned W>
-	Json run_simple_gridnav(unsigned pMapSeed) {
-		using D = 
+	template<unsigned Nways>
+	static void gridnav_getAbtStackSize(unsigned pHeight, unsigned pWidth, std::string const& pMapStr, unsigned pAbtRadius) {
+		using CG = gridnav::dim2::CellGraph<Nways, false, false>;
 		
+		CG cellgraph(pHeight, pWidth, pMapStr);
+		gridnav::dim2::StarAbt_Stack<CG> stackInfo(cellgraph, pAbtRadius);
+		
+		std::cout << stackInfo.report().dump(2) << "\n";		
 	}
+	
+	//~ template<unsigned H, unsigned W, bool Use_LifeCost>
+	//~ Json run_simple_gridnav_4(unsigned pMapSeed) {
+		//~ using CG_u = gridnav::dim2::CellGraph<4, false, true>;
+		//~ using D_u = gridnav::dim2::GridNav_StarAbtStack<
+		
+	//~ }
 	
 	
 	
@@ -314,7 +325,8 @@ namespace mjon661 {
 }
 
 int main(int argc, const char* argv[]) {
-	std::cout << mjon661::run_tiles_44().dump(4) << "\n";
+	mjon661::gridnav_getAbtStackSize<4>(100,100,",random,0.35",2);
+	//std::cout << mjon661::run_tiles_44().dump(4) << "\n";
 }
 
 

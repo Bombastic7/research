@@ -325,8 +325,10 @@ namespace mjon661 {
 }
 
 int main(int argc, const char* argv[]) {
-	mjon661::gridnav_getAbtStackSize<4>(100,100,",random,0.35",2);
+	//mjon661::gridnav_getAbtStackSize<4>(100,100,",random,0.35",2);
 	//std::cout << mjon661::run_tiles_44().dump(4) << "\n";
+	
+	
 }
 
 

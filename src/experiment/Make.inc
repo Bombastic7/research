@@ -11,7 +11,7 @@ $(BUILDDIR)/experiment/run_tiles15:\
 	@mkdir -p $(@D)
 	@$(CXX) $(CXXFLAGS) $(LDFLAGS) -I$(SRCDIR) -o $@\
 		-Wl,--start-group\
-		$(OBJDIR)/experiment/main_tiles.d\
+		$(OBJDIR)/experiment/main_tiles.o\
 		$(BUILDDIR)/libs/app.a\
 		$(BUILDDIR)/libs/util.a\
 		$(BUILDDIR)/libs/domain.a\

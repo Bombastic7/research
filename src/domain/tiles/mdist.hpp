@@ -30,8 +30,23 @@ namespace mjon661 { namespace tiles {
 					mMinDistance[t][src] = std::abs(src_row - goal_row) + std::abs(src_col - goal_col);
 					
 					if(Use_Weight) {
-						mMinCost[t].fill(std::numeric_limits<cost_t>::max());
-						weightedCostRec(t, mGoalState.find(t), 0);
+						unsigned vertcost = 0;
+						if(src_row < goal_row) {
+							for(int y=src_row+1; y<=goal_row; y++)
+								vertcost += 1 + y;
+						}
+						else if(src_row > goal_row) {
+							for(int y=src_row-1; y>=goal_row; y--)
+								vertcost += 1 + y;
+						}
+						
+						unsigned horzcost = mathutil::abs(src_col, goal_col);
+						if(src_row < goal_row)
+							horzcost *= (1 + src_row);
+						else
+							horzcost *= (1 + goal_row);
+						
+						mMinCost[t][src] = vertcost + horzcost;
 					}
 					else
 						mMinCost[t][src] = mMinDistance[t][src];
@@ -48,6 +63,26 @@ namespace mjon661 { namespace tiles {
 			}
 		}
 		
+		
+		void evalDump(BoardState<H, W> const& pBoard, std::ostream& out) const {
+			for(int h=0; h<H; h++) {
+				for(int w=0; w<W; w++) {
+					int i = h*W + w;
+					if(pBoard[i] == 0)
+						out << "0 ";
+					else
+						out << mMinCost[pBoard[i]][i] << " ";
+				}
+				out << "\n";
+			}
+			out << "\n";
+			
+			for(tile_t t = 1; t<H*W; t++) {
+				out << t << ": " << mMinCost[t][pBoard.find(t)] << "\n";
+			}
+		}
+		
+		
 		void dump(std::ostream& out) const {
 			for(tile_t t=0; t<Board_Size; t++) {
 				out << t << ":\n";
@@ -58,7 +93,7 @@ namespace mjon661 { namespace tiles {
 				
 					out << "\n";
 				}
-				out << "\n";
+				out << "\n\n";
 				
 				for(int h=0; h<H; h++) {
 					for(int w=0; w<W; w++)
@@ -66,6 +101,7 @@ namespace mjon661 { namespace tiles {
 				
 					out << "\n";
 				}
+				out << "\n\n\n";
 			}
 		}
 		
@@ -101,22 +137,22 @@ namespace mjon661 { namespace tiles {
 		
 		//If this is the cheapest we've moved t to s, update mMinCost[t][s].
 		//For all adjacent positions, recursively call functions again.
-		void weightedCostRec(tile_t t, idx_t s, cost_t g) {
-			if(mMinCost[t][s] <= g)
-				return;
+		//~ void weightedCostRec(tile_t t, idx_t s, cost_t g) {
+			//~ if(mMinCost[t][s] <= g)
+				//~ return;
 			
-			mMinCost[t][s] = g;
+			//~ mMinCost[t][s] = g;
 			
-			//If Use_Weight = true, edge cost is 1 + row of blank pos.
-			if(s >= W)
-				weightedCostRec(t, s-W, g + 1 + (s-W)/W);
-			if(s < (H-1)*W)
-				weightedCostRec(t, s+W, g + 1 + (s+W)/W);
-			if(s % W != 0)
-				weightedCostRec(t, s-1, g + 1 + (s-1)/W);
-			if((s+1) % W != 0)
-				weightedCostRec(t, s+1, g + 1 + (s+1)/W);
-		}
+			//~ //If Use_Weight = true, edge cost is 1 + row of blank pos.
+			//~ if(s >= W)
+				//~ weightedCostRec(t, s-W, g + 1 + (s-W)/W);
+			//~ if(s < (H-1)*W)
+				//~ weightedCostRec(t, s+W, g + 1 + (s+W)/W);
+			//~ if(s % W != 0)
+				//~ weightedCostRec(t, s-1, g + 1 + (s-1)/W);
+			//~ if((s+1) % W != 0)
+				//~ weightedCostRec(t, s+1, g + 1 + (s+1)/W);
+		//~ }
 		
 		std::array<std::array<cost_t, Board_Size>, Board_Size> mMinCost, mMinDistance;
 		std::array<std::array<std::array<int, Board_Size>, Board_Size>, Board_Size> mCostInc, mDistInc;

@@ -208,6 +208,8 @@ namespace mjon661 { namespace algorithm {
 			mTest_exp_g.clear();
 			mTest_exp_h.clear();
 			mTest_exp_depth.clear();
+			
+			mTest_lastf = 0;
 		}
 
 		
@@ -247,6 +249,7 @@ namespace mjon661 { namespace algorithm {
 
 				if(mDomain.checkGoal(s)) {
 					mGoalNode = n;
+					std::cout << "goal h: " << mDomain.costHeuristic(s) << "\n";
 					break;
 				}
 				
@@ -271,11 +274,20 @@ namespace mjon661 { namespace algorithm {
 				j["goal_g"] = mGoalNode->g;
 				j["goal_f"] = mGoalNode->f;
 				
+				std::cout << "**";
 				unsigned goal_depth = 0;
-				for(Node* m = mGoalNode->parent; m; m=m->parent) {
+				for(Node* m = mGoalNode; m; m=m->parent) {
 					goal_depth++;
+					
+					State s;
+					mDomain.unpackState(s, m->pkd);
+					std::cout << "\n" << m->g << " " << m->f << " " << mGoalNode->g - m->g << "\n";
+					mDomain.prettyPrintState(s, std::cout);
+					std::cout << "\n\n";
 				}
+				goal_depth -= 1;
 				
+				std::cout << "**";
 				j["goal_depth"] = goal_depth;
 			}
 
@@ -296,6 +308,11 @@ namespace mjon661 { namespace algorithm {
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
+
+			//~ {
+				//~ mDomain.prettyPrintState(s, std::cout);
+				//~ getchar();
+			//~ }
 			
 			//mTest_exp_f.push_back(n->f);
 			//mTest_exp_g.push_back(n->g);
@@ -355,8 +372,14 @@ namespace mjon661 { namespace algorithm {
 		
 
 		void evalHr(Node* n, State const& s) {
-			if(Search_Mode == Astar2SearchMode::Standard)
+			if(Search_Mode == Astar2SearchMode::Standard) {
 				n->f = n->g + mHrModule.costHeuristic(s);
+				if(!(n->f <= 39)) {
+					mDomain.prettyPrintState(s, std::cout);
+					std::cout << n->g << " " << n->f << "\n";
+				}
+				//fast_assert(n->f <= 39);//.......
+			}
 			else if(Search_Mode == Astar2SearchMode::Weighted)
 				n->f = n->g + mHrWeight * mHrModule.costHeuristic(s);
 			else if(Search_Mode == Astar2SearchMode::Greedy)
@@ -379,6 +402,7 @@ namespace mjon661 { namespace algorithm {
 		double mHrWeight;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
+		Cost mTest_lastf;
 		
 		std::vector<Cost> mTest_exp_f;
 		std::vector<Cost> mTest_exp_g;

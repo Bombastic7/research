@@ -60,6 +60,13 @@ namespace mjon661 { namespace tiles {
 			mInitState = pState;
 		}
 		
+		typename Domain<0>::State getGoalState() const {
+			typename Domain<0>::State s = mGoalState;
+			Domain<0> dom(*this);
+			dom.initialiseState(s);
+			return s;
+		}
+		
 		BoardState<Height, Width> randInitState(unsigned pN) const {
 			BoardState<Height, Width> s;
 			for(unsigned i=0; i<Height*Width; i++)

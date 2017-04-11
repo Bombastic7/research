@@ -23,48 +23,53 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 	
 
 	struct C_RollingBf {
-		enum struct E_TgtProp {
+		enum struct E0_TgtProp {
 			depth, f, uRound, n
 		};
-		static std::string Str_TgtProp(E_TgtProp i) {return std::vector<std::string>{"depth", "f", "uRound"}.at((unsigned)i);}
+		static std::string Str_TgtProp(E0_TgtProp i) {return std::vector<std::string>{"depth", "f", "uRound"}.at((unsigned)i);}
 		
-		enum struct E_KeepCounts {
+		enum struct E1_KeepCounts {
 			keepcounts, dropcounts, n
 		};
-		static std::string Str_KeepCounts(E_KeepCounts i) {return std::vector<std::string>{"keepcounts", "dropcounts"}.at((unsigned)i);}
+		static std::string Str_KeepCounts(E1_KeepCounts i) {return std::vector<std::string>{"keepcounts", "dropcounts"}.at((unsigned)i);}
 		
-		enum struct E_PruneOutliers {
+		enum struct E2_PruneOutliers {
 			prune, nopr, n
 		};
-		static std::string Str_PruneOutliers(E_PruneOutliers i) {return std::vector<std::string>{"prune", "nopr"}.at((unsigned)i);}
+		static std::string Str_PruneOutliers(E2_PruneOutliers i) {return std::vector<std::string>{"prune", "nopr"}.at((unsigned)i);}
 		
-		enum struct E_Kfactor {
+		enum struct E3_Kfactor {
 			none, openlistsz, n
 		};
-		static std::string Str_Kfactor(E_Kfactor i) {return std::vector<std::string>{"nok", "openlistsz"}.at((unsigned)i);}
+		static std::string Str_Kfactor(E3_Kfactor i) {return std::vector<std::string>{"nok", "openlistsz"}.at((unsigned)i);}
 		
-		enum struct E_EvalProp {
-			dist, distAndDepth, dist_powsum, distAndDepth_powsum, exponentialDelay_powsum, n
+		enum struct E4_EvalProp {
+			dist, distAndDepth, distAndDepthPowsum, exponentialDelayPowsum, n
 		};
-		static std::string Str_EvalProp(E_EvalProp i) {
-			return std::vector<std::string>{"dist", "distAndDepth", "dist_powsum", "distAndDepth_powsum", "exponentialDelay_powsum"}.at((unsigned)i);
+		static std::string Str_EvalProp(E4_EvalProp i) {
+			return std::vector<std::string>{"dist", "distAndDepth", "distAndDepthPowsum", "exponentialDelayPowsum"}.at((unsigned)i);
 		}
 
-		enum E_BfAvgMethod {
+		enum E5_BfAvgMethod {
 			bfArMean, bfGeoMean, n
 		};
-		static std::string Str_BfAvgMethod(E_BfAvgMethod i) {
+		static std::string Str_BfAvgMethod(E5_BfAvgMethod i) {
 			return std::vector<std::string>{"bfArMean", "bfGeoMean"}.at((unsigned)i);
 		}
 		
 		
-		static std::string niceNameStr(E_TgtProp tgtprop, E_KeepCounts keepcounts, E_PruneOutliers prout, E_Kfactor kfact, E_EvalProp evalprop, E_BfAvgMethod avgm) {
+		static std::string niceNameStr(	E0_TgtProp tgtprop, 
+										E1_KeepCounts keepcounts, 
+										E2_PruneOutliers prout, 
+										E3_Kfactor kfact, 
+										E4_EvalProp evalprop, 
+										E5_BfAvgMethod avgm) {
 			return Str_TgtProp(tgtprop) + "_" + Str_KeepCounts(keepcounts) + "_" + Str_PruneOutliers(prout) + "_" + Str_Kfactor(kfact) + "_" + Str_EvalProp(evalprop) + "_" + Str_BfAvgMethod(avgm);
 		}
 		
-		static std::string niceNameStr(unsigned v0, unsigned v1, unsigned v2, unsigned v3, unsigned v4, unsigned v5) {
-			return niceNameStr((E_TgtProp)v0, (E_KeepCounts)v1, (E_PruneOutliers)v2, (E_Kfactor)v3, (E_EvalProp)v4, (E_BfAvgMethod)v5);
-		}
+		//~ static std::string niceNameStr(unsigned v0, unsigned v1, unsigned v2, unsigned v3, unsigned v4, unsigned v5) {
+			//~ return niceNameStr((E_TgtProp)v0, (E_KeepCounts)v1, (E_PruneOutliers)v2, (E_Kfactor)v3, (E_EvalProp)v4, (E_BfAvgMethod)v5);
+		//~ }
 	
 	};
 
@@ -122,13 +127,21 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 	
 
 	template<	typename D,
-				C_RollingBf::E_TgtProp OP_Tgt_Prop,
-				C_RollingBf::E_KeepCounts OP_Keep_Counts,
-				C_RollingBf::E_PruneOutliers OP_Prune_Outliers,
-				C_RollingBf::E_Kfactor OP_K_Factor,
-				C_RollingBf::E_EvalProp OP_Eval_Prop,
-				C_RollingBf::E_BfAvgMethod OP_BFAvgMethod>
+				int I_Tgt_Prop,
+				int I_Keep_Counts,
+				int I_Prune_Outliers,
+				int I_K_Factor,
+				int I_Eval_Prop,
+				int I_BFAvgMethod>
 	struct CompRemExp_rollingBf {
+		
+		static const C_RollingBf::E0_TgtProp 		OP_Tgt_Prop = 		(C_RollingBf::E0_TgtProp)		I_Tgt_Prop;
+		static const C_RollingBf::E1_KeepCounts		OP_Keep_Counts =	(C_RollingBf::E1_KeepCounts)	I_Keep_Counts;
+		static const C_RollingBf::E2_PruneOutliers 	OP_Prune_Outliers =	(C_RollingBf::E2_PruneOutliers)	I_Prune_Outliers;
+		static const C_RollingBf::E3_Kfactor 		OP_K_Factor =		(C_RollingBf::E3_Kfactor)		I_K_Factor;
+		static const C_RollingBf::E4_EvalProp 		OP_Eval_Prop =		(C_RollingBf::E4_EvalProp)		I_Eval_Prop;
+		static const C_RollingBf::E5_BfAvgMethod 	OP_BFAvgMethod =	(C_RollingBf::E5_BfAvgMethod)	I_BFAvgMethod;
+				
 		using Cost = typename D::template Domain<0>::Cost;
 		
 		static std::string niceOptionsStr() {
@@ -150,11 +163,11 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		template<typename Node>
 		void informExpansion(Node* n, unsigned pExpDelay) {
 			Cost k;
-			if(OP_Tgt_Prop == C_RollingBf::E_TgtProp::f)
+			if(OP_Tgt_Prop == C_RollingBf::E0_TgtProp::f)
 				k = n->f;
-			else if(OP_Tgt_Prop == C_RollingBf::E_TgtProp::depth)
+			else if(OP_Tgt_Prop == C_RollingBf::E0_TgtProp::depth)
 				k = n->depth;
-			else if(OP_Tgt_Prop == C_RollingBf::E_TgtProp::uRound) {
+			else if(OP_Tgt_Prop == C_RollingBf::E0_TgtProp::uRound) {
 				k = std::round(n->u);
 			}
 			else
@@ -180,7 +193,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				bfsamples.push_back((double)it->second / itprev->second);
 			}
 			
-			if(OP_Prune_Outliers ==C_RollingBf::E_PruneOutliers::prune && bfsamples.size() >= 3) {
+			if(OP_Prune_Outliers ==C_RollingBf::E2_PruneOutliers::prune && bfsamples.size() >= 3) {
 				std::sort(bfsamples.begin(), bfsamples.end());
 				bfsamples.erase(bfsamples.begin());
 				bfsamples.pop_back();
@@ -190,25 +203,25 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			double acc = 0;
 			
 			for(auto& i : bfsamples) {
-				if(OP_BFAvgMethod == C_RollingBf::E_BfAvgMethod::bfArMean)
+				if(OP_BFAvgMethod == C_RollingBf::E5_BfAvgMethod::bfArMean)
 					acc += i;
-				else if(OP_BFAvgMethod == C_RollingBf::E_BfAvgMethod::bfGeoMean)
+				else if(OP_BFAvgMethod == C_RollingBf::E5_BfAvgMethod::bfGeoMean)
 					acc *= i;
 				else
 					gen_assert(false);
 			}
 			
-			if(OP_BFAvgMethod == C_RollingBf::E_BfAvgMethod::bfArMean)
+			if(OP_BFAvgMethod == C_RollingBf::E5_BfAvgMethod::bfArMean)
 				mAvgBf = acc / bfsamples.size();
-			else if(OP_BFAvgMethod == C_RollingBf::E_BfAvgMethod::bfGeoMean)
+			else if(OP_BFAvgMethod == C_RollingBf::E5_BfAvgMethod::bfGeoMean)
 				mAvgBf = std::pow(acc, 1.0/ bfsamples.size());
 
 			mLog_pastBf.push_back(mAvgBf);
 			
-			if(OP_Keep_Counts == C_RollingBf::E_KeepCounts::dropcounts)
+			if(OP_Keep_Counts == C_RollingBf::E1_KeepCounts::dropcounts)
 				mExpCountMap.clear();
 			
-			if(OP_K_Factor == C_RollingBf::E_Kfactor::openlistsz) {
+			if(OP_K_Factor == C_RollingBf::E3_Kfactor::openlistsz) {
 				mK = pAlg.mOpenList.size();
 			}
 			
@@ -220,18 +233,15 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		template<typename Node>
 		double eval(Node* n, Cost h, Cost d) {
-			if(OP_Eval_Prop == C_RollingBf::E_EvalProp::dist)
+			if(OP_Eval_Prop == C_RollingBf::E4_EvalProp::dist)
 				return mK * std::pow(mAvgBf, d);
-			else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::distAndDepth)
+			else if(OP_Eval_Prop == C_RollingBf::E4_EvalProp::distAndDepth)
 				return mK * std::pow(mAvgBf, n->depth + d);
 			
-			else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::dist_powsum)
-				return mK * countSumExpansions(n->depth, d);
-			
-			else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::distAndDepth_powsum)
+			else if(OP_Eval_Prop == C_RollingBf::E4_EvalProp::distAndDepthPowsum)
 				return mK * countSumExpansions(0, n->depth+d);
 
-			else if(OP_Eval_Prop == C_RollingBf::E_EvalProp::exponentialDelay_powsum)
+			else if(OP_Eval_Prop == C_RollingBf::E4_EvalProp::exponentialDelayPowsum)
 				return mAvgDelay * powsum(d);
 
 			else
@@ -399,6 +409,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mParams_wf			(jConfig.at("wf")),
 			mParams_wt			(jConfig.at("wt")),
 			mParams_fixedExpTime(Use_Fixed_Exp_Time ? jConfig.at("fixed_exptime").get<double>() : 0),
+			mParams_memLimit	(jConfig.count("mem_limit") ? jConfig.at("mem_limit").get<unsigned>() : 0),
 			mParams_expdLimit	(jConfig.count("expd_limit") ? jConfig.at("expd_limit").get<unsigned>() : 0)
 		{}
 
@@ -477,6 +488,11 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 								
 				if(mLog_expd == mParams_expdLimit)
 					throw NoSolutionException("expd_limit");
+				
+				if(mParams_memLimit != 0 && mLog_expd % 500 == 0) {
+					if(sizeof(Node) * mClosedList.size() > mParams_memLimit)
+						throw NoSolutionException("mem_limit");
+				}
 			}
 		}
 		
@@ -495,6 +511,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			j["wt"] = mParams_wt;
 			j["fixed_exp_time"] = mParams_fixedExpTime;
 			j["expd_limit"] = mParams_expdLimit;
+			j["mem_limit"] = mParams_memLimit;
 			
 			j["comp_remexp"] = mCompRemExp.report();
 			
@@ -624,7 +641,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		Timer mTimer;
 		CompRemExp_t mCompRemExp;
 		
-		const double mParams_wf, mParams_wt, mParams_fixedExpTime;
+		const double mParams_wf, mParams_wt, mParams_fixedExpTime, mParams_memLimit;
 		const unsigned mParams_expdLimit;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;

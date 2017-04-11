@@ -40,10 +40,11 @@ namespace mjon661 {
 	
 	void CpuTimer::stop() {
 		mEndTime = std::clock();
+		mDur = mEndTime - mStartTime;
 	}
 	
 	double CpuTimer::seconds() {
-		return (double)(mEndTime - mStartTime) / CLOCKS_PER_SEC;
+		return (double)mDur / CLOCKS_PER_SEC;
 	}
 	
 	

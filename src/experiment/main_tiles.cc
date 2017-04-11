@@ -9,6 +9,8 @@
 #include "domain/tiles/fwd.hpp"
 
 #include "experiment/noncog_search.hpp"
+#include "experiment/util_search.hpp"
+#include "experiment/common.hpp"
 
 
 
@@ -42,33 +44,55 @@
 //~ }
 
 
-static std::vector<int> tiles8_instances(unsigned i) {
-	switch(i) {
-		case 0:
-			return {7,6,4,1,5,3,8,0,2,};
-		case 1:
-			return {7,6,5,1,2,8,0,4,3,};
-		case 2:
-			return {3,0,1,8,6,7,4,2,5,};
-		case 3:
-			return {5,4,3,7,1,8,0,2,6,};
-		case 4:
-			return {2,0,5,1,8,7,6,4,3,};
-		case 5:
-			return {5,0,7,6,8,4,1,2,3,};
-		case 6:
-			return {7,1,8,5,6,0,3,2,4,};
-		case 7:
-			return {5,0,2,8,3,7,4,6,1,};
-		case 8:
-			return {1,6,8,3,0,7,5,4,2,};
-		case 9:
-			return {0,8,3,6,5,4,7,1,2,};
-		default:
-			gen_assert(false);
-	}
+//~ static std::vector<int> tiles8_instances(unsigned i) {
+	//~ switch(i) {
+		//~ case 0:
+			//~ return {7,6,4,1,5,3,8,0,2,};
+		//~ case 1:
+			//~ return {7,6,5,1,2,8,0,4,3,};
+		//~ case 2:
+			//~ return {3,0,1,8,6,7,4,2,5,};
+		//~ case 3:
+			//~ return {5,4,3,7,1,8,0,2,6,};
+		//~ case 4:
+			//~ return {2,0,5,1,8,7,6,4,3,};
+		//~ case 5:
+			//~ return {5,0,7,6,8,4,1,2,3,};
+		//~ case 6:
+			//~ return {7,1,8,5,6,0,3,2,4,};
+		//~ case 7:
+			//~ return {5,0,2,8,3,7,4,6,1,};
+		//~ case 8:
+			//~ return {1,6,8,3,0,7,5,4,2,};
+		//~ case 9:
+			//~ return {0,8,3,6,5,4,7,1,2,};
+		//~ default:
+			//~ gen_assert(false);
+	//~ }
 	
-	return {};
+	//~ return {};
+//~ }
+
+static std::vector<int> tiles11_instances(unsigned i) {
+	return std::vector<std::vector<int>> {
+	{9,3,0,11,1,5,2,8,6,4,7,10,},
+	{4,9,11,10,1,7,6,0,2,3,8,5,},
+	{3,1,8,7,2,11,0,6,5,9,10,4,},
+	{11,6,5,8,2,9,1,10,0,7,3,4,},
+	{11,7,4,3,1,9,10,2,5,8,6,0,},
+	{8,2,0,11,7,1,10,6,4,9,3,5,},
+	{0,10,7,3,4,11,5,1,6,2,8,9,},
+	{3,11,5,2,1,6,7,10,0,9,4,8,},
+	{1,8,11,3,2,6,9,5,10,7,0,4,},
+	{0,3,7,8,2,9,6,4,11,1,5,10,}}.at(i);
+}
+
+
+static mjon661::UtilityWeights getUtilityWeightByIndex(unsigned i) {
+	using UtilityWeights = mjon661::UtilityWeights;
+	
+	const std::vector<UtilityWeights> v{UtilityWeights(1,1,"1~1"), UtilityWeights(1,1e3, "1~1e3"), UtilityWeights(1,1e6,"1~1e6")};
+	return v.at(i);
 }
 
 
@@ -76,9 +100,9 @@ static std::vector<int> tiles8_instances(unsigned i) {
 namespace mjon661 { namespace tiles {
 	
 	
-	//~ static void gen_8problems() {
-		//~ BoardState<3,3> initstate(std::vector<int>{0,1,2,3,4,5,6,7,8});
-		//~ BoardState<3,3> goalstate = initstate;
+	//~ static void gen_11problems() {
+		//~ BoardState<3,4> initstate(std::vector<int>{0,1,2,3,4,5,6,7,8,9,10,11});
+		//~ BoardState<3,4> goalstate = initstate;
 		//~ std::random_device rd;
 		//~ std::mt19937 gen(rd());
 		
@@ -98,23 +122,50 @@ namespace mjon661 { namespace tiles {
 	//~ }
 	
 	static void run() {
-		//gen_8problems();
 		Json jDomConfig;
-		jDomConfig["kept"] = {1,1,1,1,1,1,1,1};
-		jDomConfig["goal"] = {0,1,2,3,4,5,6,7,8};
+		jDomConfig["kept"] = {1,1,1,1,1,1,1,1,1,1,1};
+		jDomConfig["goal"] = {0,1,2,3,4,5,6,7,8,9,10,11};
 		
-		TilesGeneric_DomainStack<3,3,true,false,5> domStack(jDomConfig);
-		domStack.setInitState(tiles8_instances(0));
+		TilesGeneric_DomainStack<3,4,true,false,5> domStack(jDomConfig);
 		
 		Json jReport;
 		
+		jReport["null_weight"] = Json();
+
 		for(unsigned i=0; i<10; i++) {
+			Json& j = jReport.at("null_weight");
+			
+			domStack.setInitState(tiles11_instances(i));
+			
 			std::string ps = std::to_string(i);
-			jReport[ps] = Json();
-			run_astar(domStack, jReport.at(ps));
-			run_greedy(domStack, jReport.at(ps));
-			run_speedy(domStack, jReport.at(ps));
+			j[ps] = Json();
+			run_astar(domStack, j.at(ps));
+			run_greedy(domStack, j.at(ps));
+			run_speedy(domStack, j.at(ps));
 		}
+		
+		
+		Json jAlgConfigBase;
+		//jAlgConfigBase["time_limit"] = 600;
+		jAlgConfigBase["mem_limit"] = 10e9;
+		
+		
+		for(unsigned wi=0; wi<3; wi++) {
+			UtilityWeights utilweights = getUtilityWeightByIndex(wi);
+			jReport[utilweights.str] = Json();
+			
+			for(unsigned pi=0; pi<10; pi++) {
+				Json& j = jReport.at(utilweights.str);
+				
+				domStack.setInitState(tiles11_instances(pi));
+				std::string ps = std::to_string(pi);
+				j[ps] = Json();
+				
+				run_bugsy(domStack, utilweights, j.at(ps));
+				run_bugsy_rollingbf_allOptions(domStack, utilweights, j.at(ps), jAlgConfigBase);
+			}
+		}
+		
 		
 		{
 			std::ofstream ofs("tiles_res.json");
@@ -135,4 +186,5 @@ namespace mjon661 { namespace tiles {
 
 int main(int argc, const char* argv[]) {
 	mjon661::tiles::run();
+	//mjon661::tiles::gen_12problems();
 }

@@ -7,78 +7,118 @@
 
 #include "util/json.hpp"
 
-//#include "search/astar2.hpp"
-//#include "search/enum_util_results.hpp"
-//#include "search/bugsy_abt_lin.hpp"
-//#include "search/bugsy_abt_exp1.hpp"
-#include "search/debug_walker.hpp"
-//#include "domain/tiles/fwd.hpp"
+#include "search/bugsy2.hpp"
+#include "search/astar2.hpp"
 
-#include "domain/gridnav/dim2/gridnav2d.hpp"
+#include "domain/tiles/fwd.hpp"
 
 
 namespace mjon661 {
 	
 	
-	//~ static void makeAbtStack() {
-			//~ using CellGraph_t = gridnav::dim2::CellGraph<4,false,true>;
-		
-		
-	//~ }
-	
-
-	static void run() {
-		//gridnav::dim2::StarAbtStackInfo<gridnav::dim2::CellGraph<4,false,false>> abtStackInfo(20,20,2,",fill");
-		
-		//abtStackInfo.dumpToFile("gridnav_test_dump.json");
-		
-		
-		using CellGraph_t = gridnav::dim2::CellGraph<4,false,true>;
-		using D = gridnav::dim2::GridNav_StarAbtStack<CellGraph_t, 3>;
-		
-		using Alg_t = algorithm::DebugWalker<D>;
+	static void run8() {		
+		using D = tiles::TilesGeneric_DomainStack<3,3,true,true,1>;
+		//using Alg_t = algorithm::Bugsy2<D>;
+		using Alg_hr_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard, algorithm::Astar2HrMode::DomainHr>;
+		using Alg_un_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Uninformed, algorithm::Astar2HrMode::DomainHr>;
 		
 		Json jDomConfig;
-		jDomConfig["height"] = 5;
-		jDomConfig["width"] = 5;
-		jDomConfig["map"] = ",random,0,0.35";
+		jDomConfig["kept"] = std::vector<int>{  1,1,1,1,1,1,1,1};
+		jDomConfig["goal"] = std::vector<int>{0,1,2,3,4,5,6,7,8};
+		//jDomConfig["init"] = std::vector<int>{7,6,4,1,5,3,8,0,2,};
+		jDomConfig["init"] = std::vector<int>{6,5,4,7,8,3,1,0,2};
 		
 		D domStack(jDomConfig);
+		//domStack.setInitState(domStack.randInitState(0));
+
+		typename D::template Domain<0> testDom(domStack);
+		testDom.mManhattan.dump(std::cout);
+		testDom.prettyPrintState(domStack.getGoalState(), std::cout);
+		
+		std::cout << "\n\n";
+		
+		testDom.mManhattan.evalDump(domStack.getGoalState(), std::cout);
+		//return;
+		
+		Alg_hr_t alg_hr(domStack, Json());
+		
+		alg_hr.execute(domStack.getInitState());
 		
 		{
-			std::ofstream ofs("gridnav_dump.txt");
+			std::ofstream ofs("astar_fd_test.json");
 			fast_assert(ofs);
-			typename D::template Domain<0> dom(domStack);
-			
-			dom.drawCells(ofs);
+			ofs << alg_hr.report().dump(2);
 		}
 		
-		gridnav::dim2::StarAbtStackInfo<CellGraph_t> starAbtInfo(jDomConfig.at("height"), jDomConfig.at("width"), 2, jDomConfig.at("map"));
+		Alg_un_t alg_un(domStack, Json());
 		
-		starAbtInfo.dumpToFile("gridnav_dump.json");
+		alg_un.execute(domStack.getInitState());
 		
-		starAbtInfo.drawAll(std::cout);
-		
-		
-		
-		//gridnav::dim2::StarAbtStackInfo<CellGraph_t> starAbtInfo2("gridnav_dump.json");
-		
-		///fast_assert(starAbtInfo == starAbtInfo2);	
-///starAbtInfo2.drawAll(std::cout);
-		
-		
-		
-		//std::cout << starAbtInfo.hash() << "\n" << starAbtInfo2.hash() << "\n";
-		
-		Alg_t alg(domStack, Json());
-		
-		alg.execute(domStack.getInitState());
+		{
+			std::ofstream ofs("astar_fd_test_un.json");
+			fast_assert(ofs);
+			ofs << alg_un.report().dump(2);
+		}
+		//~ 0 4 3 7
+		//~ 4 3 3 10
+		//~ 5 5 5 15
 	}
+	
+	//~ static void run11() {		
+		//~ using D = tiles::TilesGeneric_DomainStack<3,4,true,false,1>;
+		//~ using Alg_t = algorithm::Bugsy2<D>;
+		
+		//~ Json jDomConfig;
+		//~ jDomConfig["kept"] = std::vector<int>{1,1,1,1,1,1,1,1,1,1,1};
+		//~ jDomConfig["goal"] = std::vector<int>{0,1,2,3,4,5,6,7,8,9,10,11};
+		
+		//~ D domStack(jDomConfig);
+		//~ domStack.setInitState(domStack.randInitState(0));
+
+		//~ Alg_t alg(domStack, Json());
+		
+		//~ alg.execute(domStack.getInitState());
+		
+		//~ {
+			//~ std::ofstream ofs("astar_fd_test.json");
+			//~ fast_assert(ofs);
+			//~ ofs << alg.report().dump(2);
+		//~ }
+	//~ }
+	
+	//~ static void run15() {		
+		//~ using D = tiles::TilesGeneric_DomainStack<4,4,true,true,1>;
+		//~ //using Alg_t = algorithm::Bugsy2<D>;
+		//~ using Alg_t = algorithm::Astar2Impl<D, algorithm::Astar2SearchMode::Standard, algorithm::Astar2HrMode::DomainHr>;
+		
+		//~ Json jDomConfig;
+		//~ jDomConfig["kept"] = std::vector<int>{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+		//~ jDomConfig["goal"] = std::vector<int>{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+		//~ jDomConfig["init"] = std::vector<int>{3,14,9,11,5,4,8,2,13,12,6,7,10,1,15,0};
+		
+		//~ D domStack(jDomConfig);
+		//~ //domStack.setInitState(domStack.randInitState(0));
+
+		//~ typename D::template Domain<0> testDom(domStack);
+		//~ testDom.mManhattan.dump(std::cout);
+		//~ testDom.prettyPrintState(domStack.getInitState(), std::cout);
+		//~ //return;
+		
+		//~ Alg_t alg(domStack, Json());
+		
+		//~ alg.execute(domStack.getInitState());
+		
+		//~ {
+			//~ std::ofstream ofs("astar_fd_test.json");
+			//~ fast_assert(ofs);
+			//~ ofs << alg.report().dump(2);
+		//~ }
+	//~ }
 }
 
 
 
 int main(int argc, const char* argv[]) {
 
-	mjon661::run();
+	mjon661::run8();
 }

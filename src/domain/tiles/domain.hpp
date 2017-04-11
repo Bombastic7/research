@@ -114,6 +114,7 @@ namespace mjon661 { namespace tiles {
 					mLastOp++;
 				}
 			}
+
 			
 			bool tryOp(int op) {
 				unsigned newBlankPos = -1;
@@ -124,12 +125,15 @@ namespace mjon661 { namespace tiles {
 				else if(op == Op_Right && (mOrigBlankPos+1) % W != 0)	newBlankPos = mOrigBlankPos + 1;
 				else 													return false;
 
-				Cost dh, dd;
-				mManhat.increment(newBlankPos, mOrigBlankPos, mAdjState[newBlankPos], dh, dd);
-				
 				mAdjState.moveBlank(newBlankPos);
-				mAdjState.h += dh;
-				mAdjState.d += dd;
+				
+				//Cost dh, dd;
+				//mManhat.increment(newBlankPos, mOrigBlankPos, mAdjState[newBlankPos], dh, dd);
+				mManhat.eval(mAdjState, mAdjState.h, mAdjState.d);
+				
+				
+				//mAdjState.h += dh;
+				//mAdjState.d += dd;
 				slow_assert(mAdjState.valid());
 				
 				return true;
@@ -202,9 +206,10 @@ namespace mjon661 { namespace tiles {
 		
 		void initialiseState(State& s) const {
 			mManhattan.eval(s, s.h, s.d);
+			s.initBlankPos();
 		}
 
-		private:
+		//private:
 		const Manhattan<H,W,Use_Weight> mManhattan;
 		State mGoalState;
 	};
@@ -340,7 +345,9 @@ namespace mjon661 { namespace tiles {
 			return std::pair<Cost, Cost>(0, 0);
 		}
 		
-		void initialiseState(State&) const {}
+		void initialiseState(State& s) const {
+			s.initBlankPos();
+		}
 		
 		private:
 		State mGoalState;

@@ -125,15 +125,16 @@ namespace mjon661 { namespace tiles {
 				else if(op == Op_Right && (mOrigBlankPos+1) % W != 0)	newBlankPos = mOrigBlankPos + 1;
 				else 													return false;
 
+			
+				
+				Cost dh, dd;
+				mManhat.increment(newBlankPos, mOrigBlankPos, mAdjState[newBlankPos], dh, dd);
+				//mManhat.eval(mAdjState, mAdjState.h, mAdjState.d);
+				
 				mAdjState.moveBlank(newBlankPos);
 				
-				//Cost dh, dd;
-				//mManhat.increment(newBlankPos, mOrigBlankPos, mAdjState[newBlankPos], dh, dd);
-				mManhat.eval(mAdjState, mAdjState.h, mAdjState.d);
-				
-				
-				//mAdjState.h += dh;
-				//mAdjState.d += dd;
+				mAdjState.h += dh;
+				mAdjState.d += dd;
 				slow_assert(mAdjState.valid());
 				
 				return true;

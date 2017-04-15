@@ -9,52 +9,129 @@
 #include "util/json.hpp"
 #include "util/exception.hpp"
 
+#include "search/admissible_abtsearch.hpp"
 
 namespace mjon661 { namespace algorithm {
+
+	//Standard: plain old A*. g(n) + h(n) = f(n), where g(n) is sum of edge costs of partial path/node n, h(n) is 
+	//	supplied cost heuristic. Open nodes ordered on ascending f(n), with ties broken on max g(n).
+	
+	//Weighted: weighted A*. g(n) + w*h(n) = f(n). Open nodes ordered as in Standard. Tie breaking as in Standard.
+	//	w is user provided weight constant.
+	
+	//Greedy: open nodes ordered on ascending h(n). No tie breaking for equal open nodes.
+	
+	//Speedy: open nodes ordered on ascending d(n), where d(n) is a user supplied distance-to-go heuristic. No tie breaking.
+	
+	//Uninformed: open nodes ordered on ascending g(n).
 
 
 	enum struct AstarSearchMode {
 		Standard, Weighted, Greedy, Speedy, Uninformed
 	};
 	
+	enum struct AstarHrMode {
+		DomainHr, AbtHr
+	};
+	
 	template<typename = void>
 	std::string astarSearchModeStr(AstarSearchMode m) {
 		if(m == AstarSearchMode::Standard)
-			return std::string("Standard");
+			return "Standard";
 		else if(m == AstarSearchMode::Weighted)
-			return std::string("Weighted");
+			return "Weighted";
 		else if(m == AstarSearchMode::Greedy)
-			return std::string("Greedy");
+			return "Greedy";
 		else if(m == AstarSearchMode::Speedy)
-			return std::string("Speedy");
-		return std::string("Uninformed");
+			return "Speedy";
+		else if(m == AstarSearchMode::Uninformed)
+			return "Uninformed";
+		else
+			gen_assert(false);
+		return "";
 	}
+	
+	template<typename = void>
+	std::string astarHrModeStr(AstarHrMode m) {
+		if(m == AstarHrMode::DomainHr)
+			return "DomainHr";
+		else if(m == AstarHrMode::AbtHr)
+			return "AbtHr";
+		else
+			gen_assert(false);
+		return "";
+	}
+	
 
 
-	template<typename D, AstarSearchMode Search_Mode, bool Use_Abstraction_Hr, bool Perfect_Hr>
-	class AstarImpl {
+
+	template<typename D, AstarSearchMode Search_Mode, AstarHrMode Hr_Mode>
+	class Astar {
 		public:
 
 		using Domain = typename D::template Domain<0>;
 		using Cost = typename Domain::Cost;
-		using Operator = typename Domain::Operator;
-		using OperatorSet = typename Domain::OperatorSet;
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
-		using Edge = typename Domain::Edge;
+
 		
-		static const unsigned Abt_Working_Level = Perfect_Hr ? 0 : 1;
 		
-		using AbtSearch = AdmissibleAbtSearch<D, Abt_Working_Level, D::Top_Abstract_Level+1, true>;
+		template<AstarHrMode, typename = void>
+		struct HrModule;
 		
-		static_assert(!Use_Abstraction_Hr || Search_Mode!=AstarSearchMode::Speedy, "");
-		static_assert(!Perfect_Hr || Use_Abstraction_Hr, "");
+		template<typename Ign>
+		struct HrModule<AstarHrMode::DomainHr, Ign> {
+			HrModule(D& pDomStack, Domain const& pDomain, Json const& jConfig) :
+				mDomain(pDomain)
+			{}
+			
+			Cost costHeuristic(State const& s) {
+				return mDomain.costHeuristic(s);
+			}
+			
+			Cost distanceHeuristic(State const& s) {
+				return mDomain.distanceHeuristic(s);
+			};
+						
+			void insertReport(Json& jReport) {}
+			
+			private:
+			Domain const& mDomain;
+		};
+		
+		template<typename Ign>
+		struct HrModule<AstarHrMode::AbtHr, Ign> {
+			HrModule(D& pDomStack, Domain const& pDomain, Json const& jConfig) :
+				mAbtSearch_cost(pDomStack, jConfig),
+				mAbtSearch_dist(pDomStack, jConfig)
+			{}
+			
+			Cost costHeuristic(State const& s) {
+				return mAbtSearch_cost.getHrVal(s);
+			}
+			
+			Cost distanceHeuristic(State const& s) {
+				return mAbtSearch_dist.getHrVal(s);
+			};
+			
+			void insertReport(Json& jReport) {
+				Json j;
+				j["cost_abt"] = Json();
+				mAbtSearch_cost.insertReport(j.at("cost_abt"));
+				j["dist_abt"] = Json();
+				mAbtSearch_dist.insertReport(j.at("dist_abt"));
+				jReport["hrmod"] = j;
+			}
+			
+			private:
+			AdmissibleAbtSearch<D,1,D::Top_Abstract_Level+1,true> mAbtSearch_cost;
+			AdmissibleAbtSearch<D,1,D::Top_Abstract_Level+1,false> mAbtSearch_dist;
+		};
+		
 		
 		struct Node {
 			Cost g, f;
 			PackedState pkd;
-			Operator in_op;
-			Operator parent_op;
 			Node* parent;
 		};
 		
@@ -83,6 +160,11 @@ namespace mjon661 { namespace algorithm {
 		
 		struct OpenOps {
 			bool operator()(Node * const a, Node * const b) const {
+				if(Search_Mode == AstarSearchMode::Greedy || Search_Mode == AstarSearchMode::Speedy)
+					return a->f < b->f;
+				else if(Search_Mode == AstarSearchMode::Uninformed)
+					a->g > b->g;
+				
 				if(a->f != b->f)
 					return a->f < b->f;
 				return a->g > b->g;
@@ -106,16 +188,14 @@ namespace mjon661 { namespace algorithm {
 		
 		
 		
-		AstarImpl(D& pDomStack, Json const& jConfig) :
+		Astar(D& pDomStack, Json const& jConfig) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
-			mAbtSearch			(pDomStack, jConfig)
-		{
-			if(Search_Mode == AstarSearchMode::Weighted)
-				mHrWeight = jConfig.at("weight");
-		}
+			mHrModule			(pDomStack, mDomain, jConfig),
+			mParam_hrWeight		(Search_Mode == AstarSearchMode::Weighted ? jConfig.at("hr_weight") : 0)
+		{}
 
 		void reset() {
 			mOpenList.clear();
@@ -124,24 +204,22 @@ namespace mjon661 { namespace algorithm {
 
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			
-			mTest_exp_f.clear();			
+			mGoalNode = nullptr;
 		}
 
 		
-		void execute(State const& s0, Solution<D>& pSolution) {
-			doSearch(s0, pSolution);
+		void execute(State const& s0) {
+			doSearch(s0);
 		}
 		
-		void doSearch(State const& s0, Solution<D>& pSolution) {
+		void doSearch(State const& s0) {
 			reset();
 			{
 				Node* n0 = mNodePool.construct();
 
 				n0->g = 		Cost(0);
-				n0->in_op = 	mDomain.getNoOp();
-				n0->parent_op = mDomain.getNoOp();
 				n0->parent = 	nullptr;
-
+				
 				evalHr(n0, s0);
 
 				mDomain.packState(s0, n0->pkd);
@@ -151,14 +229,18 @@ namespace mjon661 { namespace algorithm {
 			}			
 			
 
-			while(true) {				
-				Node* n = mOpenList.pop();
-					
+			while(true) {
+				Node* n = nullptr;
+				try {
+					n = mOpenList.pop();
+				}
+				catch(AssertException const& e) {
+					throw NoSolutionException("");
+				}
 				State s;
 				mDomain.unpackState(s, n->pkd);
 
 				if(mDomain.checkGoal(s)) {
-					prepareSolution(pSolution, n);
 					mGoalNode = n;
 					break;
 				}
@@ -175,144 +257,108 @@ namespace mjon661 { namespace algorithm {
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
 			j["search_mode"] = astarSearchModeStr(Search_Mode);
+			j["hr_mode"] = astarHrModeStr(Hr_Mode);
 			
 			if(Search_Mode == AstarSearchMode::Weighted)
-				j["hr_weight"] = mHrWeight;
+				j["hr_weight"] = mParam_hrWeight;
 
+			if(mGoalNode) {
+				j["goal_g"] = mGoalNode->g;
+				j["goal_f"] = mGoalNode->f;
+				
+				unsigned goal_depth = 0;
+				for(Node* m = mGoalNode; m; m=m->parent) {
+					goal_depth++;
+				}
+				goal_depth -= 1;
+
+				j["goal_depth"] = goal_depth;
+			}
+			
+			mHrModule.insertReport(j);
+			
 			return j;
 		}
 		
 		
 		//private:
 		
-		void prepareSolution(Solution<D>& sol, Node* pGoalNode) {
-			std::vector<Node*> reversePath;
-			
-			for(Node *n = pGoalNode; n != nullptr; n = static_cast<Node*>(n->parent))
-				reversePath.push_back(n);
-			
-			sol.states.clear();
-			sol.operators.clear();
-			
-			for(unsigned i=reversePath.size()-1; i!=(unsigned)-1; i--) {
-				State s;
-				mDomain.unpackState(s, reversePath[i]->pkd);
-				
-				sol.states.push_back(s);
-				
-				if(i != reversePath.size()-1)
-					sol.operators.push_back(reversePath[i]->in_op);	
-				else
-					fast_assert(reversePath[i]->in_op == mDomain.getNoOp());
-			}
-		}
-		
+
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
+
+			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
-			mTest_exp_f.push_back(n->f);
-			
-			OperatorSet ops = mDomain.createOperatorSet(s);
-			
-			for(unsigned i=0; i<ops.size(); i++) {
-				if(ops[i] == n->parent_op)
+			for(; !edgeIt.finished(); edgeIt.next()) {
+				
+				PackedState kid_pkd;
+				mDomain.packState(edgeIt.state(), kid_pkd);
+								
+				if(n->pkd == kid_pkd)
 					continue;
-
+				
 				mLog_gend++;
-				considerkid(n, s, ops[i]);
-			}
-		}
-		
+				
+				Cost kid_g = n->g + edgeIt.cost();
 
-		void considerkid(Node* pParentNode, State& pParentState, Operator const& pInOp) {
-			Edge		edge 	= mDomain.createEdge(pParentState, pInOp);
-			Cost 		kid_g   = pParentNode->g + edge.cost();
-			
-			PackedState kid_pkd;
-			mDomain.packState(edge.state(), kid_pkd);
+				Node* kid_dup = mClosedList.find(kid_pkd);
 
-			Node* kid_dup = mClosedList.find(kid_pkd);
+				if(kid_dup) {
+					mLog_dups++;
+					if(kid_dup->g > kid_g) {
+						kid_dup->g			= kid_g;
+						kid_dup->parent		= n;
+						
+						evalHr(kid_dup, edgeIt.state());
+						
+						if(!mOpenList.contains(kid_dup)) {
+							mLog_reopnd++;
+						}
 
-			if(kid_dup) {
-				mLog_dups++;
-				if(kid_dup->g > kid_g) {
-					kid_dup->g			= kid_g;
-					kid_dup->in_op		= pInOp;
-					kid_dup->parent_op	= edge.parentOp();
-					kid_dup->parent		= pParentNode;
-					
-					evalHr(kid_dup, edge.state());
-					
-					if(!mOpenList.contains(kid_dup)) {
-						mLog_reopnd++;
+						mOpenList.pushOrUpdate(kid_dup);
 					}
+				}
+				else {
+					Node* kid_node 		= mNodePool.construct();
 
-					mOpenList.pushOrUpdate(kid_dup);
+					kid_node->g 		= kid_g;
+					kid_node->pkd 		= kid_pkd;
+					kid_node->parent	= n;
+					
+					evalHr(kid_node, edgeIt.state());
+
+					mOpenList.push(kid_node);
+					mClosedList.add(kid_node);
 				}
 			}
-			else {
-				Node* kid_node 		= mNodePool.construct();
-
-				kid_node->g 		= kid_g;
-				kid_node->pkd 		= kid_pkd;
-				kid_node->in_op 	= pInOp;
-				kid_node->parent_op = edge.parentOp();
-				kid_node->parent	= pParentNode;
-				
-				evalHr(kid_node, edge.state());
-
-				mOpenList.push(kid_node);
-				mClosedList.add(kid_node);
-			}
-			
-			mDomain.destroyEdge(edge);
 		}
 		
+
 		void evalHr(Node* n, State const& s) {
 			if(Search_Mode == AstarSearchMode::Standard)
-				n->f = n->g + getCostHr(s);
+				n->f = n->g + mHrModule.costHeuristic(s);
 			else if(Search_Mode == AstarSearchMode::Weighted)
-				n->f = n->g + mHrWeight * getCostHr(s);
+				n->f = n->g + mParam_hrWeight * mHrModule.costHeuristic(s);
 			else if(Search_Mode == AstarSearchMode::Greedy)
-				n->f = getCostHr(s);
+				n->f = mHrModule.costHeuristic(s);
 			else if(Search_Mode == AstarSearchMode::Speedy)
-				n->f = mDomain.distanceHeuristic(s);
+				n->f = mHrModule.distanceHeuristic(s);
 			else
 				n->f = n->g;
 		}
 		
-		
-		template<bool> struct Tag{};
-		
-		Cost getCostHr(State const& s) {
-			if(Use_Abstraction_Hr) {
-				Cost h;
-				doAbtSearch(s, h, Tag<Perfect_Hr>{});
-				return h;
-			}
-			return mDomain.costHeuristic(s);
-		}		
-		
-		void doAbtSearch(State const& s, Cost& h, Tag<false>) {
-			mAbtSearch.doSearch_ParentState(s, h);
-		}
-		
-		void doAbtSearch(State const& s, Cost& h, Tag<true>) {
-			mAbtSearch.doSearch(s, h);
-		}	
+
 
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
-		AbtSearch mAbtSearch;
+		HrModule<Hr_Mode> mHrModule;
+		const double mParam_hrWeight;
 		
 		Node* mGoalNode;
-		double mHrWeight;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
-		
-		std::vector<double> mTest_exp_f;
 	};
 }}

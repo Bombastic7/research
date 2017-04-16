@@ -13,6 +13,8 @@
 #include <functional>
 #include <map>
 
+#include <boost/operators.hpp>
+
 #include "util/debug.hpp"
 #include "util/math.hpp"
 #include "util/json.hpp"
@@ -21,7 +23,7 @@
 #include "domain/gridnav/cellmap_blocked.hpp"
 
 
-namespace mjon661 { namespace gridnav { namespace dim2 {
+namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 
 
 
@@ -46,6 +48,17 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 
 		return s;
 	}
+	
+	
+	
+	
+	template<bool Use_4way, bool Use_LC>
+	struct BaseEdgeIterator {
+		
+		
+		
+	};
+	
 
 	
 	
@@ -110,10 +123,28 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 	struct CellGraph_8 : public CellMapBlocked<> {
 		//using Cost_t = float;
 		
-		//??static constexpr Cost_t Diag_Mv_Cost = 1.41421356237309504880168872420969807857;
+		static constexpr double Diag_Mv_Cost = 1.41421356237309504880168872420969807857;
 
-		struct Cost_t {
+		struct Cost_t : public boost::totally_ordered<Cost_t> {
 			unsigned short dg, st;
+			
+			Cost_t() = default;
+			
+			Cost_t(unsigned pDg, unsigned pSt) :
+				dg(pDg), st(pSt)
+			{}
+			
+			bool operator<(Cost_t const& o) const {
+				return costVal() < o.costVal(); 
+			}
+			
+			bool operator==(Cost_t const& o) const {
+				return dg == o.dg && st == o.st;
+			}
+			
+			double costVal() const {
+				return dg * Diag_Mv_Cost + st;
+			}
 		};
 		
 		static std::string costToString(Cost_t c) {
@@ -174,9 +205,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			unsigned row = Use_LifeCost ? src/mWidth : 1;
 
 			if(src%mWidth != dst%mWidth && src/mWidth != dst/mWidth)
-				return {row,0};
+				return Cost_t(row,0);
 			
-			return {0,row};
+			return Cost_t(0,row);
 		}
 		
 		unsigned getHeight() const {
@@ -252,7 +283,6 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 	class CellGraph_8_hr : public CellGraph_8<Use_LifeCost> {
 		public:
 		using typename CellGraph_8<Use_LifeCost>::Cost_t;
-		using CellGraph_8<Use_LifeCost>::Diag_Mv_Cost;
 		
 		CellGraph_8_hr(unsigned pHeight, unsigned pWidth, std::string const& pMapFile) :
 			CellGraph_8<Use_LifeCost>(pHeight, pWidth, pMapFile)

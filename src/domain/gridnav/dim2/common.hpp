@@ -77,6 +77,13 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			for(unsigned i=0; i<mCells.size(); i++)
 				out << mCells[i] << " ";
 		}
+		
+		void setFill(unsigned pHeight, unsigned pWidth) {
+			mHeight = pHeight;
+			mWidth = pWidth;
+			
+			mCells.resize(mHeight * mWidth, Cell_t::Open);
+		}
 
 		void setRandom(unsigned pHeight, unsigned pWidth, unsigned pSeed, double pBlockedProb) {
 			mHeight = pHeight;

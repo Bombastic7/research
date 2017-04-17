@@ -163,7 +163,7 @@ namespace mjon661 { namespace algorithm {
 				if(Search_Mode == AstarSearchMode::Greedy || Search_Mode == AstarSearchMode::Speedy)
 					return a->f < b->f;
 				else if(Search_Mode == AstarSearchMode::Uninformed)
-					a->g > b->g;
+					return a->g < b->g;
 				
 				if(a->f != b->f)
 					return a->f < b->f;

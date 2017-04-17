@@ -57,6 +57,10 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 			return *this;
 		}
 		
+		operator double() {
+			return costVal();
+		}
+		
 		double costVal() const {
 			return dg * Diag_Mv_Cost + st;
 		}
@@ -170,9 +174,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 	
 	
 	void unitCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, Cost_t& out_h, Cost_t& out_d) {		
-		int dx = std::abs(pPos % pWidth - pGoal % pWidth), dy = std::abs(pPos / pWidth - pGoal / pWidth);
+		int dx = mathutil::abs(pPos % pWidth, pGoal % pWidth), dy = mathutil::abs(pPos / pWidth, pGoal / pWidth);
 			
-		out_h = Cost_t(mathutil::min(dx, dy), std::abs(dx-dy));
+		out_h = Cost_t(mathutil::min(dx, dy), mathutil::abs(dx,dy));
 		out_d = Cost_t(0, mathutil::max(dx, dy));
 	}
 	
@@ -184,7 +188,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		int dy = std::abs(y - gy);
 		
 		if(dx <= dy) {
-			out_h = Cost_t(0, verticalPathFactor(pPos, gy));
+			out_h = Cost_t(0, verticalPathFactor(y, gy));
 			out_d = Cost_t(0, dy);
 			return;
 		}
@@ -192,8 +196,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		//int maxdown = min(y, mGoaly);
 		int extra = dx - dy;
 		
-		int down = mathutil::min(mathutil::min(y, gy), (dx-dy)/2);
-		int botRow = mathutil::min(y, y) - down;
+		int down = mathutil::min(mathutil::min(y, gy), extra/2);
+		int botRow = mathutil::min(y, gy) - down;
 		int across = extra - 2*down;
 		
 		out_h = Cost_t(0, verticalPathFactor(y, botRow) + across * botRow + verticalPathFactor(botRow, gy));
@@ -239,7 +243,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		}
 		
 		Cost costHeuristic(unsigned pState) const {
-			if(~Use_Hr)
+			if(!Use_Hr)
 				return 0;
 			
 			Cost h, d;
@@ -251,7 +255,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		}
 		
 		Cost distanceHeuristic(unsigned pState) const {
-			if(~Use_Hr)
+			if(!Use_Hr)
 				return 0;
 			
 			Cost h, d;
@@ -263,7 +267,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		}
 		
 		std::pair<Cost, Cost> pairHeuristics(unsigned pState) const {
-			if(~Use_Hr)
+			if(!Use_Hr)
 				return {0,0};
 			
 			Cost h, d;

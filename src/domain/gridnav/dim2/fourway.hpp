@@ -116,7 +116,6 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 			out_d = dx + y + gy;
 		}
 	}
-	
 
 	
 	template<bool Use_LC, bool Use_Hr>
@@ -157,7 +156,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 		}
 		
 		Cost costHeuristic(unsigned pState) const {
-			if(~Use_Hr)
+			if(!Use_Hr)
 				return 0;
 			
 			Cost h, d;
@@ -169,7 +168,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 		}
 		
 		Cost distanceHeuristic(unsigned pState) const {
-			if(~Use_Hr)
+			if(!Use_Hr)
 				return 0;
 			
 			Cost h, d;
@@ -181,7 +180,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 		}
 		
 		std::pair<Cost, Cost> pairHeuristics(unsigned pState) const {
-			if(~Use_Hr)
+			if(!Use_Hr)
 				return {0,0};
 			
 			Cost h, d;

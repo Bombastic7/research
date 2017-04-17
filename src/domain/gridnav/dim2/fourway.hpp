@@ -22,8 +22,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 			mPos(pPos),
 			mCost(Use_LC ? pPos / pCellMap.getWidth() : 1),
 			mCurDir(D_Up),
-			mCurAdjPos()
+			mAdjPos()
 		{
+			fillAdjPos();
 			adv();
 		}
 		
@@ -33,7 +34,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 		
 		unsigned state() const {
 			slow_assert(!finished());
-			return mCurAdjPos;
+			return mAdjPos[mCurDir];
 		}
 		
 		Cost_t cost() const {
@@ -42,30 +43,40 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 		}
 		
 		void next() {
+			slow_assert(!finished());
 			mCurDir++;
 			adv();
 		}
 		
 		
 		private:
-		
+
 		void adv() {
-			for(int i=mCurDir; i<D_End; i++) {
-				unsigned adjPos;
-				
-				if(i == D_Up && mPos >= mCellMap.getWidth()) adjPos = mPos - mCellMap.getWidth();
-				else if(i == D_Down && mPos < (mCellMap.getHeight()-1) * mCellMap.getWidth()) adjPos = mPos + mCellMap.getWidth();
-				else if(i == D_Left && mPos % mCellMap.getWidth() != 0) adjPos = mPos - 1;
-				else if(i == D_Right && (mPos+1) % mCellMap.getWidth() != 0) adjPos = mPos + 1;
-				else continue;
-				
-				slow_assert(adjPos < mCellMap.size());
-				if(mCellMap.cells()[adjPos] != CellMap2D<>::Cell_t::Open) continue;
-				
-				mCurAdjPos = adjPos;
-				mCurDir = i;
-				return;
+			for(; mCurDir<D_End; mCurDir++) {
+				if(mAdjPos[mCurDir] != (unsigned)-1) {
+					return;
+				}
 			}
+		}
+		
+		void fillAdjPos() {
+			mAdjPos.fill((unsigned)-1);
+			
+			if(mPos >= mCellMap.getWidth())
+				mAdjPos[D_Up] = mPos - mCellMap.getWidth();
+			if(mPos < (mCellMap.getHeight()-1) * mCellMap.getWidth())
+				mAdjPos[D_Down] = mPos + mCellMap.getWidth();
+			if(mPos % mCellMap.getWidth() != 0)
+				mAdjPos[D_Left] = mPos - 1;
+			if((mPos+1) % mCellMap.getWidth() != 0)
+				mAdjPos[D_Right] = mPos + 1;
+
+			for(unsigned i=0; i<mAdjPos.size(); i++)
+				if(mAdjPos[i] != (unsigned)-1)
+					if(mCellMap.cells()[mAdjPos[i]] != CellMap2D<>::Cell_t::Open)
+						mAdjPos[i] = (unsigned)-1;
+			
+			//std::cout << mAdjPos[0] << " " << mAdjPos[1] << " " << mAdjPos[2] << " " << mAdjPos[3] << "\n"; 
 		}
 		
 
@@ -74,7 +85,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 		const unsigned mPos;
 		const Cost_t mCost;
 		int mCurDir;
-		unsigned mCurAdjPos;
+		std::array<unsigned, 4> mAdjPos;
 	};
 	
 	

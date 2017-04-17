@@ -64,7 +64,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		
 		unsigned state() const {
 			slow_assert(!finished());
-			return mCurAdjPos;
+			return mCurAdjPos[mCurDir];
 		}
 		
 		Cost_t cost() const {
@@ -84,7 +84,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 
 		void adv() {
 			for(int i=mCurDir; i<D_End; i++) {
-				if(mAdjPos[mCurDir] != (unsigned)-1) {
+				if(mAdjPos[i] != (unsigned)-1) {
 					mCurDir = i;
 					return;
 				}

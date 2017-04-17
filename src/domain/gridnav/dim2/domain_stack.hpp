@@ -10,19 +10,19 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 
 	template<typename BaseDomain_t>
 	struct DomainStack_BaseOnly {
-		unsigned Top_Abstract_Level = 0;
+		static const unsigned Top_Abstract_Level = 0;
 		
 		template<unsigned L>
 		struct Domain : BaseDomain_t {
 			Domain(DomainStack_BaseOnly<BaseDomain_t> const& pStack) :
-				BaseDomain(pStack.mCellMap)
+				BaseDomain_t(pStack.mCellMap)
 			{
-				this->setGoalState(s);
+				this->setGoalState(pStack.mGoalState);
 			}
 		};
 		
 	
-		DomainStack_BaseOnly(Json const& jConfig, CellMap2D<> const& pCellMap) :
+		DomainStack_BaseOnly(CellMap2D<> const& pCellMap, Json const& jConfig) :
 			mCellMap(pCellMap)
 		{
 			if(jConfig.count("init"))

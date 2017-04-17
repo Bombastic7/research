@@ -14,7 +14,7 @@
 #include "domain/gridnav/dim2/common.hpp"
 
 
-namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
+namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 	
 	struct Cost_t : public boost::totally_ordered<Cost_t> {
 		static constexpr double Diag_Mv_Cost = 1.41421356237309504880168872420969807857;
@@ -84,7 +84,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 
 		void adv() {
 			for(int i=mCurDir; i<D_End; i++) {
-				if(mAdjPos[mCurDir] != (unsigned)-1)
+				if(mAdjPos[mCurDir] != (unsigned)-1) {
 					mCurDir = i;
 					return;
 				}
@@ -96,20 +96,20 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 			
 			std::fill(mAdjPos.begin(), mAdjPos.end(), (unsigned)-1);
 			
-			if(i == D_Up && i >= mCellMap.getWidth()) {
-				mAdjPos[D_U] = i - mCellMap.getWidth();
+			if(i == D_Up && mPos >= mCellMap.getWidth()) {
+				mAdjPos[D_U] = mPos - mCellMap.getWidth();
 				oU = true;
 			}
-			if(i == D_Down && i < (mCellMap.getHeight()-1) * mCellMap.getWidth()) {
-				mAdjPos[D_D] = i + mCellMap.getWidth();
+			if(i == D_Down && mPos < (mCellMap.getHeight()-1) * mCellMap.getWidth()) {
+				mAdjPos[D_D] = mPos + mCellMap.getWidth();
 				oD = true;
 			}
-			if(i == D_Left && i % mCellMap.getWidth() != 0) {
-				mAdjPos[D_L] = i - 1;
+			if(i == D_Left && mPos % mCellMap.getWidth() != 0) {
+				mAdjPos[D_L] = mPos - 1;
 				oL = true;
 			}
-			if(i == D_Right && (i+1) % mCellMap.getWidth() != 0) {
-				mAdjPos[D_R] = i + 1;
+			if(i == D_Right && (mPos+1) % mCellMap.getWidth() != 0) {
+				mAdjPos[D_R] = mPos + 1;
 				oR = true;
 			}
 			
@@ -265,7 +265,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 
 		private:
 		CellMap2D<> const& mCellGraph;
-		const unsigned mGoalState;
+		unsigned mGoalState;
 	};
 
-}}}
+}}}}

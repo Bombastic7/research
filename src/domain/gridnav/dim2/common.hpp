@@ -95,10 +95,14 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		unsigned getWidth() const { return mWidth;}
 		unsigned size() const {return mCells.size();}
 		
+		std::vector<Cell_t> const& cells() const {
+			return mCells;
+		}
+		
 		void drawCells(std::ostream& out) const {
-			for(unsigned h=0; h<mHeight(); h++) {
-				for(unsigned w=0; w<mWidth(); w++) {
-					if(mCells[h*mWidth() + w])
+			for(unsigned h=0; h<mHeight; h++) {
+				for(unsigned w=0; w<mWidth; w++) {
+					if(mCells[h*mWidth + w] == Cell_t::Open)
 						out << ".";
 					else
 						out << "0";

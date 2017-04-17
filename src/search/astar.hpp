@@ -194,7 +194,7 @@ namespace mjon661 { namespace algorithm {
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mHrModule			(pDomStack, mDomain, jConfig),
-			mParam_hrWeight		(Search_Mode == AstarSearchMode::Weighted ? jConfig.at("hr_weight") : 0)
+			mParam_hrWeight		(Search_Mode == AstarSearchMode::Weighted ? jConfig.at("hr_weight").get<double>() : 0)
 		{}
 
 		void reset() {

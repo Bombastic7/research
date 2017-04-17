@@ -20,7 +20,7 @@
 
 namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 	
-	struct Cost_t : public boost::totally_ordered<Cost_t> {
+	struct Cost_t : public boost::totally_ordered<Cost_t>, boost::additive<Cost_t> {
 		static constexpr double Diag_Mv_Cost = 1.41421356237309504880168872420969807857;
 		
 		unsigned short dg, st;
@@ -42,6 +42,19 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		
 		bool operator==(Cost_t const& o) const {
 			return dg == o.dg && st == o.st;
+		}
+		
+		Cost_t operator+=(Cost_t const& o) {
+			dg += o.dg;
+			st += o.st;
+			return *this;
+		}
+		
+		Cost_t operator-=(Cost_t const& o) {
+			dg -= o.dg;
+			st -= o.st;
+			slow_assert(dg >= 0 && st >= 0);
+			return *this;
 		}
 		
 		double costVal() const {

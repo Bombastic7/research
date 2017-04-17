@@ -339,7 +339,8 @@ namespace mjon661 { namespace algorithm {
 			if(Search_Mode == AstarSearchMode::Standard)
 				n->f = n->g + mHrModule.costHeuristic(s);
 			else if(Search_Mode == AstarSearchMode::Weighted)
-				n->f = n->g + mParam_hrWeight * mHrModule.costHeuristic(s);
+				gen_assert(false);
+				//n->f = n->g + mParam_hrWeight * mHrModule.costHeuristic(s);
 			else if(Search_Mode == AstarSearchMode::Greedy)
 				n->f = mHrModule.costHeuristic(s);
 			else if(Search_Mode == AstarSearchMode::Speedy)

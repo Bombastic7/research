@@ -5,6 +5,10 @@
 #include <array>
 #include <algorithm>
 
+#pragma once
+
+#include <iostream>
+
 #include "util/debug.hpp"
 #include "util/math.hpp"
 #include "util/json.hpp"
@@ -22,6 +26,11 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		unsigned short dg, st;
 			
 		Cost_t() = default;
+		
+		template<typename T>
+		Cost_t(T t) : Cost_t(0,0) {
+			slow_assert(t == 0);
+		}
 		
 		Cost_t(unsigned pDg, unsigned pSt) :
 			dg(pDg), st(pSt)
@@ -41,6 +50,12 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 	};
 	
 	
+	std::ostream& operator<<(std::ostream& out, Cost_t const& cst) {
+		out << "(" << cst.dg << "," << cst.st << "," << cst.costVal() << ")";
+		return out;
+	}
+	
+	
 	
 	
 	template<bool Use_LC>
@@ -50,7 +65,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		BaseEdgeIterator(CellMap2D<> const& pCellMap, unsigned pPos) :
 			mCellMap(pCellMap),
 			mPos(pPos),
-			mRow(pPos / mCellMap.getWidth()),
+			mCost(Use_LC ? pPos / mCellMap.getWidth() : 1),
 			mCurDir(D_U),
 			mAdjPos()
 		{
@@ -64,14 +79,14 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		
 		unsigned state() const {
 			slow_assert(!finished());
-			return mCurAdjPos[mCurDir];
+			return mAdjPos[mCurDir];
 		}
 		
 		Cost_t cost() const {
 			slow_assert(!finished());
 			if(mCurDir >= D_UL)
-				return Cost_t(Use_LC ? mRow : 1, 0);
-			return Cost_t(0, Use_LC ? mRow : 1);
+				return Cost_t(mCost, 0);
+			return Cost_t(0, mCost);
 		}
 		
 		void next() {
@@ -83,9 +98,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		private:
 
 		void adv() {
-			for(int i=mCurDir; i<D_End; i++) {
-				if(mAdjPos[i] != (unsigned)-1) {
-					mCurDir = i;
+			for(; mCurDir<D_End; mCurDir++) {
+				if(mAdjPos[mCurDir] != (unsigned)-1) {
 					return;
 				}
 			}
@@ -96,19 +110,19 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 			
 			std::fill(mAdjPos.begin(), mAdjPos.end(), (unsigned)-1);
 			
-			if(i == D_Up && mPos >= mCellMap.getWidth()) {
+			if(mPos >= mCellMap.getWidth()) {
 				mAdjPos[D_U] = mPos - mCellMap.getWidth();
 				oU = true;
 			}
-			if(i == D_Down && mPos < (mCellMap.getHeight()-1) * mCellMap.getWidth()) {
+			if(mPos < (mCellMap.getHeight()-1) * mCellMap.getWidth()) {
 				mAdjPos[D_D] = mPos + mCellMap.getWidth();
 				oD = true;
 			}
-			if(i == D_Left && mPos % mCellMap.getWidth() != 0) {
+			if(mPos % mCellMap.getWidth() != 0) {
 				mAdjPos[D_L] = mPos - 1;
 				oL = true;
 			}
-			if(i == D_Right && (mPos+1) % mCellMap.getWidth() != 0) {
+			if((mPos+1) % mCellMap.getWidth() != 0) {
 				mAdjPos[D_R] = mPos + 1;
 				oR = true;
 			}
@@ -124,7 +138,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 			
 			for(unsigned i=0; i<mAdjPos.size(); i++) {
 				if(mAdjPos[i] != (unsigned)-1)
-					if(mCellMap.cells()[mAdjPos[i]] != Cell_t::Open)
+					if(mCellMap.cells()[mAdjPos[i]] != CellMap2D<>::Cell_t::Open)
 						mAdjPos[i] = (unsigned)-1;
 			}
 		}
@@ -133,26 +147,23 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		
 		CellMap2D<> const& mCellMap;
 		const unsigned mPos;
+		const unsigned mCost;
 		int mCurDir;
-		std::array<unsigned, 8> mCurAdjPos;
+		std::array<unsigned, 8> mAdjPos;
 	};
 	
 	
 	
 	
 	
-	void unitCostHeuristics(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
-		unsigned pWidth = this->getWidth();
-		
+	void unitCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, Cost_t& out_h, Cost_t& out_d) {		
 		int dx = std::abs(pPos % pWidth - pGoal % pWidth), dy = std::abs(pPos / pWidth - pGoal / pWidth);
 			
 		out_h = Cost_t(mathutil::min(dx, dy), std::abs(dx-dy));
 		out_d = Cost_t(0, mathutil::max(dx, dy));
 	}
 	
-	void lifeCostHeuristics(unsigned pPos, unsigned pGoal, Cost_t& out_h, Cost_t& out_d) const {
-		unsigned pWidth = this->getWidth();
-		
+	void lifeCostHeuristics(unsigned pPos, unsigned pGoal, unsigned pWidth, Cost_t& out_h, Cost_t& out_d) {		
 		int x = pPos % pWidth, y = pPos / pWidth;
 		int gx = pGoal % pWidth, gy = pGoal / pWidth;
 		
@@ -186,15 +197,15 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		
 		static const bool Is_Perfect_Hash = true;
 		
-		using AdjEdgeIterator = BaseEdgeIterator;
+		using AdjEdgeIterator = BaseEdgeIterator<Use_LC>;
 		
-		BaseDomain(CellMap2D const& pCellMap) :
-			mCellGraph(pCellGraph),
+		BaseDomain(CellMap2D<> const& pCellMap) :
+			mCellMap(pCellMap),
 			mGoalState(-1)
 		{}
 
-		State getGoalState() const {
-			return mGoalState;
+		void setGoalState(unsigned s) {
+			mGoalState = s;
 		}
 
 		void packState(State const& pState, PackedState& pPacked) const {
@@ -205,9 +216,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 			pState = pPacked;
 		}
 
-		BaseEdgeIterator<Use_LC> getAdjEdges(unsigned s) const {
-			slow_assert(mCellGraph.isOpen(s));
-			return BaseEdgeIterator<Use_LC>(mCellmap, s);
+		AdjEdgeIterator getAdjEdges(unsigned s) const {
+			slow_assert(mCellMap.cells().at(s) == CellMap2D<>::Cell_t::Open);
+			return AdjEdgeIterator(mCellMap, s);
 		}
 
 		size_t hash(PackedState pPacked) const {
@@ -220,9 +231,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 			
 			Cost h, d;
 			if(Use_LC)
-				lifeCostHeuristics(pState, mGoalState, h, d);
+				lifeCostHeuristics(pState, mGoalState, mCellMap.getWidth(), h, d);
 			else
-				unitCostHeuristics(pState, pGoal, h, d);
+				unitCostHeuristics(pState, mGoalState, mCellMap.getWidth(), h, d);
 			return h;
 		}
 		
@@ -232,9 +243,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 			
 			Cost h, d;
 			if(Use_LC)
-				lifeCostHeuristics(pState, mGoalState, h, d);
+				lifeCostHeuristics(pState, mGoalState, mCellMap.getWidth(), h, d);
 			else
-				unitCostHeuristics(pState, pGoal, h, d);
+				unitCostHeuristics(pState, mGoalState, mCellMap.getWidth(), h, d);
 			return d;
 		}
 		
@@ -244,9 +255,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 			
 			Cost h, d;
 			if(Use_LC)
-				lifeCostHeuristics(pState, mGoalState, h, d);
+				lifeCostHeuristics(pState, mGoalState, mCellMap.getWidth(), h, d);
 			else
-				unitCostHeuristics(pState, pGoal, h, d);
+				unitCostHeuristics(pState, mGoalState, mCellMap.getWidth(), h, d);
 			return {h,d};
 		}
 		
@@ -259,12 +270,12 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace eightway {
 		}
 
 		void prettyPrintState(State const& s, std::ostream& out) const {
-			out << "[" << s << ", " << s%mCellGraph.getWidth() << ", " << s/mCellGraph.getWidth() << "]";
+			out << "[" << s << ", " << s%mCellMap.getWidth() << ", " << s/mCellMap.getWidth() << "]";
 		}
 
 
 		private:
-		CellMap2D<> const& mCellGraph;
+		CellMap2D<> const& mCellMap;
 		unsigned mGoalState;
 	};
 

@@ -93,6 +93,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		
 		unsigned getHeight() const { return mHeight;}
 		unsigned getWidth() const { return mWidth;}
+		unsigned size() const {return mCells.size();}
 		
 		void drawCells(std::ostream& out) const {
 			for(unsigned h=0; h<mHeight(); h++) {

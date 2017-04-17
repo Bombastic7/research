@@ -126,8 +126,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 			mGoalState(-1)
 		{}
 
-		State getGoalState() const {
-			return mGoalState;
+		unsigned setGoalState(unsigned s) {
+			mGoalState = s;
 		}
 
 		void packState(State const& pState, PackedState& pPacked) const {
@@ -138,9 +138,9 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 			pState = pPacked;
 		}
 
-		BaseEdgeIterator getAdjEdges(unsigned s) const {
+		BaseEdgeIterator<Use_LC> getAdjEdges(unsigned s) const {
 			slow_assert(mCellGraph.isOpen(s));
-			return BaseEdgeIterator(mCellmap, s);
+			return BaseEdgeIterator<Use_LC>(mCellmap, s);
 		}
 
 		size_t hash(PackedState pPacked) const {

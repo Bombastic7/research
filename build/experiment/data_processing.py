@@ -1,6 +1,6 @@
 #!/bin/python
 
-
+import numpy as np
 import json
 
 import copy
@@ -71,3 +71,60 @@ def validate_data1(d1):
 			assert(d1[ak][wk].keys() == domkeys)
 			for dk in domkeys:
 				assert(d1[ak][wk][dk].keys() == probkeys)
+
+
+
+
+def reduce_data1(d1, exptime = None):
+	d2 = {}
+	
+	for ak in d1.keys():
+		d2[ak] = {}
+		for wk in d1[ak].keys():
+			d2[ak][wk] = {}
+			for dk in d1[ak][wk].keys():
+				d2[ak][wk][dk] = {}
+				
+				util_series = []
+				expd_series = []
+				goal_depth_series = []
+				goal_g_series = []
+				cputime_series = []
+				
+				for pk in d1[ak][wk][dk].keys():
+					astar_utility = d1["astar"][wk][dk][pk]["utility"]
+					astar_expd = d1["astar"][wk][dk][pk]["expd"]
+					astar_goal_depth = d1["astar"][wk][dk][pk]["goal_depth"]
+					astar_goal_g = d1["astar"][wk][dk][pk]["goal_g"]
+					astar_cputime = d1["astar"][wk][dk][pk]["expd"] * exptime if exptime is not None else d1["astar"][wk][dk][pk]["cpu_time"]
+					
+					#~ util_series.append(d1[ak][wk][dk][pk]["utility"])
+					#~ expd_series.append(d1[ak][wk][dk][pk]["expd"])
+					#~ goal_depth_series.append(d1[ak][wk][dk][pk]["goal_depth"])
+					#~ goal_g_series.append(d1[ak][wk][dk][pk]["goal_g"])
+					#~ cputime_series.append(d1[ak][wk][dk][pk]["cpu_time"])
+				
+					util_series.append(float(d1[ak][wk][dk][pk]["utility"]) / astar_utility)
+					expd_series.append(float(d1[ak][wk][dk][pk]["expd"]) / astar_expd)
+					goal_depth_series.append(float(d1[ak][wk][dk][pk]["goal_depth"]) / astar_goal_depth)
+					goal_g_series.append(float(d1[ak][wk][dk][pk]["goal_g"]) / astar_goal_g)
+					
+					if exptime is None:
+						cputime = float(d1[ak][wk][dk][pk]["cpu_time"])
+					else:
+						cputime = float(d1[ak][wk][dk][pk]["expd"] * exptime)
+					
+					cputime_series.append(cputime / astar_cputime)
+				
+				for k, s in (
+					("utility", util_series), 
+					("expd", expd_series), 
+					("goal_depth", goal_depth_series), 
+					("goal_g", goal_g_series),
+					("cpu_time", cputime_series)):
+					d2[ak][wk][dk][k] = {}
+					d2[ak][wk][dk][k]["mean"] = np.mean(s)
+					d2[ak][wk][dk][k]["std"] = np.std(s, ddof=1)
+					d2[ak][wk][dk][k]["median"] = np.median(s)
+
+	return d2

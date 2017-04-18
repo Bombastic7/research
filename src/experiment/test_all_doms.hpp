@@ -20,14 +20,22 @@
 namespace mjon661 {
 
 
+	template<typename = void>
+	Json& getJsonLeaf(Json& j, unsigned pos, std::vector<std::string> const& pKey) {
+		if(pos == pKey.size())
+			return j;
+		std::string k = pKey[pos];
+		return getJsonLeaf(j[k], pos+1, pKey);
+	}
+
+
 	template<typename D, template<typename> typename Alg_t>
 	void run_routine(D& pDomStack, Json const& jAlgConfig, Json& jRes, std::vector<std::string> const& pKey) {
 		
-		Json& jLeaf = jRes;
+		Json& jLeaf = getJsonLeaf(jRes, 0, pKey);
 		
 		for(auto const& s : pKey) {
 			std::cout << s << " ";
-			jLeaf = jLeaf[s];
 		}
 		std::cout << "\n";
 		

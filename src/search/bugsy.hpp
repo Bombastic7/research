@@ -12,6 +12,7 @@
 #include "util/debug.hpp"
 #include "util/json.hpp"
 #include "util/exception.hpp"
+#include "util/time.hpp"
 
 
 namespace mjon661 { namespace algorithm {
@@ -95,7 +96,7 @@ namespace mjon661 { namespace algorithm {
 			mNodePool			(),
 			mParam_wf			(jConfig.at("wf")),
 			mParam_wt			(jConfig.at("wt")),
-			mParam_stExpTime	(OP_Static_Exp_Time ? jConfig.at("exptime") : 0)
+			mParam_stExpTime	(OP_Static_Exp_Time ? jConfig.at("exptime").get<double>() : 0)
 		{}
 
 		void reset() {
@@ -117,7 +118,9 @@ namespace mjon661 { namespace algorithm {
 			else
 				mLog_curExpTime = 0;
 			
-			mLog_timer.start();
+			mLog_searchTimer.start();
+			mLog_resortTimer.start();
+			
 			mLog_curDistFact = mParam_wt * mLog_curDelay * mLog_curExpTime;
 			
 			mLog_pastDelays.clear();
@@ -137,7 +140,6 @@ namespace mjon661 { namespace algorithm {
 				Node* n0 = mNodePool.construct();
 
 				n0->g = 		Cost(0);
-				n0->depth =		0;
 				n0->parent = 	nullptr;
 				
 				evalHr(n0, s0);
@@ -170,6 +172,7 @@ namespace mjon661 { namespace algorithm {
 				if(mLog_expd == mResort_next)
 					doResort();
 			}
+			mLog_searchTimer.stop();
 		}
 		
 		void doResort() {
@@ -179,9 +182,9 @@ namespace mjon661 { namespace algorithm {
 			mLog_nextDelayAcc = 0;
 
 			if(!OP_Static_Exp_Time) {
-				mLog_timer.stop();
-				mLog_timer.start();
-				mLog_curExpTime = mLog_timer.seconds() / expThisPhase;
+				mLog_resortTimer.stop();
+				mLog_resortTimer.start();
+				mLog_curExpTime = mLog_resortTimer.cpuSeconds() / expThisPhase;
 			}
 
 			mLog_curDistFact = mParam_wt * mLog_curDelay * mLog_curExpTime;
@@ -210,6 +213,12 @@ namespace mjon661 { namespace algorithm {
 			j["dups"] = mLog_dups;
 			j["wf"] = mParam_wf;
 			j["wt"] = mParam_wt;
+			
+			if(OP_Static_Exp_Time)
+				j["fixed_exp_time"] = mParam_stExpTime;
+			
+			j["wall_time"] = mLog_searchTimer.wallSeconds();
+			j["cpu_time"] = mLog_searchTimer.cpuSeconds();
 			
 			fast_assert(mGoalNode);
 			
@@ -299,7 +308,7 @@ namespace mjon661 { namespace algorithm {
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
-		const double mParam_wf, mParam_wt;
+		const double mParam_wf, mParam_wt, mParam_stExpTime;
 		
 		Node* mGoalNode;
 		
@@ -309,5 +318,7 @@ namespace mjon661 { namespace algorithm {
 		unsigned mResort_n, mResort_next, mLog_nextDelayAcc;
 		
 		std::vector<double> mLog_pastDelays, mLog_pastExpTimes;
+		
+		Timer mLog_resortTimer, mLog_searchTimer;
 	};
 }}

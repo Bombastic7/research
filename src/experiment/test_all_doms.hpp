@@ -8,6 +8,7 @@
 #include "experiment/tiles_problems.hpp"
 
 #include "search/astar.hpp"
+#include "search/bugsy.hpp"
 
 #include "domain/tiles/fwd.hpp"
 
@@ -99,6 +100,7 @@ namespace mjon661 {
 		template<typename D> using Astar_t = algorithm::Astar<D, algorithm::AstarSearchMode::Standard, algorithm::AstarHrMode::DomainHr>;
 		template<typename D> using Greedy_t = algorithm::Astar<D, algorithm::AstarSearchMode::Greedy, algorithm::AstarHrMode::DomainHr>;
 		template<typename D> using Speedy_t = algorithm::Astar<D, algorithm::AstarSearchMode::Speedy, algorithm::AstarHrMode::DomainHr>;
+		template<typename D> using Bugsy_Fixed_t = algorithm::Bugsy<D, true>;
 	};
 	
 	
@@ -120,6 +122,18 @@ namespace mjon661 {
 		{
 			std::vector<std::string> key {"speedy", "nullweight"};
 			select_domain_prob<SearchAlgTemplateTypes::Speedy_t>(Json(), jRes, key);
+		}
+		
+		for(auto const& weight : weights) {
+			Json jAlgConfig;
+			jAlgConfig["wf"] = weight.wf;
+			jAlgConfig["wt"] = weight.wt;
+			jAlgConfig["exptime"] = 3e-6;
+			
+			{
+				std::vector<std::string> key {"bugsy", weight.str};
+				select_domain_prob<SearchAlgTemplateTypes::Bugsy_Fixed_t>(jAlgConfig, jRes, key);
+			}
 		}
 	}
 }

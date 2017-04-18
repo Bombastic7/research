@@ -18,7 +18,7 @@
 #define ENABLE_PANCAKE
 
 
-namespace mjon661 {
+namespace mjon661 { namespace experiment {
 
 
 	template<typename = void>
@@ -136,6 +136,6 @@ namespace mjon661 {
 			}
 		}
 	}
-}
+}}
 
 

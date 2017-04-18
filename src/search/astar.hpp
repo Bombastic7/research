@@ -8,6 +8,7 @@
 #include "util/debug.hpp"
 #include "util/json.hpp"
 #include "util/exception.hpp"
+#include "util/time.hpp"
 
 #include "search/admissible_abtsearch.hpp"
 
@@ -205,6 +206,8 @@ namespace mjon661 { namespace algorithm {
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			
 			mGoalNode = nullptr;
+			
+			mLog_timer.start();
 		}
 
 		
@@ -247,6 +250,7 @@ namespace mjon661 { namespace algorithm {
 				
 				expand(n, s);
 			}
+			mLog_timer.stop();
 		}
 		
 		
@@ -256,6 +260,8 @@ namespace mjon661 { namespace algorithm {
 			j["gend"] = mLog_gend;
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
+			j["wall_time"] = mLog_timer.wallSeconds();
+			j["cpu_time"] = mLog_timer.cpuSeconds();
 			j["search_mode"] = astarSearchModeStr(Search_Mode);
 			j["hr_mode"] = astarHrModeStr(Hr_Mode);
 			
@@ -361,5 +367,7 @@ namespace mjon661 { namespace algorithm {
 		Node* mGoalNode;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
+		
+		Timer mLog_timer;
 	};
 }}

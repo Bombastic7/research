@@ -5,7 +5,7 @@
 #include "util/debug.hpp"
 
 
-namespace mjon661 {
+namespace mjon661 { namespace experiment {
 
 	struct UtilityWeights {
 		const double wf, wt;
@@ -17,4 +17,4 @@ namespace mjon661 {
 			fast_assert(wf >= 0 && wt >= 0 && str != "");
 		}
 	};
-}
+}}

@@ -155,7 +155,20 @@ namespace mjon661 { namespace experiment {
 			
 			pKey.pop_back();
 		}
-		#endif		
+		#endif
+		
+		#ifdef ENABLE_GRIDNAV
+		
+		{
+			using D = 
+			
+		}
+		
+		
+		
+		
+		
+		#endif
 	}
 	
 	struct SearchAlgTemplateTypes {

@@ -11,12 +11,12 @@
 #include "search/cache_store.hpp"
 
 
-namespace mjon661 { namespace algorithm { namespace bugsy {
+namespace mjon661 { namespace algorithm {
 
 
 
 	template<typename D, unsigned L, unsigned Bound>
-	class BugsyLinearAbtSearch {
+	class BugsyAbtLin_abstractSearch {
 		public:
 
 		using Domain = typename D::template Domain<L>;
@@ -87,7 +87,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		
 		
-		BugsyLinearAbtSearch(D& pDomStack, Json const& jConfig) :
+		BugsyAbtLin_abstractSearch(D& pDomStack, Json const& jConfig) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
@@ -95,13 +95,17 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mCache				(mDomain),
 			mAbtSearch			(pDomStack, jConfig)
 		{
-			mCostWeight = 1;
-			mDistWeight = 1;
-			mLog_expdThisPhase = 0;
-			mLog_totExpd = 0;
-			mLog_totCalls = 0;
-			mLog_totSearches = 0;
+			resetAll();
+		}
+
+		void resetAll() {
 			reset();
+			
+			mPrin_costWeight = mPrin_distWeight = 1;
+			mPrin_phaseExpd = 0;
+			mPrin_calls = 0;
+			mPrin_searches = 0;
+			mPrin_pastPhaseExpds.clear();
 		}
 
 		void reset() {
@@ -109,37 +113,45 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			mClosedList.clear();
 			mNodePool.clear();
 
-			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
-			
 			mGoalNode = nullptr;
 			mBestExactNode = nullptr;
 		}
 		
 		void insertReport(Json& jReport) {
+			unsigned totExpd = 0;
+			for(auto i : mPrin_pastPhaseExpds)
+				totExpd += i;
+			
+			totExpd += mPrin_phaseExpd;
+			
+			std::vector<unsigned> pastCacheSz = mPrin_pastCacheSz;
+			pastCacheSz.push_back(mCache.size());
+			
 			Json j;
-			j["expd_tot"] = mLog_totExpd;
-			j["calls_tot"] = mLog_totCalls;
-			j["searches_tot"] = mLog_totSearches;
-			j["cached_all"] = mCache.size();
+			j["tot_expd"] = totExpd;
+			j["calls"] = mPrin_calls;
+			j["searches"] = mPrin_searches;
+			j["cached_size"] = pastCacheSz;
 			jReport[std::to_string(L)] = j;
+			
 			mAbtSearch.insertReport(jReport);
 		}
 
 		void setEdgeWeights(double pCostWeight, double pDistWeight) {
-			mCostWeight = pCostWeight;
-			mDistWeight = pDistWeight;
+			mPrin_costWeight = pCostWeight;
+			mPrin_cistWeight = pDistWeight;
+			
+			mPrin_pastPhaseExpds.push_back(mPrin_phaseExpd);
+			mPrin_phaseExpd = 0;
+			
+			mPrin_pastCacheSz.push_back(mCache.size());
 			mCache.clear();
 			
 			mAbtSearch.setEdgeWeights(pCostWeight, pDistWeight);
-			
-			mLog_expdThisPhase = 0;
-			
-			logDebugStream() << "L=" << L << ": costweight=" << mCostWeight << " distweight=" << mDistWeight << "\n";
-			g_logDebugOfs.flush();
 		}
 		
-		double getUtility(BaseState const& pBaseState) {
-			mLog_totCalls++;
+		double getAbstractUtility(BaseState const& pBaseState) {
+			mPrin_calls++;
 			
 			State s;
 			PackedState pkd0;
@@ -149,7 +161,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			CacheEntry* ent = mCache.retrieve(pkd0);
 			if(!ent) {
-				mLog_totSearches++;
+				mPrin_searches++;
 				doSearch(s);
 				ent = mCache.retrieve(pkd0);
 				slow_assert(ent);
@@ -159,19 +171,9 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			return ent->uh;
 		}
 		
-		void execute(State const& s0) {
-			PackedState pkd0;
-			mDomain.packState(s0, pkd0);
-			
-			CacheEntry* ent = mCache.retrieve(pkd0);
-			if(ent && ent->exact) {
-				return ent->uh;
-			}
-			
-			doSearch(s0);
-		}
-		
+
 		void doSearch(State const& s0) {
+			reset();
 			{
 				Node* n0 = mNodePool.construct();
 
@@ -207,16 +209,13 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			}
 			
 			doCaching();
-			reset();
 		}
 		
 		
 
 		
 		void expand(Node* n, State& s) {
-			mLog_expd++;
-			mLog_expdThisPhase++;
-			mLog_totExpd++;
+			mPrin_phaseExpd++;
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
@@ -228,23 +227,23 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				if(n->pkd == kid_pkd)
 					continue;
 				
-				mLog_gend++;
+				//mLog_gend++;
 				
 				double kid_ug = n->ug + edgeIt.cost() * mCostWeight + mDistWeight;
 
 				Node* kid_dup = mClosedList.find(kid_pkd);
 
 				if(kid_dup) {
-					mLog_dups++;
+					//mLog_dups++;
 					if(kid_dup->ug > kid_ug) {
 						kid_dup->ug			= kid_ug;
 						kid_dup->parent		= n;
 						
 						evalHr(kid_dup, edgeIt.state());
 
-						if(!mOpenList.contains(kid_dup)) {
-							mLog_reopnd++;
-						}
+						//~ if(!mOpenList.contains(kid_dup)) {
+							//~ mLog_reopnd++;
+						//~ }
 
 						mOpenList.pushOrUpdate(kid_dup);
 					}
@@ -272,7 +271,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			
 			if(newEntry) {
 				ent->exact = false;
-				ent->uh = mAbtSearch.getUtility(s);
+				ent->uh = mAbtSearch.getAbstractUtility(s);
 			}
 			
 			n->uf = n->ug + ent->uh;
@@ -309,7 +308,6 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				if(!ent->exact)
 					ent->exact = true;
 			}
-			
 		}
 		
 
@@ -321,26 +319,25 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		AbtSearch_t mAbtSearch;
 		
 		Node* mGoalNode, *mBestExactNode;
-		double mCostWeight, mDistWeight;
+		double mPrin_costWeight, mPrin_distWeight;
+
+		unsigned mPrin_phaseExpd, mPrin_calls, mPrin_searches;
 		
-		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
-		
-		unsigned mLog_expdThisPhase, mLog_totExpd;
-		
-		unsigned mLog_totCalls, mLog_totSearches;
+		std::vector<unsigned> mPrin_pastPhaseExpds;
+		std::vector<unsigned> mPrin_pastCacheSz;
 	};
 	
 	
 	template<typename D, unsigned Bound>
-	struct BugsyLinearAbtSearch<D, Bound, Bound> {
+	struct BugsyAbtLin_abstractSearch<D, Bound, Bound> {
 		
 		using BaseState = typename D::template Domain<Bound-1>::State;
 		
-		BugsyLinearAbtSearch(D&, Json const&) {}
+		BugsyAbtLin_abstractSearch(D&, Json const&) {}
 		
 		void setEdgeWeights(double, double) {}
 		
-		double getUtility(BaseState const&) {
+		double getAbstractUtility(BaseState const&) {
 			return 0;
 		}
 		
@@ -351,23 +348,9 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 	
 	
 	
-	
-	
-	enum struct BugsyAbtSearchBase_Imitate {
-		none, HAstar_cost, HAstar_dist
-	};
 
-	std::string bugsyAbtSearchBase_Imitate_Str(BugsyAbtSearchBase_Imitate e) {
-		if(e == BugsyAbtSearchBase_Imitate::none) return "none";
-		if(e == BugsyAbtSearchBase_Imitate::HAstar_cost) return "HAstar_cost";
-		if(e == BugsyAbtSearchBase_Imitate::HAstar_dist) return "HAstar_dist";
-		gen_assert(false);
-		return "";
-	}
-	
-	
-	template<typename D, BugsyAbtSearchBase_Imitate Do_Imitate = BugsyAbtSearchBase_Imitate::none>
-	class BugsyAbtSearchBase {
+	template<typename D, bool OP_Static_Exp_Time>
+	class BugsyAbtLin_baseSearch {
 		public:
 
 		using Domain = typename D::template Domain<0>;
@@ -375,18 +358,15 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 
-		using AbtSearch_t = BugsyLinearAbtSearch<D, 1, D::Top_Abstract_Level+1>;
 		
 		struct Node {
 			Cost g;
 			double u;
+			unsigned expdAtGen;
 			PackedState pkd;
 			Node* parent;
-			unsigned expdGen;
-			
-			unsigned depth; //.....
 		};
-		
+
 
 
 		struct ClosedOps {
@@ -419,6 +399,7 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		};
 		
 		
+		
 		using OpenList_t = OpenList<Node, Node, OpenOps>;
 		
 		using ClosedList_t = ClosedList<Node, 
@@ -432,17 +413,18 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 		
 		
 		
-
-		BugsyAbtSearchBase(D& pDomStack, Json const& jConfig) :
+		
+		
+		
+		BugsyAbtLin_baseSearch(D& pDomStack, Json const& jConfig) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
 			mAbtSearch			(pDomStack, jConfig),
-			mParams_wf			(jConfig.at("wf")),
-			mParams_wt			(jConfig.at("wt")),
-			mParams_fixedExpTime(jConfig.count("fixed_exptime") ? jConfig.at("fixed_exptime").get<double>() : 0),
-			mParams_expdLimit	(jConfig.count("expd_limit") ? jConfig.at("expd_limit").get<double>() : 0)
+			mParam_wf			(jConfig.at("wf")),
+			mParam_wt			(jConfig.at("wt")),
+			mParam_stExpTime	(OP_Static_Exp_Time ? jConfig.at("exptime").get<double>() : 0)
 		{}
 
 		void reset() {
@@ -452,55 +434,30 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			
-			mGoalNode = nullptr;
+			mGoalNode = nullptr;		
+
+			mLog_curDelay = 0;
+			mLog_nextDelayAcc = 0;
 			mResort_n = 0;
 			mResort_next = 16;
-			
-			if(Do_Imitate == BugsyAbtSearchBase_Imitate::none) {
-				mAvgDelay = 1;
-				mDistWeight = mParams_wt * mParams_fixedExpTime * mAvgDelay;
-				mAbtSearch.setEdgeWeights(mParams_wf, mDistWeight);
-			}
-			else if(Do_Imitate == BugsyAbtSearchBase_Imitate::HAstar_cost) {
-				mAvgDelay = 0;
-				mDistWeight = 0;
-				mAbtSearch.setEdgeWeights(1, 0);
-			}
-			else if(Do_Imitate == BugsyAbtSearchBase_Imitate::HAstar_dist) {
-				mAvgDelay = 0;
-				mDistWeight = 1;
-				mAbtSearch.setEdgeWeights(0, 1);
-			}
+
+			if(OP_Static_Exp_Time)
+				mLog_curExpTime = mParam_stExpTime;
 			else
-				gen_assert(false);
-		}
-
-		Json report() {
-			Json j;
-			j["expd"] = mLog_expd;
-			j["gend"] = mLog_gend;
-			j["dups"] = mLog_dups;
-			j["reopnd"] = mLog_reopnd;
-			j["wf"] = mParams_wf;
-			j["wt"] = mParams_wt;
-			j["fixed_exp_time"] = mParams_fixedExpTime;
-			j["expd_limit"] = mParams_expdLimit;
+				mLog_curExpTime = 0;
 			
-			fast_assert(mGoalNode);
-
-			j["goal_g"] = mGoalNode->g;
-			j["goal_u"] = mGoalNode->u;
-				
-			unsigned goal_depth = 0;
-			for(Node* m = mGoalNode->parent; m; m=m->parent) {
-				goal_depth++;
-			}
-				
-			j["goal_depth"] = goal_depth;
+			mLog_searchTimer.start();
+			mLog_resortTimer.start();
 			
-			mAbtSearch.insertReport(j);
+			mLog_curDistFact = mParam_wt * mLog_curDelay * mLog_curExpTime;
 			
-			return j;
+			mLog_pastDelays.clear();
+			mLog_pastExpTimes.clear();
+			
+			mLog_pastExpTimes.push_back(mLog_curExpTime);
+			mLog_pastDelays.push_back(mLog_curDelay);
+			
+			mAbtSearch.setEdgeWeights(mParam_wf, mLog_curDistFact);
 		}
 		
 		void execute(State const& s0) {
@@ -512,10 +469,8 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 			{
 				Node* n0 = mNodePool.construct();
 
-				n0->g = 		0;
+				n0->g = 		Cost(0);
 				n0->parent = 	nullptr;
-				n0->expdGen =	0;
-				n0->depth =		0;
 				
 				evalHr(n0, s0);
 
@@ -523,10 +478,10 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				
 				mOpenList.push(n0);
 				mClosedList.add(n0);
-			}			
+			}
 			
 
-			while(true) {				
+			while(true) {
 				Node* n = nullptr;
 				try {
 					n = mOpenList.pop();
@@ -544,18 +499,90 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 				
 				expand(n, s);
 				
-				if(Do_Imitate == BugsyAbtSearchBase_Imitate::none && mLog_expd == mResort_next)
+				if(mLog_expd == mResort_next)
 					doResort();
-				
-				if(mLog_expd == mParams_expdLimit)
-					throw NoSolutionException("expd_limit");
 			}
-		}		
+			mLog_searchTimer.stop();
+		}
+		
+		void doResort() {
+			unsigned expThisPhase = mResort_n == 0 ? 16 : mLog_expd / 2;
+
+			mLog_curDelay = (double)mLog_nextDelayAcc / expThisPhase;
+			mLog_nextDelayAcc = 0;
+
+			if(!OP_Static_Exp_Time) {
+				mLog_resortTimer.stop();
+				mLog_resortTimer.start();
+				mLog_curExpTime = mLog_resortTimer.cpuSeconds() / expThisPhase;
+			}
+
+			mLog_curDistFact = mParam_wt * mLog_curDelay * mLog_curExpTime;
+
+			for(unsigned i=0; i<mOpenList.size(); i++) {
+				State s;
+				Node* n = mOpenList.at(i);
+				mDomain.unpackState(s, n->pkd);
+				evalHr(n, s);
+			}
+			mOpenList.reinit();
+			
+			mResort_n++;
+			mResort_next *= 2;
+			
+			mLog_pastExpTimes.push_back(mLog_curExpTime);
+			mLog_pastDelays.push_back(mLog_curDelay);
+		
+			mAbtSearch.setEdgeWeights(mParam_wf, mLog_curDistFact);
+		}
+		
+		
+		Json report() {
+			Json j;
+			j["expd"] = mLog_expd;
+			j["gend"] = mLog_gend;
+			j["reopnd"] = mLog_reopnd;
+			j["dups"] = mLog_dups;
+			j["wf"] = mParam_wf;
+			j["wt"] = mParam_wt;
+			
+			if(OP_Static_Exp_Time)
+				j["fixed_exp_time"] = mParam_stExpTime;
+			
+			j["wall_time"] = mLog_searchTimer.wallSeconds();
+			j["cpu_time"] = mLog_searchTimer.cpuSeconds();
+			
+			fast_assert(mGoalNode);
+			
+			j["goal_g"] = mGoalNode->g;
+			j["goal_f"] = mGoalNode->f;
+			
+			unsigned goal_depth = 0;
+			for(Node* m = mGoalNode->parent; m; m=m->parent) {
+				goal_depth++;
+			}
+			
+			j["goal_depth"] = goal_depth;
+
+			j["past_delays"] = mLog_pastDelays;
+			j["past_exptimes"] = mLog_pastExpTimes;
+			
+			j["abt"] = Json();
+			mAbtSearch.insertReport(j.at("abt"));
+			
+			return j;
+		}
+		
+		
+		//private:
+		
 
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
-			mDelayAcc += mLog_expd - n->expdGen;			
+
+			slow_assert(n->expdAtGen < mLog_expd);
+			mLog_nextDelayAcc += mLog_expd - n->expdAtGen;
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
@@ -578,11 +605,10 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 					if(kid_dup->g > kid_g) {
 						kid_dup->g			= kid_g;
 						kid_dup->parent		= n;
-						kid_dup->expdGen	= mLog_expd;
-						kid_dup->depth		= n->depth + 1;
+						kid_dup->expdAtGen	= mLog_expd;
 						
 						evalHr(kid_dup, edgeIt.state());
-
+						
 						if(!mOpenList.contains(kid_dup)) {
 							mLog_reopnd++;
 						}
@@ -596,65 +622,41 @@ namespace mjon661 { namespace algorithm { namespace bugsy {
 					kid_node->g 		= kid_g;
 					kid_node->pkd 		= kid_pkd;
 					kid_node->parent	= n;
-					kid_node->expdGen	= mLog_expd;
-					kid_node->depth		= n->depth + 1;
+					kid_node->expdAtGen	= mLog_expd;
 					
 					evalHr(kid_node, edgeIt.state());
-					
+
 					mOpenList.push(kid_node);
 					mClosedList.add(kid_node);
 				}
 			}
 		}
 		
-		
-		void evalHr(Node* n, State const& s) {			
-			if(Do_Imitate == BugsyAbtSearchBase_Imitate::none)
-				n->u = n->g * mParams_wf + mAbtSearch.getUtility(s);
-			else
-				n->u = n->g + mAbtSearch.getUtility(s);
+
+		void evalHr(Node* n, State const& s) {		
+			n->u = mParam_wf * n->g + mAbtSearch.getAbstractUtility(s);
 		}
 		
-		void doResort() {
-			unsigned expThisPhase = mResort_n == 0 ? 16 : mLog_expd / 2;
-			
-			mAvgDelay = (double)mDelayAcc / expThisPhase;
-			mDelayAcc = 0;
-			
-			mDistWeight = mParams_wt * mParams_fixedExpTime * mAvgDelay;
-			mAbtSearch.setEdgeWeights(mParams_wf, mDistWeight);
-			
-			for(unsigned i=0; i<mOpenList.size(); i++) {
-				State s;
-				Node* n = mOpenList.at(i);
-				mDomain.unpackState(s, n->pkd);
-				evalHr(n, s);
-			}
-			mOpenList.reinit();
-			
-			mResort_n++;
-			mResort_next *= 2;
-		}
-
-
+	
+		
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
-		AbtSearch_t mAbtSearch;
+		BugsyAbtLin_abstractSearch<D, 1, D::Top_Abstract_Level+1> mAbtSearch;
 		
-		Node* mGoalNode, *mBestExactNode;
-		double mAvgDelay, mDistWeight;
-		unsigned mDelayAcc;
+		const double mParam_wf, mParam_wt, mParam_stExpTime;
+		
+		Node* mGoalNode;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
 		
-		unsigned mResort_next, mResort_n;
+		double mLog_curDistFact, mLog_curExpTime, mLog_curDelay;
+		unsigned mResort_n, mResort_next, mLog_nextDelayAcc;
 		
-		const double mParams_wf, mParams_wt, mParams_fixedExpTime;
+		std::vector<double> mLog_pastDelays, mLog_pastExpTimes;
 		
-		const unsigned mParams_expdLimit;
+		Timer mLog_resortTimer, mLog_searchTimer;
 	};
 	
-	
-}}}
+}}

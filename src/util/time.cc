@@ -5,6 +5,8 @@
 #include <chrono>
 #include <ctime>
 
+#include "util/debug.hpp"
+
 namespace mjon661 {
 	std::string prettyTimestamp() {
 		char buf[128];
@@ -35,16 +37,18 @@ namespace mjon661 {
 	
 	
 	void CpuTimer::start() {
-		mStartTime = std::clock();
+		int res = clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &mStartTime);
+		fast_assert(res == 0);
 	}
 	
 	void CpuTimer::stop() {
-		mEndTime = std::clock();
-		mDur = mEndTime - mStartTime;
+		int res = clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &mEndTime);
+		fast_assert(res == 0);
+		mDur = mEndTime.tv_sec - mStartTime.tv_sec + 1e-9 * (mEndTime.tv_nsec - mStartTime.tv_nsec);
 	}
 	
 	double CpuTimer::seconds() {
-		return (double)mDur / CLOCKS_PER_SEC;
+		return mDur;
 	}
 	
 	

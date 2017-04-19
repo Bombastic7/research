@@ -152,7 +152,7 @@ namespace mjon661 { namespace algorithm {
 			
 
 			while(true) {
-				if(debugCheckMemLimit())
+				if(mLog_expd % 10000 == 0 && debugCheckMemLimit())
 					throw NoSolutionException("memlimit");
 				
 				Node* n = nullptr;
@@ -247,7 +247,8 @@ namespace mjon661 { namespace algorithm {
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
-
+			//logDebugStream() << mLog_expd << ": " << n->u << "\n";
+			
 			slow_assert(n->expdAtGen < mLog_expd);
 			mLog_nextDelayAcc += mLog_expd - n->expdAtGen;
 			

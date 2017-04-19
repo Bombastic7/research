@@ -219,7 +219,7 @@ namespace mjon661 { namespace algorithm {
 		
 		void expand(Node* n, State& s) {
 			mPrin_phaseExpd++;
-			
+
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
 			for(; !edgeIt.finished(); edgeIt.next()) {
@@ -582,7 +582,8 @@ namespace mjon661 { namespace algorithm {
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
-
+			//logDebugStream() << mLog_expd << ": " << n->u << "\n";
+			
 			slow_assert(n->expdAtGen < mLog_expd);
 			mLog_nextDelayAcc += mLog_expd - n->expdAtGen;
 			

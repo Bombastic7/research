@@ -30,7 +30,8 @@ namespace mjon661 {
 		void stop();
 		double seconds();
 		
-		std::clock_t mStartTime, mEndTime, mDur;
+		struct timespec mStartTime, mEndTime;
+		double mDur;
 	};
 	
 	

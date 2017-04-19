@@ -110,4 +110,12 @@ namespace mjon661 { namespace tiles {
 		
 		return v;
 	}
+	
+	std::vector<int> tiles_abtfirst7(unsigned n) {
+		std::vector<int> v(n, 1);
+		for(unsigned i=0; i<6; i++)
+			v[i] = 7 - i;
+		
+		return v;
+	}
 }}

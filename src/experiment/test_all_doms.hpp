@@ -78,6 +78,7 @@ namespace mjon661 { namespace experiment {
 		
 		#ifdef ENABLE_TILES
 		
+		// tiles8, tiles8w
 		{
 			using D = tiles::TilesGeneric_DomainStack<3,3,true,false,5>;
 			pKey.push_back("tiles8");
@@ -116,6 +117,44 @@ namespace mjon661 { namespace experiment {
 			pKey.pop_back();
 		}
 		
+		//tiles15, tiles15w
+		{
+			using D = tiles::TilesGeneric_DomainStack<4,4,true,false,7>;
+			pKey.push_back("tiles15");
+			
+			Json jDomConfig;
+			jDomConfig["goal"] = tiles::tiles_defgoal(16);
+			jDomConfig["kept"] = tiles::tiles_abtfirst7(15);
+				
+			for(unsigned i=0; i<5; i++) {
+				jDomConfig["init"] = tiles::tiles15_instances_korf(i);
+				D domStack(jDomConfig);
+				pKey.push_back(std::to_string(i));
+				run_routine<D, Alg_t>(domStack, jAlgConfig, jRes, pKey);
+				pKey.pop_back();
+			}
+			
+			pKey.pop_back();
+		}
+		
+		{
+			using D = tiles::TilesGeneric_DomainStack<4,4,true,true,7>;
+			pKey.push_back("tiles15w");
+			
+			Json jDomConfig;
+			jDomConfig["goal"] = tiles::tiles_defgoal(16);
+			jDomConfig["kept"] = tiles::tiles_abtfirst7(15);
+				
+			for(unsigned i=0; i<5; i++) {
+				jDomConfig["init"] = tiles::tiles15_instances_korf(i);
+				D domStack(jDomConfig);
+				pKey.push_back(std::to_string(i));
+				run_routine<D, Alg_t>(domStack, jAlgConfig, jRes, pKey);
+				pKey.pop_back();
+			}
+			
+			pKey.pop_back();
+		}
 		#endif		
 	}
 	
@@ -129,21 +168,21 @@ namespace mjon661 { namespace experiment {
 	
 	
 	template<typename = void>
-	void select_alg_weight(Json& jRes) {
+	void select_alg_weight(Json& jRes, Json const& jTgt) {
 		
 		std::vector<UtilityWeights> weights = {UtilityWeights(1,1,"1~1"), UtilityWeights(1,1e3,"1~1e3"), UtilityWeights(1,1e6,"1~1e6")};
 		
-		{
+		if(jTgt.count("algorithm") == 0 || jTgt.at("algorithm").count("astar")) {
 			std::vector<std::string> key {"astar", "nullweight"};
 			select_domain_prob<SearchAlgTemplateTypes::Astar_t>(Json(), jRes, key);
 		}
 		
-		{
+		if(jTgt.count("algorithm") == 0 || jTgt.at("algorithm").count("greedy")) {
 			std::vector<std::string> key {"greedy", "nullweight"};
 			select_domain_prob<SearchAlgTemplateTypes::Greedy_t>(Json(), jRes, key);
 		}
 		
-		{
+		if(jTgt.count("algorithm") == 0 || jTgt.at("algorithm").count("speedy")) {
 			std::vector<std::string> key {"speedy", "nullweight"};
 			select_domain_prob<SearchAlgTemplateTypes::Speedy_t>(Json(), jRes, key);
 		}
@@ -154,11 +193,14 @@ namespace mjon661 { namespace experiment {
 			jAlgConfig["wt"] = weight.wt;
 			jAlgConfig["exptime"] = 3e-6;
 			
-			{
+			if(!(jTgt.count("weight") == 0 || jTgt.at("weight").count(weight.str)))
+				continue;
+			
+			if(jTgt.count("algorithm") == 0 || jTgt.at("algorithm").count("bugsy_domhr_fixed")) {
 				std::vector<std::string> key {"bugsy_domhr_fixed", weight.str};
 				select_domain_prob<SearchAlgTemplateTypes::Bugsy_domhr_Fixed_t>(jAlgConfig, jRes, key);
 			}
-			{
+			if(jTgt.count("algorithm") == 0 || jTgt.at("algorithm").count("bugsy_abtlin_fixed")) {
 				std::vector<std::string> key {"bugsy_abtlin_fixed", weight.str};
 				select_domain_prob<SearchAlgTemplateTypes::Bugsy_abtlin_Fixed_t>(jAlgConfig, jRes, key);
 			}

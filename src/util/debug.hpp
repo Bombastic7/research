@@ -122,7 +122,7 @@ namespace mjon661 {
 		}
 	}
 	
-	std::ofstream g_logDebugOfs;
+	extern std::ofstream g_logDebugOfs;
 	
 	template<typename = void>
 	struct GblInitImpl {
@@ -131,38 +131,11 @@ namespace mjon661 {
 			gen_assert(g_logDebugOfs);
 		}
 	};
-	
-	GblInitImpl<> g_gblInitImpl;
-	
-	
-	unsigned g_checkMemLimitCounter;
-	
-	struct GblCheckMemLimitImpl {
-		GblCheckMemLimitImpl() {
-			g_checkMemLimitCounter = 0;
-		}
-	};
+
+
 	
 	//Return true if 85+% of system memory used.
-	bool debugCheckMemLimit() {
-		if(g_checkMemLimitCounter % 10000 == 0) {
-			struct sysinfo si;
-			if(sysinfo(&si) != 0)
-				logDebug("sysinfo failed.");
-			else {
-				logDebugStream() << "g_checkMemLimitCounter=" << g_checkMemLimitCounter 
-					<< " freeram=" << si.freeram 
-					<< " totalram=" << si.totalram
-					<< " free=" << (double)si.freeram / si.totalram << "\n";
-				
-				if((double)si.freeram / si.totalram < 0.15)
-					return true;
-			}
-		}
-		
-		g_checkMemLimitCounter++;
-		return false;
-	}
+	bool debugCheckMemLimit();
 	
 	
 	namespace overflow {

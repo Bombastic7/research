@@ -152,6 +152,9 @@ namespace mjon661 { namespace algorithm {
 			
 
 			while(true) {
+				if(debugCheckMemLimit())
+					throw NoSolutionException("memlimit");
+				
 				Node* n = nullptr;
 				try {
 					n = mOpenList.pop();

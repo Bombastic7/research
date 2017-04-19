@@ -25,7 +25,7 @@ namespace mjon661 { namespace algorithm {
 		using PackedState = typename Domain::PackedState;
 
 		using BaseState = typename D::template Domain<L-1>::State;
-		using AbtSearch_t = BugsyLinearAbtSearch<D, L+1, Bound>;
+		using AbtSearch_t = BugsyAbtLin_abstractSearch<D, L+1, Bound>;
 		
 		struct Node {
 			double ug, uf;
@@ -106,6 +106,7 @@ namespace mjon661 { namespace algorithm {
 			mPrin_calls = 0;
 			mPrin_searches = 0;
 			mPrin_pastPhaseExpds.clear();
+			mPrin_pastCacheSz.clear();
 		}
 
 		void reset() {
@@ -118,11 +119,12 @@ namespace mjon661 { namespace algorithm {
 		}
 		
 		void insertReport(Json& jReport) {
-			unsigned totExpd = 0;
-			for(auto i : mPrin_pastPhaseExpds)
-				totExpd += i;
+			std::vector<unsigned> pastExpd = mPrin_pastPhaseExpds;
+			pastExpd.push_back(mPrin_phaseExpd);
 			
-			totExpd += mPrin_phaseExpd;
+			unsigned totExpd = 0;
+			for(auto i : pastExpd)
+				totExpd += i;
 			
 			std::vector<unsigned> pastCacheSz = mPrin_pastCacheSz;
 			pastCacheSz.push_back(mCache.size());
@@ -131,7 +133,8 @@ namespace mjon661 { namespace algorithm {
 			j["tot_expd"] = totExpd;
 			j["calls"] = mPrin_calls;
 			j["searches"] = mPrin_searches;
-			j["cached_size"] = pastCacheSz;
+			j["phase_expd"] = pastExpd;
+			j["cache_size"] = pastCacheSz;
 			jReport[std::to_string(L)] = j;
 			
 			mAbtSearch.insertReport(jReport);

@@ -32,33 +32,33 @@ namespace mjon661 { namespace experiment {
 		return getJsonLeaf(j[k], pos+1, pKey);
 	}
 	
-	template<typename = void>
-	bool jsonKeyExists(Json& j, unsigned pos, std::vector<std::string> const& pKey) {
-		if(j.count(pKey[pos]))
-			return jsonKeyExists(j.at(pKey[pos])
-		return jsonKeyExists
-		std::string k = pKey[pos];
-		return getJsonLeaf(j[k], pos+1, pKey);
-	}
+	//~ template<typename = void>
+	//~ bool jsonKeyExists(Json& j, unsigned pos, std::vector<std::string> const& pKey) {
+		//~ if(pos == pKey.size())
+			//~ return true;
+		//~ if(j.count(pKey[pos]))
+			//~ return jsonKeyExists(j.at(pKey[pos]), pos+1, pKey);
+		//~ return false;
+	//~ }
 
 
 	template<typename D, template<typename> typename Alg_t>
-	void run_routine(D& pDomStack, Json const& jAlgConfig, Json& jRes, std::vector<std::string> const& pKey, bool pSkipExistingKeys) {
+	void run_routine(D& pDomStack, Json const& jAlgConfig, Json& jRes, std::vector<std::string> const& pKey) {
 		
 		for(auto const& s : pKey) {
 			std::cout << s << " ";
 		}
 		
-		bool skip = false;
-		if(std::find(pSkipKeys.begin(), pSkipKeys.end(), pKey) != pSkipKeys.end()) {
-			std::cout << "skipped";
-			skip = true;
-		}
+		//~ bool skip = false;
+		//~ if(std::find(pSkipKeys.begin(), pSkipKeys.end(), pKey) != pSkipKeys.end()) {
+			//~ std::cout << "skipped";
+			//~ skip = true;
+		//~ }
 		
 		std::cout << "\n";
 		
-		if(skip)
-			return;
+		//~ if(skip)
+			//~ return;
 		
 		Json& jLeaf = getJsonLeaf(jRes, 0, pKey);
 		
@@ -73,7 +73,7 @@ namespace mjon661 { namespace experiment {
 	}
 
 	template<template<typename> typename Alg_t>
-	void select_domain_prob(Json const& jAlgConfig, Json& jRes, std::vector<std::string>& pKey, bool pSkipExistingKeys) {
+	void select_domain_prob(Json const& jAlgConfig, Json& jRes, std::vector<std::string>& pKey) {
 		
 		#ifdef ENABLE_TILES
 		
@@ -89,7 +89,7 @@ namespace mjon661 { namespace experiment {
 				jDomConfig["init"] = tiles::tiles8_instances(i);
 				D domStack(jDomConfig);
 				pKey.push_back(std::to_string(i));
-				run_routine<D, Alg_t>(domStack, jAlgConfig, jRes, pKey, pSkipExistingKeys);
+				run_routine<D, Alg_t>(domStack, jAlgConfig, jRes, pKey);
 				pKey.pop_back();
 			}
 			
@@ -108,7 +108,7 @@ namespace mjon661 { namespace experiment {
 				jDomConfig["init"] = tiles::tiles8_instances(i);
 				D domStack(jDomConfig);
 				pKey.push_back(std::to_string(i));
-				run_routine<D, Alg_t>(domStack, jAlgConfig, jRes, pKey, pSkipExistingKeys);
+				run_routine<D, Alg_t>(domStack, jAlgConfig, jRes, pKey);
 				pKey.pop_back();
 			}
 			
@@ -127,23 +127,23 @@ namespace mjon661 { namespace experiment {
 	
 	
 	template<typename = void>
-	void select_alg_weight(Json& jRes, std::vector<std::string> const& pSkipKeys, bool pSkipExistingKeys) {
+	void select_alg_weight(Json& jRes) {
 		
 		std::vector<UtilityWeights> weights = {UtilityWeights(1,1,"1~1"), UtilityWeights(1,1e3,"1~1e3"), UtilityWeights(1,1e6,"1~1e6")};
 		
 		{
 			std::vector<std::string> key {"astar", "nullweight"};
-			select_domain_prob<SearchAlgTemplateTypes::Astar_t>(Json(), jRes, key, pSkipExistingKeys);
+			select_domain_prob<SearchAlgTemplateTypes::Astar_t>(Json(), jRes, key);
 		}
 		
 		{
 			std::vector<std::string> key {"greedy", "nullweight"};
-			select_domain_prob<SearchAlgTemplateTypes::Greedy_t>(Json(), jRes, key, pSkipExistingKeys);
+			select_domain_prob<SearchAlgTemplateTypes::Greedy_t>(Json(), jRes, key);
 		}
 		
 		{
 			std::vector<std::string> key {"speedy", "nullweight"};
-			select_domain_prob<SearchAlgTemplateTypes::Speedy_t>(Json(), jRes, key, pSkipExistingKeys);
+			select_domain_prob<SearchAlgTemplateTypes::Speedy_t>(Json(), jRes, key);
 		}
 		
 		for(auto const& weight : weights) {
@@ -154,7 +154,7 @@ namespace mjon661 { namespace experiment {
 			
 			{
 				std::vector<std::string> key {"bugsy", weight.str};
-				select_domain_prob<SearchAlgTemplateTypes::Bugsy_Fixed_t>(jAlgConfig, jRes, key, pSkipExistingKeys);
+				select_domain_prob<SearchAlgTemplateTypes::Bugsy_Fixed_t>(jAlgConfig, jRes, key);
 			}
 		}
 	}

@@ -11,6 +11,7 @@
 #include <fstream>
 
 #include <execinfo.h>
+#include <sys/sysinfo.h>
 
 #define DEBUGNONE 0
 #define DEBUGFAST 1
@@ -133,7 +134,33 @@ namespace mjon661 {
 	
 	GblInitImpl<> g_gblInitImpl;
 	
-
+	
+	unsigned g_checkMemLimitCounter;
+	
+	struct GblCheckMemLimitImpl {
+		GblCheckMemLimitImpl() {
+			g_checkMemLimitCounter = 0;
+		}
+	};
+	
+	//Return true if 85+% of system memory used.
+	bool debugCheckMemLimit() {
+		if(g_checkMemLimitCounter % 100 == 0) {
+			struct sysinfo si;
+			if(sysinfo(&si) != 0)
+				logDebug("sysinfo failed.");
+			else {
+				logDebugStream() << "g_checkMemLimitCounter=" << g_checkMemLimitCounter << " freeram=" << si.freeram << " totalram=" << si.totalram << "\n";
+				
+				if((double)si.freeram / si.totalram > 0.85)
+					return true;
+			}
+		}
+		
+		g_checkMemLimitCounter++;
+		return true;
+	}
+	
 	
 	namespace overflow {
 		template<typename T>

@@ -145,20 +145,23 @@ namespace mjon661 {
 	
 	//Return true if 85+% of system memory used.
 	bool debugCheckMemLimit() {
-		if(g_checkMemLimitCounter % 100 == 0) {
+		if(g_checkMemLimitCounter % 10000 == 0) {
 			struct sysinfo si;
 			if(sysinfo(&si) != 0)
 				logDebug("sysinfo failed.");
 			else {
-				logDebugStream() << "g_checkMemLimitCounter=" << g_checkMemLimitCounter << " freeram=" << si.freeram << " totalram=" << si.totalram << "\n";
+				logDebugStream() << "g_checkMemLimitCounter=" << g_checkMemLimitCounter 
+					<< " freeram=" << si.freeram 
+					<< " totalram=" << si.totalram
+					<< " free=" << (double)si.freeram / si.totalram << "\n";
 				
-				if((double)si.freeram / si.totalram > 0.85)
+				if((double)si.freeram / si.totalram < 0.15)
 					return true;
 			}
 		}
 		
 		g_checkMemLimitCounter++;
-		return true;
+		return false;
 	}
 	
 	

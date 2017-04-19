@@ -9,28 +9,28 @@
 
 #include "domain/tiles/fwd.hpp"
 
+#include "experiment/tiles_problems.hpp"
+
+#include "search/debug_walker.hpp"
+
 
 namespace mjon661 {
 	
-	template<typename = void>
-	Json& getJsonLeaf(Json& j, unsigned pos, std::vector<std::string>& pKey) {
-		if(pos == pKey.size())
-			return j;
-		std::string k = pKey[pos];
-		return getJsonLeaf(j[k], pos+1, pKey);
-	}
-	
+
 	
 	static void run() {
-		Json j;
+		Json jDomConfig;
+		jDomConfig["init"] = tiles::tiles8_instances(0);
+		jDomConfig["kept"] = tiles::tiles_abtfirst5(8);
+		jDomConfig["goal"] = tiles::tiles_defgoal(9);
 		
-		//std::vector<std::string> v = {"foo", "bar", "baz"};
-		std::vector<std::string> v = {};
-		Json& jLeaf = getJsonLeaf(j, 0, v);
+		using D = tiles::TilesGeneric_DomainStack<3,3,true,true,5>;
 		
-		jLeaf["lorem"] = "ipsum";
+		D domStack(jDomConfig);
 		
-		std::cout << j.dump(2) << "\n";
+		algorithm::DebugWalker<D> alg(domStack, Json());
+		
+		alg.execute(domStack.getInitState());
 	}
 }
 

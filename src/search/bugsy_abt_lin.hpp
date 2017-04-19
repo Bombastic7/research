@@ -142,7 +142,7 @@ namespace mjon661 { namespace algorithm {
 
 		void setEdgeWeights(double pCostWeight, double pDistWeight) {
 			mPrin_costWeight = pCostWeight;
-			mPrin_cistWeight = pDistWeight;
+			mPrin_distWeight = pDistWeight;
 			
 			mPrin_pastPhaseExpds.push_back(mPrin_phaseExpd);
 			mPrin_phaseExpd = 0;
@@ -232,7 +232,7 @@ namespace mjon661 { namespace algorithm {
 				
 				//mLog_gend++;
 				
-				double kid_ug = n->ug + edgeIt.cost() * mCostWeight + mDistWeight;
+				double kid_ug = n->ug + edgeIt.cost() * mPrin_costWeight + mPrin_distWeight;
 
 				Node* kid_dup = mClosedList.find(kid_pkd);
 
@@ -558,7 +558,6 @@ namespace mjon661 { namespace algorithm {
 			fast_assert(mGoalNode);
 			
 			j["goal_g"] = mGoalNode->g;
-			j["goal_f"] = mGoalNode->f;
 			
 			unsigned goal_depth = 0;
 			for(Node* m = mGoalNode->parent; m; m=m->parent) {

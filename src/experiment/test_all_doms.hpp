@@ -12,6 +12,7 @@
 
 #include "search/astar.hpp"
 #include "search/bugsy.hpp"
+#include "search/bugsy_abt_lin.hpp"
 
 #include "domain/tiles/fwd.hpp"
 
@@ -78,12 +79,12 @@ namespace mjon661 { namespace experiment {
 		#ifdef ENABLE_TILES
 		
 		{
-			using D = tiles::TilesGeneric_DomainStack<3,3,true,false,1>;
+			using D = tiles::TilesGeneric_DomainStack<3,3,true,false,5>;
 			pKey.push_back("tiles8");
 			
 			Json jDomConfig;
 			jDomConfig["goal"] = tiles::tiles_defgoal(9);
-			jDomConfig["kept"] = tiles::tiles_abtnullkept(9);
+			jDomConfig["kept"] = tiles::tiles_abtfirst5(8);
 				
 			for(unsigned i=0; i<5; i++) {
 				jDomConfig["init"] = tiles::tiles8_instances(i);
@@ -97,12 +98,12 @@ namespace mjon661 { namespace experiment {
 		}
 		
 		{
-			using D = tiles::TilesGeneric_DomainStack<3,3,true,true,1>;
+			using D = tiles::TilesGeneric_DomainStack<3,3,true,true,5>;
 			pKey.push_back("tiles8w");
 			
 			Json jDomConfig;
 			jDomConfig["goal"] = tiles::tiles_defgoal(9);
-			jDomConfig["kept"] = tiles::tiles_abtnullkept(9);
+			jDomConfig["kept"] = tiles::tiles_abtfirst5(8);
 				
 			for(unsigned i=0; i<5; i++) {
 				jDomConfig["init"] = tiles::tiles8_instances(i);
@@ -122,7 +123,8 @@ namespace mjon661 { namespace experiment {
 		template<typename D> using Astar_t = algorithm::Astar<D, algorithm::AstarSearchMode::Standard, algorithm::AstarHrMode::DomainHr>;
 		template<typename D> using Greedy_t = algorithm::Astar<D, algorithm::AstarSearchMode::Greedy, algorithm::AstarHrMode::DomainHr>;
 		template<typename D> using Speedy_t = algorithm::Astar<D, algorithm::AstarSearchMode::Speedy, algorithm::AstarHrMode::DomainHr>;
-		template<typename D> using Bugsy_Fixed_t = algorithm::Bugsy<D, true>;
+		template<typename D> using Bugsy_domhr_Fixed_t = algorithm::Bugsy<D, true>;
+		template<typename D> using Bugsy_abtlin_Fixed_t = algorithm::BugsyAbtLin_baseSearch<D, true>;
 	};
 	
 	
@@ -153,8 +155,12 @@ namespace mjon661 { namespace experiment {
 			jAlgConfig["exptime"] = 3e-6;
 			
 			{
-				std::vector<std::string> key {"bugsy", weight.str};
-				select_domain_prob<SearchAlgTemplateTypes::Bugsy_Fixed_t>(jAlgConfig, jRes, key);
+				std::vector<std::string> key {"bugsy_domhr_fixed", weight.str};
+				select_domain_prob<SearchAlgTemplateTypes::Bugsy_domhr_Fixed_t>(jAlgConfig, jRes, key);
+			}
+			{
+				std::vector<std::string> key {"bugsy_abtlin_fixed", weight.str};
+				select_domain_prob<SearchAlgTemplateTypes::Bugsy_abtlin_Fixed_t>(jAlgConfig, jRes, key);
 			}
 		}
 	}

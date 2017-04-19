@@ -99,4 +99,15 @@ namespace mjon661 { namespace tiles {
 	std::vector<int> tiles_abtnullkept(unsigned i) {
 		return std::vector<int>(i-1, 1);
 	}
+	
+	std::vector<int> tiles_abtfirst5(unsigned n) {
+		//1,2,3,4,... n-2, n-1
+		//5,4,3,2,1...
+		
+		std::vector<int> v(n, 1);
+		for(unsigned i=0; i<4; i++)
+			v[i] = 5 - i;
+		
+		return v;
+	}
 }}

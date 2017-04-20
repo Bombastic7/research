@@ -3,7 +3,7 @@
 #include "domain/gridnav/dim2/common.hpp"
 
 
-namespace mjon661 { namespace gridnav {
+namespace mjon661 { namespace gridnav { namespace dim2 {
 
 
 
@@ -16,9 +16,8 @@ namespace starabt {
 		}
 	};
 	
-	template<typename AdjEdgeIt>
+	template<typename Cost_t, typename AdjEdgeIt>
 	struct StarAbtInfo {
-		
 
 		using Trns_t = std::vector<unsigned>;
 		using Edge_t = std::pair<unsigned, Cost_t>;
@@ -27,19 +26,20 @@ namespace starabt {
 		
 		
 
-		std::vector<EdgeList_t> mLevels;
+		std::vector<LevelEntry_t> mLevels;
 		std::vector<Trns_t> mAllTrns;
+		Trns_t mBaseTrns;
+		
 		const unsigned mMaxDepth;
 		
 		
 		bool gen_base(CellMap2D<> const& pCellMap) {
-			mAllTrns.emplace_back();
-			mAllTrns[0].resize(pCellMap.cells().size(), (unsigned)-1);
+			mBaseTrns.resize(pCellMap.cells().size(), (unsigned)-1);
 			
 			unsigned c = 0;
 			for(unsigned i=0; i<pCellMap.cells().size(); i++) {
 				if(pCellMap.cells()[i] == CellMap2D<>::Cell_t::Open)
-					mAllTrns[0][i] = c++;
+					mBaseTrns[i] = c++;
 			}
 		
 			mLevels.emplace_back();
@@ -48,14 +48,15 @@ namespace starabt {
 			bool isTrivial = true;
 			
 			for(unsigned i=0; i<pCellMap.cells().size(); i++) {
-				if(pCellMap.cells()[i] == CellMap2D<>::Cell_t::Open)
+				if(pCellMap.cells()[i] == CellMap2D<>::Cell_t::Open) {
 					AdjEdgeIt it(pCellMap, i);
 					
 					while(!it.finished()) {
-						mLevel[0][ mAllTrns[0][i] ].push_back(mAllTrns[0][it.state()], it.cost());
+						mLevels[0][ mBaseTrns[i] ].push_back({mBaseTrns[it.state()], it.cost()});
 						it.next();
 						isTrivial = false;
 					}
+				}
 			}
 			
 			return isTrivial;
@@ -75,9 +76,12 @@ namespace starabt {
 		
 		
 		unsigned gen_trns(unsigned curlvl) {
+			fast_assert(mLevels.size() == curlvl+1);
+			fast_assert(mAllTrns.size() == curlvl);
+			
 			std::vector<std::pair<unsigned,unsigned>> hublist;
 			for(unsigned i=0; i<mLevels.at(curlvl).size(); i++)
-				hublist.push_back(mLevels[curlvl][i].size(), i);
+				hublist.push_back({mLevels[curlvl][i].size(), i});
 				
 			std::sort(hublist.begin(), hublist.end(), HubPrioComp());
 			
@@ -87,8 +91,8 @@ namespace starabt {
 			mAllTrns.at(curlvl).resize(mLevels.at(curlvl).size(), (unsigned)-1);
 			
 			for(auto const& hb : hublist) {
-				if(mapAbtRec(curlvl, s, s, 0) == 1)
-					sgl.push_back(s);
+				if(mapAbtRec(curlvl, hb.second, hb.second, 0) == 1)
+					sgl.push_back(hb.second);
 			}
 			
 			for(unsigned s : sgl) {
@@ -98,7 +102,7 @@ namespace starabt {
 				}
 			}
 			
-			std::map<unsigned, unsigned rlblmap;
+			std::map<unsigned, unsigned> rlblmap;
 			unsigned c = 0;
 			
 			for(unsigned i=0; i<mAllTrns[curlvl].size(); i++) {
@@ -111,19 +115,31 @@ namespace starabt {
 			return c;
 		}
 		
-		void gen_edges(unsigned curlvl, unsigned nstates) {
+		bool gen_edges(unsigned curlvl, unsigned nstates) {
+			fast_assert(mLevels.size() == curlvl);
+			fast_assert(mAllTrns.size() == curlvl);
+			
 			mLevels.emplace_back();
 			mLevels.at(curlvl).resize(nstates);
 			
+			bool isTrivial = true;
+			
 			for(unsigned bsrc=0; bsrc<mLevels.at(curlvl-1).size(); bsrc++) {
 				
-				for(auto const& be : mLevels[curlvl-1][bsrc]) {
+				for(auto const& be : mLevels[curlvl-1][bsrc]) {					
 					unsigned bdst = be.first;
+					unsigned asrc = mAllTrns[curlvl-1][bsrc];
+					unsigned adst = mAllTrns[curlvl-1][bdst];
+					
+					if(asrc == adst)
+						continue;
+					
+					isTrivial = false;
 					
 					bool existing = false;
 					
-					for(auto& e : mLevels[curlvl][mAllTrns[bsrc]]) {
-						if(e.first == mAllTrns.at(bdst)) {
+					for(auto& e : mLevels[curlvl][asrc]) {
+						if(e.first == adst) {
 							existing = true;
 							
 							if(e.second > be.second)
@@ -133,26 +149,83 @@ namespace starabt {
 					}
 					
 					if(!existing)
-						mLevels[curlvl][mAllTrns[bsrc]].push_back({mAllTrns.at(bdst), be.cst});
-				}	
+						mLevels[curlvl][asrc].push_back({adst, be.second});
+				}
 			}
+			
+			return isTrivial;
 		}
 		
-		StarAbtInfo(CellMap2D<> const& mCellMap, unsigned pMaxDepth) :
+		//mLevels[i] has edges for level i.
+		//mAllTrns[i] maps level i states to level i+1.
+		
+		StarAbtInfo(CellMap2D<> const& pCellMap, unsigned pMaxDepth) :
 			mMaxDepth(pMaxDepth)
 		{
 			mLevels.clear();
 			mAllTrns.clear();
 			
-			bool isTrivial = gen_base(mCellMap);
-			
-			unsigned curlvl = 1;
+			bool isTrivial = gen_base(pCellMap);
+
+			unsigned curlvl = 0;
 			
 			while(!isTrivial) {
-				unsigned nstates = gen_trns(curlvl-1);
-				isTrivial = gen_edges(curlvl, nstates);
+				unsigned nstates = gen_trns(curlvl);
+				isTrivial = gen_edges(curlvl+1, nstates);
+				curlvl++;
 			}
 		}
+		
+		
+		void draw(CellMap2D<> const& pCellMap, std::ostream& out) const {
+			
+			std::vector<unsigned> s(pCellMap.cells().size(), (unsigned)-1);
+			
+			for(unsigned i=0; i<pCellMap.cells().size(); i++) {
+				if(pCellMap.cells()[i] == CellMap2D<>::Cell_t::Open)
+					s[i] = mBaseTrns[i];
+			}
+			
+			unsigned curlvl = 0;
+			
+			while(true) {
+				std::cout << curlvl << ":\n";
+			
+				for(unsigned i=0; i<pCellMap.getHeight(); i++) {
+					for(unsigned j=0; j<pCellMap.getWidth(); j++) {
+						if(s[i*pCellMap.getWidth()+j] == (unsigned)-1)
+							std::cout << " ";
+						else
+							std::cout << s[i*pCellMap.getWidth()+j] % 10;
+					}
+					std::cout << "\n";
+				}
+				
+				std::cout << "\n";
+				
+				for(unsigned i=0; i<mLevels[curlvl].size(); i++) {
+					std::cout << i << ": ";
+					for(auto const& e : mLevels[curlvl][i]) {
+						std::cout << "(" << e.first << "," << e.second << ") ";
+					}
+					std::cout << "\n";
+				}
+				
+				std::cout << "\n\n";
+			
+				if(curlvl == mLevels.size()-1)
+					break;
+
+				
+				for(unsigned i=0; i<pCellMap.cells().size(); i++) {
+					if(pCellMap.cells()[i] == CellMap2D<>::Cell_t::Open)
+						s[i] = mAllTrns[curlvl][s[i]];
+				}
+			
+				curlvl++;
+			}
+		}
+			
 	};
 	
 
@@ -163,4 +236,4 @@ namespace starabt {
 
 
 
-}}
+}}}

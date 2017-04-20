@@ -9,18 +9,35 @@
 
 #include "domain/tiles/fwd.hpp"
 
-#include "experiment/tiles_problems.hpp"
+//#include "experiment/tiles_problems.hpp"
 
-#include "search/debug_walker.hpp"
-#include "search/bugsy.hpp"
-#include "search/bugsy_abt_lin.hpp"
+//#include "search/debug_walker.hpp"
+//#include "search/bugsy.hpp"
+//#include "search/bugsy_abt_lin.hpp"
 
+#include "domain/gridnav/dim2/common.hpp"
+#include "domain/gridnav/dim2/fourway.hpp"
+#include "domain/gridnav/dim2/starabt.hpp"
 
 namespace mjon661 {
 	
+	static void run() {
+		
+		gridnav::dim2::CellMap2D<> cellmap;
+		cellmap.setRandom(100,100,0,0.35);
+		
+		cellmap.drawCells(std::cout);
+		
+		gridnav::dim2::starabt::StarAbtInfo<
+			gridnav::dim2::fourway::Cost_t,
+			gridnav::dim2::fourway::BaseEdgeIterator<false>
+			> abtinfo(cellmap, 2);
+		
+		abtinfo.draw(cellmap, std::cout);
+	}
 
 	
-	static void run() {
+	//~ static void run() {
 		//~ Json jDomConfig;
 		//~ jDomConfig["init"] = tiles::tiles15_instances_korf(0);
 		//~ jDomConfig["kept"] = tiles::tiles_abtfirst7(15);
@@ -45,18 +62,18 @@ namespace mjon661 {
 		//~ alg.execute(domStack.getInitState());
 		
 		
-		Json j;
+		//~ Json j;
 		
-		std::cout << j.empty() << "\n";
+		//~ std::cout << j.empty() << "\n";
 		
-		j["foo"] = {{"bar","baz"}};
-		j["lorem"] = {};
+		//~ j["foo"] = {{"bar","baz"}};
+		//~ j["lorem"] = {};
 		
-		std::cout << j.empty() << "\n";
+		//~ std::cout << j.empty() << "\n";
 		
-		std::cout << j.at("foo").empty() << "\n";
-		std::cout << j.at("lorem").empty() << "\n";
-	}
+		//~ std::cout << j.at("foo").empty() << "\n";
+		//~ std::cout << j.at("lorem").empty() << "\n";
+	//~ }
 }
 
 

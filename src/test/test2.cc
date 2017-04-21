@@ -17,6 +17,7 @@
 
 #include "domain/gridnav/dim2/common.hpp"
 #include "domain/gridnav/dim2/fourway.hpp"
+#include "domain/gridnav/dim2/eightway.hpp"
 #include "domain/gridnav/dim2/starabt.hpp"
 
 namespace mjon661 {
@@ -24,13 +25,13 @@ namespace mjon661 {
 	static void run() {
 		
 		gridnav::dim2::CellMap2D<> cellmap;
-		cellmap.setRandom(100,100,0,0.35);
+		cellmap.setRandom(100,100,0,0.45);
 		
 		cellmap.drawCells(std::cout);
 		
 		gridnav::dim2::starabt::StarAbtInfo<
-			gridnav::dim2::fourway::Cost_t,
-			gridnav::dim2::fourway::BaseEdgeIterator<false>
+			gridnav::dim2::eightway::Cost_t,
+			gridnav::dim2::eightway::BaseEdgeIterator<true>
 			> abtinfo(cellmap, 2);
 		
 		abtinfo.draw(cellmap, std::cout);

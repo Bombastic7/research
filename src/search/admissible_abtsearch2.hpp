@@ -170,7 +170,7 @@ namespace mjon661 { namespace algorithm {
 				slow_assert(ent->exact);
 			}
 			
-			logDebugStream() << "ent->hx=" << ent->hx << " ent->w=" << ent->w << "\n";
+			//logDebugStream() << "ent->hx=" << ent->hx << " ent->w=" << ent->w << "\n";
 			
 			return {ent->hx, ent->w};
 		}
@@ -220,7 +220,7 @@ namespace mjon661 { namespace algorithm {
 			mLog_expd++;
 			mLog_totExpd++;
 
-			logDebugStream() << "n->x=" << n->x << " n->y=" << n->y << " n->w=" << n->w << "\n";
+			//logDebugStream() << "n->x=" << n->x << " n->y=" << n->y << " n->w=" << n->w << "\n";
 
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			

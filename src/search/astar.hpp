@@ -10,7 +10,7 @@
 #include "util/exception.hpp"
 #include "util/time.hpp"
 
-#include "search/admissible_abtsearch.hpp"
+#include "search/hierarchical_simple.hpp"
 
 namespace mjon661 { namespace algorithm {
 
@@ -125,8 +125,8 @@ namespace mjon661 { namespace algorithm {
 			}
 			
 			private:
-			AdmissibleAbtSearch<D,1,D::Top_Abstract_Level+1,true> mAbtSearch_cost;
-			AdmissibleAbtSearch<D,1,D::Top_Abstract_Level+1,false> mAbtSearch_dist;
+			HierarchicalSearch_simple<D,1,D::Top_Abstract_Level+1,true> mAbtSearch_cost;
+			HierarchicalSearch_simple<D,1,D::Top_Abstract_Level+1,false> mAbtSearch_dist;
 		};
 		
 		

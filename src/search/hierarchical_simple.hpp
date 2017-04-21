@@ -13,19 +13,28 @@
 
 namespace mjon661 { namespace algorithm {
 
-
-
+	//Standard hierarchical A*. Set Bound to [top abstract level used] + 1.
+	//Set Min_Cost true to search on edge weight (minimise solution cost), else search minimises solution depth.
+	//Domain used is level L of domain stack D. Heuristics derived from level L+1. getHrVal() accepts a state from level L-1.
+	
 	template<typename D, unsigned L, unsigned Bound, bool Min_Cost>
-	class AdmissibleAbtSearch {
+	class HierarchicalSearch_simple {
 		public:
 
 		using Domain = typename D::template Domain<L>;
-		using Cost = typename Domain::Cost;
+		using Dom_Cost_t = typename Domain::Cost;
 		using State = typename Domain::State;
 		using PackedState = typename Domain::PackedState;
 
 		using BaseState = typename D::template Domain<L-1>::State;
-		using AbtSearch_t = AdmissibleAbtSearch<D, L+1, Bound, Min_Cost>;
+		using AbtSearch_t = HierarchicalSearch_simple<D, L+1, Bound, Min_Cost>;
+		
+		
+		template<bool, typename = void> struct CostType_t;
+		template<typename Ign> struct CostType_t<true,Ign> { using type = Dom_Cost_t; };
+		template<typename Ign> struct CostType_t<false,Ign> { using type = unsigned; };
+		
+		using Cost = typename CostType_t<Min_Cost>::type;
 		
 		struct Node {
 			Cost g, f;
@@ -87,7 +96,7 @@ namespace mjon661 { namespace algorithm {
 		
 		
 		
-		AdmissibleAbtSearch(D& pDomStack, Json const& jConfig) :
+		HierarchicalSearch_simple(D& pDomStack, Json const& jConfig) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
@@ -101,6 +110,12 @@ namespace mjon661 { namespace algorithm {
 			reset();
 		}
 
+		void resetAll() {
+			reset();
+			mLog_totExpd = mLog_totCalls = mLog_totSearches = 0;
+			mCache.clear();
+		}
+		
 		void reset() {
 			mOpenList.clear();
 			mClosedList.clear();
@@ -132,9 +147,8 @@ namespace mjon661 { namespace algorithm {
 			mAbtSearch.insertReport(jReport);
 		}
 
-
 		
-		double getHrVal(BaseState const& pBaseState) {
+		Cost getHrVal(BaseState const& pBaseState) {
 			mLog_totCalls++;			
 			
 			State s;
@@ -160,7 +174,7 @@ namespace mjon661 { namespace algorithm {
 			{
 				Node* n0 = mNodePool.construct();
 
-				n0->g = 		0;
+				n0->g = 		Cost(0);
 				n0->parent = 	nullptr;
 
 				mDomain.packState(s0, n0->pkd);
@@ -274,7 +288,7 @@ namespace mjon661 { namespace algorithm {
 				if(mOpenList.contains(n))
 					continue;
 				
-				double pghr = mGoalNode->f - n->g;
+				Cost pghr = mGoalNode->f - n->g;
 				
 				CacheEntry* ent = mCache.retrieve(n->pkd);
 				slow_assert(ent);
@@ -311,22 +325,19 @@ namespace mjon661 { namespace algorithm {
 		AbtSearch_t mAbtSearch;
 		
 		Node* mGoalNode, *mBestExactNode;
-		double mCostWeight, mDistWeight;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
-		
 		unsigned mLog_totExpd;
-		
 		unsigned mLog_totCalls, mLog_totSearches;
 	};
 	
 	
 	template<typename D, unsigned Bound, bool Min_Cost>
-	struct AdmissibleAbtSearch<D, Bound, Bound, Min_Cost> {
+	struct HierarchicalSearch_simple<D, Bound, Bound, Min_Cost> {
 		
 		using BaseState = typename D::template Domain<Bound-1>::State;
 		
-		AdmissibleAbtSearch(D&, Json const&) {}
+		HierarchicalSearch_simple(D&, Json const&) {}
 		
 		double getHrVal(BaseState const&) {
 			return 0;

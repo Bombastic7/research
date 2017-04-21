@@ -1,7 +1,10 @@
 #pragma once
 
-#include <limits>
+#include <map>
 #include <string>
+#include <cstdio>
+#include <queue>
+
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
 #include "search/nodepool.hpp"
@@ -9,17 +12,52 @@
 #include "util/debug.hpp"
 #include "util/json.hpp"
 #include "util/exception.hpp"
-#include "util/math.hpp"
+#include "util/time.hpp"
 
-#include "search/hierarchical_simple.hpp"
 
-#include "search/astar.hpp"
 
+/*
+
+OP_distVal = { domhr, abthr, depth+domhr, depth+abthr }
+
+
+BugsyHardBF(s0):
+	n0 = {state=s0, g=0, depth=0, u=0, parent=null}
+	
+	openlist.push(n0)
+	closedlist.push(n0)
+	
+	loop:
+		n = openlist.pop()
+		//return if n.state is goal
+		
+		foreach edge (c,cost) of n.state:
+			//if c is state of parent of n, continue
+			
+			nc = {state=c, g=n+cost, depth=n+1, u=eval_u(...), parent=n}
+			
+			if(c has already been encountered and nc.u is lower than duplicate's):
+				replace duplicate with nc, push/update nc onto openlist
+
+
+eval_u(...):
+	remexp = bf ** abthr(s, bf, rollingdelay)
+	wf * g + wt * exptime * remexp
+
+
+
+d = k * delay * D
+
+ 
+*/
 
 namespace mjon661 { namespace algorithm {
 
-	template<typename D, AstarSearchMode Search_Mode, AstarHrMode Hr_Mode>
-	class Astar_testing {
+
+
+
+	template<typename D>
+	class BugsyHardBF {
 		public:
 
 		using Domain = typename D::template Domain<0>;
@@ -28,66 +66,15 @@ namespace mjon661 { namespace algorithm {
 		using PackedState = typename Domain::PackedState;
 
 		
-		
-		template<AstarHrMode, typename = void>
-		struct HrModule;
-		
-		template<typename Ign>
-		struct HrModule<AstarHrMode::DomainHr, Ign> {
-			HrModule(D& pDomStack, Domain const& pDomain, Json const& jConfig) :
-				mDomain(pDomain)
-			{}
-			
-			Cost costHeuristic(State const& s) {
-				return mDomain.costHeuristic(s);
-			}
-			
-			Cost distanceHeuristic(State const& s) {
-				return mDomain.distanceHeuristic(s);
-			};
-						
-			void insertReport(Json& jReport) {}
-			
-			private:
-			Domain const& mDomain;
-		};
-		
-		template<typename Ign>
-		struct HrModule<AstarHrMode::AbtHr, Ign> {
-			HrModule(D& pDomStack, Domain const& pDomain, Json const& jConfig) :
-				mAbtSearch_cost(pDomStack, jConfig),
-				mAbtSearch_dist(pDomStack, jConfig)
-			{}
-			
-			Cost costHeuristic(State const& s) {
-				return mAbtSearch_cost.getHrVal(s);
-			}
-			
-			Cost distanceHeuristic(State const& s) {
-				return mAbtSearch_dist.getHrVal(s);
-			};
-			
-			void insertReport(Json& jReport) {
-				Json j;
-				j["cost_abt"] = Json();
-				mAbtSearch_cost.insertReport(j.at("cost_abt"));
-				j["dist_abt"] = Json();
-				mAbtSearch_dist.insertReport(j.at("dist_abt"));
-				jReport["hrmod"] = j;
-			}
-			
-			private:
-			HierarchicalSearch_simple<D,1,D::Top_Abstract_Level+1,true> mAbtSearch_cost;
-			HierarchicalSearch_simple<D,1,D::Top_Abstract_Level+1,false> mAbtSearch_dist;
-		};
-		
-		
 		struct Node {
 			Cost g, f;
+			unsigned depth;
+			double u;
+			unsigned expdAtGen;
 			PackedState pkd;
 			Node* parent;
 		};
-		
+
 
 
 		struct ClosedOps {
@@ -113,16 +100,14 @@ namespace mjon661 { namespace algorithm {
 		
 		struct OpenOps {
 			bool operator()(Node * const a, Node * const b) const {
-				if(Search_Mode == AstarSearchMode::Greedy || Search_Mode == AstarSearchMode::Speedy)
-					return a->f < b->f;
-				else if(Search_Mode == AstarSearchMode::Uninformed)
-					return a->g < b->g;
-				
+				if(a->u != b->u)
+					return a->u < b->u;
 				if(a->f != b->f)
 					return a->f < b->f;
 				return a->g > b->g;
 			}
 		};
+		
 		
 		
 		using OpenList_t = OpenList<Node, Node, OpenOps>;
@@ -141,13 +126,15 @@ namespace mjon661 { namespace algorithm {
 		
 		
 		
-		Astar_testing(D& pDomStack, Json const& jConfig) :
+		BugsyHardBF(D& pDomStack, Json const& jConfig) :
 			mDomain				(pDomStack),
 			mOpenList			(OpenOps()),
 			mClosedList			(ClosedOps(mDomain), ClosedOps(mDomain)),
 			mNodePool			(),
-			mHrModule			(pDomStack, mDomain, jConfig),
-			mParam_hrWeight		(Search_Mode == AstarSearchMode::Weighted ? jConfig.at("hr_weight").get<double>() : 0)
+			mParam_wf			(jConfig.at("wf")),
+			mParam_wt			(jConfig.at("wt")),
+			mParam_bf			(jConfig.at("bf")),
+			mParam_stExpTime	(jConfig.at("exptime").get<double>())
 		{}
 
 		void reset() {
@@ -157,11 +144,15 @@ namespace mjon661 { namespace algorithm {
 
 			mLog_expd = mLog_gend = mLog_dups = mLog_reopnd = 0;
 			
-			mGoalNode = nullptr;
-			
-			mTest_maxf = 0;
-		}
+			mGoalNode = nullptr;		
 
+			mLog_curExpTime = mParam_stExpTime;
+
+			mLog_searchTimer.start();
+
+			mLog_pastExpTimes.clear();
+			mLog_pastExpTimes.push_back(mLog_curExpTime);
+		}
 		
 		void execute(State const& s0) {
 			doSearch(s0);
@@ -173,6 +164,7 @@ namespace mjon661 { namespace algorithm {
 				Node* n0 = mNodePool.construct();
 
 				n0->g = 		Cost(0);
+				n0->depth =		0;
 				n0->parent = 	nullptr;
 				
 				evalHr(n0, s0);
@@ -181,10 +173,13 @@ namespace mjon661 { namespace algorithm {
 				
 				mOpenList.push(n0);
 				mClosedList.add(n0);
-			}			
+			}
 			
 
 			while(true) {
+				if(mLog_expd % 10000 == 0 && debugCheckMemLimit())
+					throw NoSolutionException("memlimit");
+				
 				Node* n = nullptr;
 				try {
 					n = mOpenList.pop();
@@ -197,14 +192,14 @@ namespace mjon661 { namespace algorithm {
 
 				if(mDomain.checkGoal(s)) {
 					mGoalNode = n;
-					gen_assert(mTest_maxf <= n->f);
-					gen_assert(n->g == n->f);
 					break;
 				}
 				
 				expand(n, s);
 			}
+			mLog_searchTimer.stop();
 		}
+		
 		
 		
 		Json report() {
@@ -213,42 +208,27 @@ namespace mjon661 { namespace algorithm {
 			j["gend"] = mLog_gend;
 			j["reopnd"] = mLog_reopnd;
 			j["dups"] = mLog_dups;
-			j["search_mode"] = astarSearchModeStr(Search_Mode);
-			j["hr_mode"] = astarHrModeStr(Hr_Mode);
+			j["wf"] = mParam_wf;
+			j["wt"] = mParam_wt;
+			j["hard_bf"] = mParam_bf;
 			
-			if(Search_Mode == AstarSearchMode::Weighted)
-				j["hr_weight"] = mParam_hrWeight;
-
-			if(mGoalNode) {
-				j["goal_g"] = (double)mGoalNode->g;
-				j["goal_f"] = (double)mGoalNode->f;
-				
-				unsigned goal_depth = 0;
-				for(Node* m = mGoalNode; m; m=m->parent) {
-					goal_depth++;
-				}
-				goal_depth -= 1;
-
-				j["goal_depth"] = goal_depth;
+			j["wall_time"] = mLog_searchTimer.wallSeconds();
+			j["cpu_time"] = mLog_searchTimer.cpuSeconds();
+			
+			fast_assert(mGoalNode);
+			
+			j["goal_g"] = mGoalNode->g;
+			j["goal_f"] = mGoalNode->f;
+			
+			unsigned goal_depth = 0;
+			for(Node* m = mGoalNode->parent; m; m=m->parent) {
+				goal_depth++;
 			}
 			
-			mHrModule.insertReport(j);
-			
-			std::vector<double> hr_est;
-			
-			for(Node* n=mGoalNode; n; n=n->parent) {
-				Cost hrval = n->f - n->g;
-				Cost costToGo = mGoalNode->g - n->g;
-				
-				std::cout << hrval << " " << costToGo << "\n";
-				
-				gen_assert(hrval <= costToGo);
-				
-				if(costToGo != Cost(0))
-					hr_est.push_back((double)hrval / costToGo);
-			}
-			
-			j["hr_est"] = hr_est;
+			j["goal_depth"] = goal_depth;
+
+			j["past_delays"] = mLog_pastDelays;
+			j["past_exptimes"] = mLog_pastExpTimes;
 			return j;
 		}
 		
@@ -260,8 +240,6 @@ namespace mjon661 { namespace algorithm {
 		void expand(Node* n, State& s) {
 			mLog_expd++;
 			
-			mTest_maxf = mathutil::max(mTest_maxf, n->f);
-
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
 			for(; !edgeIt.finished(); edgeIt.next()) {
@@ -275,14 +253,17 @@ namespace mjon661 { namespace algorithm {
 				mLog_gend++;
 				
 				Cost kid_g = n->g + edgeIt.cost();
-
+				unsigned kid_depth = n->depth + 1;
+				
 				Node* kid_dup = mClosedList.find(kid_pkd);
 
 				if(kid_dup) {
 					mLog_dups++;
 					if(kid_dup->g > kid_g) {
 						kid_dup->g			= kid_g;
+						kid_dup->depth		= kid_depth;
 						kid_dup->parent		= n;
+						kid_dup->expdAtGen	= mLog_expd;
 						
 						evalHr(kid_dup, edgeIt.state());
 						
@@ -297,8 +278,10 @@ namespace mjon661 { namespace algorithm {
 					Node* kid_node 		= mNodePool.construct();
 
 					kid_node->g 		= kid_g;
+					kid_node->depth		= kid_depth;
 					kid_node->pkd 		= kid_pkd;
 					kid_node->parent	= n;
+					kid_node->expdAtGen	= mLog_expd;
 					
 					evalHr(kid_node, edgeIt.state());
 
@@ -310,32 +293,26 @@ namespace mjon661 { namespace algorithm {
 		
 
 		void evalHr(Node* n, State const& s) {
-			if(Search_Mode == AstarSearchMode::Standard)
-				n->f = n->g + mHrModule.costHeuristic(s);
-			else if(Search_Mode == AstarSearchMode::Weighted)
-				gen_assert(false);
-				//n->f = n->g + mParam_hrWeight * mHrModule.costHeuristic(s);
-			else if(Search_Mode == AstarSearchMode::Greedy)
-				n->f = mHrModule.costHeuristic(s);
-			else if(Search_Mode == AstarSearchMode::Speedy)
-				n->f = mHrModule.distanceHeuristic(s);
-			else
-				n->f = n->g;
+			n->f = n->g + mDomain.costHeuristic(s);			
+			n->u = mParam_wf * n->f + (unsigned) std::round(mParam_wt * mLog_curExpTime * std::pow(mParam_bf, n->depth));
 		}
 		
-
-
+	
+		
 		Domain mDomain;
 		OpenList_t mOpenList;
 		ClosedList_t mClosedList;
 		NodePool_t mNodePool;
-		HrModule<Hr_Mode> mHrModule;
-		const double mParam_hrWeight;
+		const double mParam_wf, mParam_wt, mParam_bf, mParam_stExpTime;
 		
 		Node* mGoalNode;
 		
 		unsigned mLog_expd, mLog_gend, mLog_dups, mLog_reopnd;
 		
-		Cost mTest_maxf;
+		double mLog_curExpTime;
+		
+		std::vector<double> mLog_pastDelays, mLog_pastExpTimes;
+		
+		Timer mLog_resortTimer, mLog_searchTimer;
 	};
 }}

@@ -5,8 +5,6 @@
 #include <array>
 #include <algorithm>
 
-#pragma once
-
 #include <iostream>
 
 #include "util/debug.hpp"

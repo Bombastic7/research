@@ -108,7 +108,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		}
 		
 
-		std::pair<unsigned,unsigned> genRandomInitAndGoal(double pMinDist, unsigned pSeed) {
+		std::pair<unsigned,unsigned> genRandomInitAndGoal(double pMinDist, unsigned pSeed, unsigned pSkip) {
 			std::mt19937 randgen(pSeed);
 			std::uniform_int_distribution<unsigned> dist(0, mCellMap.size()-1);
 			
@@ -116,8 +116,8 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			
 			while(true) {
 				tries++;
-				if(tries == 1000)
-					throw std::runtime_error("");
+				if(tries == 10000)
+					throw std::runtime_error("genRandomInitAndGoal: too many tries.");
 					
 				unsigned i = dist(randgen), g = dist(randgen);
 				
@@ -138,6 +138,11 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 				
 				if(abt_init != abt_goal)
 					continue;
+				
+				if(pSkip > 0) {
+					pSkip--;
+					continue;
+				}
 				
 				return {i, g};
 			}

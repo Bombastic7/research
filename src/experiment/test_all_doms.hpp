@@ -9,17 +9,19 @@
 
 #include "experiment/common.hpp"
 #include "experiment/tiles_problems.hpp"
+#include "experiment/gridnav_problems.hpp"
 
 #include "search/astar.hpp"
 #include "search/bugsy.hpp"
 #include "search/bugsy_abt_lin.hpp"
 
 #include "domain/tiles/fwd.hpp"
+#include "domain/gridnav/dim2/fwd.hpp"
 
 
 #define ENABLE_GRIDNAV
-#define ENABLE_TILES
-#define ENABLE_PANCAKE
+//#define ENABLE_TILES
+//#define ENABLE_PANCAKE
 
 
 namespace mjon661 { namespace experiment {
@@ -158,10 +160,55 @@ namespace mjon661 { namespace experiment {
 		#endif
 		
 		#ifdef ENABLE_GRIDNAV
-		
 		{
-			using D = 
-			
+			gridnav::dim2::CellMap2D<> cellmap_1k_0_35;
+			cellmap_1k_0_35.setRandom(1000,1000,0,0.35);
+		
+
+			{
+				using BaseDomain_t = gridnav::dim2::fourway::BaseDomain<false, true>; //4way, unit cost.
+				using D = gridnav::dim2::DomainStack_StarAbt<BaseDomain_t, gridnav::dim2::topabtlevel_2_cellmap_1k_0_35>;
+				
+				gridnav::dim2::StarAbtInfo<BaseDomain_t::Cost> abtinfo(2);
+				abtinfo.init<gridnav::dim2::fourway::BaseEdgeIterator<false>>(cellmap_1k_0_35);
+
+				D domStack(cellmap_1k_0_35, abtinfo, Json());
+				
+				pKey.push_back("gridnav_1k_4way_unit");
+				
+				for(unsigned i=0; i<5; i++) {
+					auto sp = gridnav::dim2::instances_cellmap_1k_0_35(i);
+					domStack.setInitAndGoal(sp.first, sp.second);
+					pKey.push_back(std::to_string(i));
+					run_routine<D,Alg_t>(domStack, jAlgConfig, jRes, pKey);
+					pKey.pop_back();
+				}
+				
+				pKey.pop_back();
+			}
+
+
+			{
+				using BaseDomain_t = gridnav::dim2::fourway::BaseDomain<true, true>; //4way, life cost.
+				using D = gridnav::dim2::DomainStack_StarAbt<BaseDomain_t, gridnav::dim2::topabtlevel_2_cellmap_1k_0_35>;
+				
+				gridnav::dim2::StarAbtInfo<BaseDomain_t::Cost> abtinfo(2);
+				abtinfo.init<gridnav::dim2::fourway::BaseEdgeIterator<true>>(cellmap_1k_0_35);				
+				
+				D domStack(cellmap_1k_0_35, abtinfo, Json());
+				
+				pKey.push_back("gridnav_1k_4way_LC");
+				
+				for(unsigned i=0; i<5; i++) {
+					auto sp = gridnav::dim2::instances_cellmap_1k_0_35(i);
+					domStack.setInitAndGoal(sp.first, sp.second);
+					pKey.push_back(std::to_string(i));
+					run_routine<D,Alg_t>(domStack, jAlgConfig, jRes, pKey);
+					pKey.pop_back();
+				}
+				
+				pKey.pop_back();
+			}
 		}
 		
 		

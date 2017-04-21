@@ -202,6 +202,14 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			return mLevels[curlvl][s];
 		}
 		
+		Trns_t const& getTrns(unsigned lvl) const {
+			return mAllTrns.at(lvl);
+		}
+		
+		Trns_t const& getBaseTrns() const {
+			return mBaseTrns;
+		}
+		
 		
 		StarAbtInfo(unsigned pMaxDepth) :
 			mMaxDepth(pMaxDepth)

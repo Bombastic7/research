@@ -4,52 +4,29 @@
 #include <string>
 #include <vector>
 
-#include "domain/gridnav/dim2/gridnav2d.hpp"
-
-
 
 namespace mjon661 { namespace gridnav { namespace dim2 {
 
 
-	//~ std::pair<std::string, unsigned> gridnav_maps(unsigned i) {
-		
-		
-	//~ }
+	const unsigned topabtlevel_2_cellmap_1k_0_35 = 6;
 
-
-	//~ const unsigned Gridnav_Top_Abt_1k1k_random_0_35 = 
-
-	//~ std::pair<unsigned,unsigned> gridnav_1k1k_35_0_instances(unsigned i) {
-		//~ std::vector<std::pair<unsigned,unsigned>
-		
-		
-	//~ }
-
-
-
-	template<typename CG>
-	void getMapInfo(unsigned pHeight, unsigned pWidth, std::string const& pMapStr) {
-		CG cellgraph(pHeight, pWidth, pMapStr);
-		StarAbt_Stack<CG> abtStack(cellgraph, 2);
-		
-		std::cout << pHeight << " " << pWidth << " " << pMapStr << " : topabt=" << abtStack.getLevelsInfo().size()-1 << "\n";
-	}
-	
-	template<typename CG, unsigned Top_Abt>
-	void genProblems(unsigned pHeight, unsigned pWidth, std::string const& pMapStr, unsigned pNprobs) {
-		
-		Json jDomConfig;
-		jDomConfig["height"] = pHeight;
-		jDomConfig["width"] = pWidth;
-		jDomConfig["map"] = pMapStr;
-		jDomConfig["abt_radius"] = 2;
-		
-		GridNav_StarAbtStack<CG, Top_Abt> dom(jDomConfig);
-		
-		for(unsigned i=0; i<pNprobs; i++) {
-			std::pair<unsigned, unsigned> sp = dom.genRandInitAndGoal(i);
-			std::cout << sp.first << " " << sp.second << "\n";
-		}
+	//init/goal states for 1000*1000 cellmap.
+	//Cellmap initialise with setRandom(1000,1000,0,0.35).
+	//Problem i generated with DomainStack::genRandInitAndGoal(1000, 5000, i).
+	std::pair<unsigned,unsigned> instances_cellmap_1k_0_35(unsigned i) {
+		std::vector<std::pair<unsigned,unsigned>> v {
+			{25213,977870},
+			{940882,354013},
+			{205064,736931},
+			{971945,115281},
+			{34917,778087},
+			{908026,12578},
+			{310056,805942},
+			{903535,37019},
+			{837065,147790},
+			{947955,103162}
+		};
+		return v.at(i);
 	}
 
 

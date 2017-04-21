@@ -31,7 +31,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 	//	[mAllTrns.size()] == number of levels - 1.
 	
 	
-	template<typename Cost_t, typename AdjEdgeIt>
+	template<typename Cost_t>
 	struct StarAbtInfo {
 
 		using Trns_t = std::vector<unsigned>;
@@ -48,7 +48,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 		};
 
 
-		
+		template<typename AdjEdgeIt>
 		bool gen_base(CellMap2D<> const& pCellMap) {
 			mBaseTrns.resize(pCellMap.cells().size(), (unsigned)-1);
 			
@@ -172,16 +172,48 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			return isTrivial;
 		}
 		
-		//mLevels[i] has edges for level i.
-		//mAllTrns[i] maps level i states to level i+1.
+
+		unsigned getNLevels() const {
+			return mLevels.size();
+		}
 		
-		StarAbtInfo(CellMap2D<> const& pCellMap, unsigned pMaxDepth) :
+		unsigned abstractState(unsigned s, unsigned curlvl, unsigned tgtlvl) const {
+			slow_assert(tgtlvl < getNLevels() && curlvl < tgtlvl);
+			
+			for(unsigned l=curlvl; l<tgtlvl; l++)
+				s = mAllTrns[l][s];
+			
+			return s;
+		}
+		
+		unsigned abstractState(unsigned s, unsigned curlvl) const {
+			slow_assert(curlvl < getNLevels() - 1);
+			slow_assert(s < mLevels[curlvl].size());
+			return mAllTrns[curlvl][s];
+		}
+		
+		unsigned abstractBaseState(unsigned bs) const {
+			slow_assert(bs < mBaseTrns.size());
+			return mBaseTrns[bs];
+		}
+		
+		StateEntry_t const& getEdges(unsigned s, unsigned curlvl) const {
+			slow_assert(s < mLevels.at(curlvl).size());
+			return mLevels[curlvl][s];
+		}
+		
+		
+		StarAbtInfo(unsigned pMaxDepth) :
 			mMaxDepth(pMaxDepth)
-		{
+		{}
+		
+		
+		template<typename AdjEdgeIt>
+		void init(CellMap2D<> const& pCellMap) {
 			mLevels.clear();
 			mAllTrns.clear();
 			
-			bool isTrivial = gen_base(pCellMap);
+			bool isTrivial = gen_base<AdjEdgeIt>(pCellMap);
 
 			unsigned curlvl = 0;
 			
@@ -205,29 +237,29 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			unsigned curlvl = 0;
 			
 			while(true) {
-				std::cout << curlvl << ":\n";
+				out << curlvl << ":\n";
 			
 				for(unsigned i=0; i<pCellMap.getHeight(); i++) {
 					for(unsigned j=0; j<pCellMap.getWidth(); j++) {
 						if(s[i*pCellMap.getWidth()+j] == (unsigned)-1)
-							std::cout << " ";
+							out << " ";
 						else
-							std::cout << s[i*pCellMap.getWidth()+j] % 10;
+							out << s[i*pCellMap.getWidth()+j] % 10;
 					}
-					std::cout << "\n";
+					out << "\n";
 				}
 				
-				std::cout << "\n";
+				out << "\n";
 				
 				for(unsigned i=0; i<mLevels[curlvl].size(); i++) {
-					std::cout << i << ": ";
+					out << i << ": ";
 					for(auto const& e : mLevels[curlvl][i]) {
-						std::cout << "(" << e.first << "," << e.second << ") ";
+						out << "(" << e.first << "," << e.second << ") ";
 					}
-					std::cout << "\n";
+					out << "\n";
 				}
 				
-				std::cout << "\n\n";
+				out << "\n\n";
 			
 				if(curlvl == mLevels.size()-1)
 					break;
@@ -250,5 +282,94 @@ namespace mjon661 { namespace gridnav { namespace dim2 {
 			
 	};
 
+
+
+	template<unsigned L, typename Cost_t>
+	struct Domain_StarAbt {
+		
+		using State = unsigned;
+		using PackedState = unsigned;
+		using Cost = Cost_t;
+		
+		static const bool Is_Perfect_Hash = true;
+		
+		
+		struct AdjEdgeIterator {
+			
+			AdjEdgeIterator(StarAbtInfo<Cost_t> const& pAbtInfo, unsigned pState) :
+				mEdges(pAbtInfo.getEdges(pState, L)),
+				mPos(0)
+			{}
+			
+			bool finished() const {
+				return mPos == mEdges.size();
+			}
+			
+			unsigned state() const {
+				slow_assert(!finished());
+				return mEdges[mPos].first;
+			}
+			
+			Cost_t cost() const {
+				slow_assert(!finished());
+				return mEdges[mPos].second;
+			}
+			
+			void next() {
+				mPos++;
+			}
+
+			typename StarAbtInfo<Cost_t>::StateEntry_t const& mEdges;
+			unsigned mPos;
+		};
+		
+		
+		Domain_StarAbt(StarAbtInfo<Cost_t> const& pAbtInfo, unsigned pBaseGoal) :
+			mAbtInfo(pAbtInfo)
+		{
+			fast_assert(L < mAbtInfo.getNLevels());
+			unsigned abt0goal = mAbtInfo.abstractBaseState(pBaseGoal);
+			mGoalState = mAbtInfo.abstractState(abt0goal, 0, L);
+		}
+		
+		
+		unsigned abstractParentState(unsigned pBaseState) const {
+			if(L == 1)
+				return mAbtInfo.abstractState( mAbtInfo.abstractBaseState(pBaseState), 0);
+			return mAbtInfo.abstractState(pBaseState, L-1);
+		}
+		
+		void packState(State const& pState, PackedState& pPacked) const {
+			pPacked = pState;
+		}
+		
+		void unpackState(State& pState, PackedState const& pPacked) const {
+			pState = pPacked;
+		}
+		
+		AdjEdgeIterator getAdjEdges(unsigned s) const {
+			return AdjEdgeIterator(mAbtInfo, s);
+		}
+
+		size_t hash(PackedState pPacked) const {
+			return pPacked;
+		}
+		
+		bool checkGoal(unsigned pState) const {
+			return pState == mGoalState;
+		}
+
+		bool compare(unsigned a, unsigned b) const {
+			return a == b;
+		}
+
+		void prettyPrintState(State const& s, std::ostream& out) const {
+			out << "[" << s << ", lvl=" << L << "]";
+		}
+
+		
+		StarAbtInfo<Cost_t> const& mAbtInfo;
+		unsigned mGoalState;
+	};
 
 }}}

@@ -9,17 +9,9 @@
 
 namespace mjon661 { namespace experiment {
 
-	static void run(int argc, const char* argv[]) {
-		Json jTgt;
-		
-		if(argc > 1) {
-			std::ifstream ifs(argv[1]);
-			fast_assert(ifs);
-			ifs >> jTgt;
-		}
-		
+	static void run(int argc, const char* argv[]) {		
 		Json jRes;
-		select_alg_weight(jRes, jTgt);
+		select_alg_weight(jRes);
 		
 		{
 			std::ofstream out("res.json");

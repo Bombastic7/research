@@ -6,27 +6,26 @@
 namespace mjon661 { namespace gridnav { namespace dim2 {
 
 
-	//Generates abstract domains for a given CellMap2D, abstraction radius and edge iterator.
-	//Uses STAR abstraction method.
+	//Generates abstract domains (levels) for a given CellMap2D, abstraction radius and edge iterator.
+	//Uses STAR abstraction method, with elimination of singletons if possible.
 	
-	//"base" level is the level of the argument CellMap2D. Each state is an open cell, represented by a number between 0 and the map 
-	//	size minus 1, which is its position.
+	//All states are represented by integers, numbered 0 onwards.
+	//Level 0 is a 1-to-1 mapping of the positions of open cells in the underlying CellMap2D.
+
+	//Edges are represented by a std::pair<unsigned, Cost_t>.
 	
-	//StarAbtInfo has levels numbered 0 onwards. Each level has a associated list of state edges, and a abstract mapping from each 
-	//	level to the next. Each state of level i is a number from 0 onwards. 
+	
 	
 	//mLevels holds edge information for all levels. An edge is a pair {dst, cost}. To retrieve the list of edges for state s of level l,
 	//	use mLevels[l][s]. Each edge is to another state of level l.
 	
 	//mAllTrns is a list of mappings that abstract each state of some level to a state of the next level. To abstract state s of level l,
 	//	to its abstract state in level l+1, use mAllTrns[l][s].
-	
-	//Level 0 is a bijective mapping of states from the base domain. Each open cell is represented by a number 0 onwards, instead
-	//	of position, to allow for efficient indexing.
-	
+
 	//To map a base state bs to a level 0 state, use mBaseTrns[bs].
 	
-	//Note: number of levels is [mLevels.size()], the highest level is [mLevels.size()-1].
+	//Note: 
+	//	Number of levels is [mLevels.size()], the highest level is [mLevels.size()-1].
 	//	Number of states in level i is [mLevels[i].size()-1].
 	//	[mAllTrns.size()] == number of levels - 1.
 	

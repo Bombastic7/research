@@ -74,9 +74,7 @@ namespace mjon661 { namespace gridnav { namespace dim2 { namespace fourway {
 			for(unsigned i=0; i<mAdjPos.size(); i++)
 				if(mAdjPos[i] != (unsigned)-1)
 					if(mCellMap.cells()[mAdjPos[i]] != CellMap2D<>::Cell_t::Open)
-						mAdjPos[i] = (unsigned)-1;
-			
-			//std::cout << mAdjPos[0] << " " << mAdjPos[1] << " " << mAdjPos[2] << " " << mAdjPos[3] << "\n"; 
+						mAdjPos[i] = (unsigned)-1;		
 		}
 		
 

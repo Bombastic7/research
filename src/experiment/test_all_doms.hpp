@@ -14,6 +14,7 @@
 #include "search/astar.hpp"
 #include "search/bugsy.hpp"
 #include "search/bugsy_abt_lin.hpp"
+#include "search/bugsy_hardbf.hpp"
 
 #include "domain/tiles/fwd.hpp"
 #include "domain/gridnav/dim2/fwd.hpp"
@@ -22,6 +23,13 @@
 #define ENABLE_GRIDNAV
 //#define ENABLE_TILES
 //#define ENABLE_PANCAKE
+
+//~ #define ENABLE_ASTAR
+//~ #define ENABLE_GREEDY
+//~ #define ENABLE_SPEEDY
+//~ #define ENABLE_BUGSY_DOMHR_FIXED
+//~ #define ENABLE_BUGSY_ABTLIN_FIXED
+#define ENABLE_BUGSY_HARDBF_FIXED
 
 
 namespace mjon661 { namespace experiment {
@@ -165,6 +173,7 @@ namespace mjon661 { namespace experiment {
 			cellmap_1k_0_35.setRandom(1000,1000,0,0.35);
 		
 
+			//gridnav_4way_unit_1k_0_35_abt2
 			{
 				using BaseDomain_t = gridnav::dim2::fourway::BaseDomain<false, true>; //4way, unit cost.
 				using D = gridnav::dim2::DomainStack_StarAbt<BaseDomain_t, gridnav::dim2::topabtlevel_2_cellmap_1k_0_35>;
@@ -174,7 +183,7 @@ namespace mjon661 { namespace experiment {
 
 				D domStack(cellmap_1k_0_35, abtinfo, Json());
 				
-				pKey.push_back("gridnav_1k_4way_unit");
+				pKey.push_back("gridnav_4way_unit_1k_0_35_abt2");
 				
 				for(unsigned i=0; i<5; i++) {
 					auto sp = gridnav::dim2::instances_cellmap_1k_0_35(i);
@@ -188,6 +197,7 @@ namespace mjon661 { namespace experiment {
 			}
 
 
+			//gridnav_4way_life_1k_0_35_abt2
 			{
 				using BaseDomain_t = gridnav::dim2::fourway::BaseDomain<true, true>; //4way, life cost.
 				using D = gridnav::dim2::DomainStack_StarAbt<BaseDomain_t, gridnav::dim2::topabtlevel_2_cellmap_1k_0_35>;
@@ -197,10 +207,61 @@ namespace mjon661 { namespace experiment {
 				
 				D domStack(cellmap_1k_0_35, abtinfo, Json());
 				
-				pKey.push_back("gridnav_1k_4way_LC");
+				pKey.push_back("gridnav_4way_life_1k_0_35_abt2");
 				
 				for(unsigned i=0; i<5; i++) {
 					auto sp = gridnav::dim2::instances_cellmap_1k_0_35(i);
+					domStack.setInitAndGoal(sp.first, sp.second);
+					pKey.push_back(std::to_string(i));
+					run_routine<D,Alg_t>(domStack, jAlgConfig, jRes, pKey);
+					pKey.pop_back();
+				}
+				
+				pKey.pop_back();
+			}
+		}
+		{
+			gridnav::dim2::CellMap2D<> cellmap_2k_0_35;
+			cellmap_2k_0_35.setRandom(2000,2000,0,0.35);
+			
+			//gridnav_4way_unit_2k_0_35_abt2
+			{
+				using BaseDomain_t = gridnav::dim2::fourway::BaseDomain<false, true>; //4way, unit cost.
+				using D = gridnav::dim2::DomainStack_StarAbt<BaseDomain_t, gridnav::dim2::topabtlevel_2_cellmap_2k_0_35>;
+				
+				gridnav::dim2::StarAbtInfo<BaseDomain_t::Cost> abtinfo(2);
+				abtinfo.init<gridnav::dim2::fourway::BaseEdgeIterator<false>>(cellmap_2k_0_35);
+
+				D domStack(cellmap_2k_0_35, abtinfo, Json());
+				
+				pKey.push_back("gridnav_4way_unit_2k_0_35_abt2");
+				
+				for(unsigned i=0; i<5; i++) {
+					auto sp = gridnav::dim2::instances_cellmap_2k_0_35(i);
+					domStack.setInitAndGoal(sp.first, sp.second);
+					pKey.push_back(std::to_string(i));
+					run_routine<D,Alg_t>(domStack, jAlgConfig, jRes, pKey);
+					pKey.pop_back();
+				}
+				
+				pKey.pop_back();
+			}
+
+
+			//gridnav_4way_life_2k_0_35_abt2
+			{
+				using BaseDomain_t = gridnav::dim2::fourway::BaseDomain<true, true>; //4way, life cost.
+				using D = gridnav::dim2::DomainStack_StarAbt<BaseDomain_t, gridnav::dim2::topabtlevel_2_cellmap_2k_0_35>;
+				
+				gridnav::dim2::StarAbtInfo<BaseDomain_t::Cost> abtinfo(2);
+				abtinfo.init<gridnav::dim2::fourway::BaseEdgeIterator<true>>(cellmap_2k_0_35);				
+				
+				D domStack(cellmap_2k_0_35, abtinfo, Json());
+				
+				pKey.push_back("gridnav_4way_life_2k_0_35_abt2");
+				
+				for(unsigned i=0; i<5; i++) {
+					auto sp = gridnav::dim2::instances_cellmap_2k_0_35(i);
 					domStack.setInitAndGoal(sp.first, sp.second);
 					pKey.push_back(std::to_string(i));
 					run_routine<D,Alg_t>(domStack, jAlgConfig, jRes, pKey);
@@ -224,28 +285,33 @@ namespace mjon661 { namespace experiment {
 		template<typename D> using Speedy_t = algorithm::Astar<D, algorithm::AstarSearchMode::Speedy, algorithm::AstarHrMode::DomainHr>;
 		template<typename D> using Bugsy_domhr_Fixed_t = algorithm::Bugsy<D, true>;
 		template<typename D> using Bugsy_abtlin_Fixed_t = algorithm::BugsyAbtLin_baseSearch<D, true>;
+		template<typename D> using Bugsy_hardbf_Fixed_t = algorithm::BugsyHardBF<D>;
 	};
 	
 	
 	template<typename = void>
-	void select_alg_weight(Json& jRes, Json const& jTgt) {
+	void select_alg_weight(Json& jRes) {
 		
 		std::vector<UtilityWeights> weights = {UtilityWeights(1,1,"1~1"), UtilityWeights(1,1e3,"1~1e3"), UtilityWeights(1,1e6,"1~1e6")};
 		
-		if(jTgt.count("algorithm") == 0 || jTgt.at("algorithm").count("astar")) {
+		#ifdef ENABLE_ASTAR
+		{
 			std::vector<std::string> key {"astar", "nullweight"};
 			select_domain_prob<SearchAlgTemplateTypes::Astar_t>(Json(), jRes, key);
 		}
-		
-		if(jTgt.count("algorithm") == 0 || jTgt.at("algorithm").count("greedy")) {
+		#endif
+		#ifdef ENABLE_GREEDY
+		{
 			std::vector<std::string> key {"greedy", "nullweight"};
 			select_domain_prob<SearchAlgTemplateTypes::Greedy_t>(Json(), jRes, key);
 		}
-		
-		if(jTgt.count("algorithm") == 0 || jTgt.at("algorithm").count("speedy")) {
+		#endif
+		#ifdef ENABLE_SPEEDY
+		{
 			std::vector<std::string> key {"speedy", "nullweight"};
 			select_domain_prob<SearchAlgTemplateTypes::Speedy_t>(Json(), jRes, key);
 		}
+		#endif
 		
 		for(auto const& weight : weights) {
 			Json jAlgConfig;
@@ -253,17 +319,26 @@ namespace mjon661 { namespace experiment {
 			jAlgConfig["wt"] = weight.wt;
 			jAlgConfig["exptime"] = 3e-6;
 			
-			if(!(jTgt.count("weight") == 0 || jTgt.at("weight").count(weight.str)))
-				continue;
-			
-			if(jTgt.count("algorithm") == 0 || jTgt.at("algorithm").count("bugsy_domhr_fixed")) {
+			#ifdef ENABLE_BUGSY_DOMHR_FIXED
+			{
 				std::vector<std::string> key {"bugsy_domhr_fixed", weight.str};
 				select_domain_prob<SearchAlgTemplateTypes::Bugsy_domhr_Fixed_t>(jAlgConfig, jRes, key);
 			}
-			if(jTgt.count("algorithm") == 0 || jTgt.at("algorithm").count("bugsy_abtlin_fixed")) {
+			#endif
+			#ifdef ENABLE_BUGSY_ABTLIN_FIXED
+			{
 				std::vector<std::string> key {"bugsy_abtlin_fixed", weight.str};
 				select_domain_prob<SearchAlgTemplateTypes::Bugsy_abtlin_Fixed_t>(jAlgConfig, jRes, key);
 			}
+			#endif
+			#ifdef ENABLE_BUGSY_HARDBF_FIXED
+			{
+				jAlgConfig["bf"] = 1.01;
+				std::vector<std::string> key {"bugsy_hardbf_fixed", weight.str};
+				select_domain_prob<SearchAlgTemplateTypes::Bugsy_hardbf_Fixed_t>(jAlgConfig, jRes, key);
+				jAlgConfig.at("bf") = {};
+			}
+			#endif
 		}
 	}
 

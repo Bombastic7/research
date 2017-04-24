@@ -18,7 +18,7 @@ namespace mjon661 {
 	
 
 	
-
+/*
 	static void run() {
 
 		using BaseDomain_t = gridnav::dim2::fourway::BaseDomain<false, true>;
@@ -57,9 +57,46 @@ namespace mjon661 {
 		
 		//~ alg.execute(domStack.getInitState());
 	}
+*/
+
+	static void run() {
+
+		using BaseDomain_t = gridnav::dim2::fourway::BaseDomain<false, true>;
+		using D = gridnav::dim2::DomainStack_StarAbt<BaseDomain_t, 7>;
+		
+		
+		gridnav::dim2::CellMap2D<> cellmap;
+		cellmap.setRandom(2000,2000,0,0.35);
+		
+		gridnav::dim2::StarAbtInfo<BaseDomain_t::Cost> abtinfo(2);
+		abtinfo.init<BaseDomain_t::AdjEdgeIterator>(cellmap);
+		
+		{
+			//std::ofstream out("out.txt");
+			//cellmap.drawCells(out);
+			//abtinfo.draw(cellmap, out);
+
+			//std::cout << abtinfo.getNLevels() << "\n";
+		}
+		
+
+		D domStack(cellmap, abtinfo, Json());
+		
+		for(unsigned i=0; i<10; i++) {
+			auto sp = domStack.genRandomInitAndGoal(2000, 5000, i);
+			std::cout << "{" << sp.first << "," << sp.second << "}, // ("
+				<< sp.first%2000 << "," << sp.first/2000 << ") -> (" << sp.second%2000 << "," << sp.second/2000 << ")\n";
+		}
+		
+		//~ domStack.setInitAndGoal(sp.first, sp.second);
+		
+		//~ using Alg_t = algorithm::DebugWalker<D>;
+		
+		//~ Alg_t alg(domStack, Json());
+		
+		//~ alg.execute(domStack.getInitState());
+	}
 }
-
-
 
 int main(int argc, const char* argv[]) {
 

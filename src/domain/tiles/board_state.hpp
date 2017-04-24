@@ -164,10 +164,6 @@ namespace mjon661 { namespace tiles {
 		std::array<unsigned, N> mIdxOfTile;
 		std::array<tile_t, N> mTileAtIdx;
 		unsigned mTopLevel;
-
-		
-	
-		
 	};
 	
 

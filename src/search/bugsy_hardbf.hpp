@@ -48,13 +48,37 @@ eval_u(...):
 
 d = k * delay * D
 
- 
+
+uf(n) = wf.g + wt.expd + wf.h + wt.exptime.remexp
+// Valid if n is immediately begin expanded, but missing exp count been n's generation and expansion.
+//	And expd is dynamic.
+//	Could use something like this purely for bf computation.
+
+To extract ulvl bf from above formula, uf(n) must be very discrete. But at least expd is constantly changing.
+
+u must be by f vals and dist-to-go.
+
+
+wf.f + wt * remexp * exptime
+
+u(f, d, k) = ??		e.g. wf*f + wf*k*bf**d,  or wf*f + wt*bf**(k+d)
+ULVL(u(f,d,k)) = ulvl
+ulvl -> k ??
+
+k must be very discrete, to maintain descreteness of u(f,d,k).
+
+u(f, d, cur_ulvl) = ??
+
+
+
+
+...
+uf(n) = wf.g + wt.expd + wf.h + wt.exptime.remexp + wt.[exps since generation]
+
+// 
 */
 
 namespace mjon661 { namespace algorithm {
-
-
-
 
 	template<typename D>
 	class BugsyHardBF {
@@ -69,6 +93,7 @@ namespace mjon661 { namespace algorithm {
 		struct Node {
 			Cost g, f;
 			unsigned depth;
+			unsigned d;
 			double u;
 			unsigned expdAtGen;
 			PackedState pkd;
@@ -102,9 +127,7 @@ namespace mjon661 { namespace algorithm {
 			bool operator()(Node * const a, Node * const b) const {
 				if(a->u != b->u)
 					return a->u < b->u;
-				if(a->f != b->f)
-					return a->f < b->f;
-				return a->g > b->g;
+				return a->depth < b->depth;
 			}
 		};
 		
@@ -152,6 +175,11 @@ namespace mjon661 { namespace algorithm {
 
 			mLog_pastExpTimes.clear();
 			mLog_pastExpTimes.push_back(mLog_curExpTime);
+			
+			mU_curL = 0;
+			mU_curN = 0;
+			mU_curU = -1;
+			mU_pastInfo.clear();
 		}
 		
 		void execute(State const& s0) {
@@ -226,9 +254,21 @@ namespace mjon661 { namespace algorithm {
 			}
 			
 			j["goal_depth"] = goal_depth;
-
-			j["past_delays"] = mLog_pastDelays;
 			j["past_exptimes"] = mLog_pastExpTimes;
+			
+			{
+				mU_pastInfo.push_back({mU_curU, mU_curN});
+				std::vector<double> past_u;
+				std::vector<unsigned> past_n;
+				
+				for(auto const& p : mU_pastInfo) {
+					past_u.push_back(p.first);
+					past_n.push_back(p.second);
+				}
+				
+				j["ulvl_u"] = past_u;
+				j["ulvl_n"] = past_n;
+			}
 			return j;
 		}
 		
@@ -239,6 +279,8 @@ namespace mjon661 { namespace algorithm {
 		
 		void expand(Node* n, State& s) {
 			mLog_expd++;
+			
+			informExpansion(n, s);
 			
 			typename Domain::AdjEdgeIterator edgeIt = mDomain.getAdjEdges(s);
 			
@@ -293,10 +335,25 @@ namespace mjon661 { namespace algorithm {
 		
 
 		void evalHr(Node* n, State const& s) {
-			n->f = n->g + mDomain.costHeuristic(s);			
-			n->u = mParam_wf * n->f + (unsigned) std::round(mParam_wt * mLog_curExpTime * std::pow(mParam_bf, n->depth));
+			n->f = n->g + mDomain.costHeuristic(s);
+			n->d = mDomain.distanceHeuristic(s);
+			n->u = mParam_wf * n->f + mParam_wt * mLog_curExpTime * std::pow(mParam_bf, mU_curL + n->d);
+			//n->u = 0; //n->f + mDomain.distanceHeuristic(s);
 		}
 		
+		void informExpansion(Node* n, State const& s) {
+			if(n->u == mU_curU) {
+				mU_curN++;
+				return;
+			}
+			
+			if(mU_curU != -1) {
+				mU_pastInfo.push_back({mU_curU, mU_curN});
+				mU_curL++;
+			}
+			mU_curU = n->u;
+			mU_curN = 1;
+		}
 	
 		
 		Domain mDomain;
@@ -311,8 +368,14 @@ namespace mjon661 { namespace algorithm {
 		
 		double mLog_curExpTime;
 		
-		std::vector<double> mLog_pastDelays, mLog_pastExpTimes;
+		std::vector<double> mLog_pastExpTimes;
 		
-		Timer mLog_resortTimer, mLog_searchTimer;
+		Timer mLog_searchTimer;
+		
+		
+		double mU_curU;
+		unsigned mU_curL;
+		unsigned mU_curN;
+		std::vector<std::pair<double, unsigned>> mU_pastInfo;
 	};
 }}

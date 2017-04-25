@@ -75,7 +75,7 @@ namespace mjon661 { namespace bubbles {
 			mOp = 0;
 			prepGroups();
 			if(!finished())
-				adv();
+				applyMove(mGroups[mOp]);
 		}
 		
 		State_t<H,W,Sz> state() {
@@ -83,7 +83,7 @@ namespace mjon661 { namespace bubbles {
 		}
 		
 		int cost() {
-			return 1;
+			return mDelGroupSz;
 		}
 		
 		bool finished() {
@@ -93,22 +93,17 @@ namespace mjon661 { namespace bubbles {
 		void next() {
 			slow_assert(!finished());			
 			mOp++;
-			adv();
-		}
-		
-		void adv() {
-			while(!finished()) {
-				applyMove(mGroups[mOp]);
-				break;
-				//if(!shouldPrune())
-				//	break;
-				mOp++;
-			}
+			if(finished())
+				return;
+			applyMove(mGroups[mOp]);
 		}
 		
 		
 		void prepGroups() {
 			mVisited.fill(NullCell);
+			
+			for(auto& a : mColColorsCount)
+				a.fill(0);
 			
 			for(unsigned i=0; i<H*W; i++) {
 				if(mOrigState[i] == NullCell)
@@ -121,6 +116,24 @@ namespace mjon661 { namespace bubbles {
 				else if(sz == 1)
 					mSingletons.push_back(i);
 			}
+			
+			bool shouldprune = false;
+			
+			for(auto s : mSingletons) {
+				unsigned col = s%W;
+				Cell_t color = mOrigState[s];
+				
+				if(mColColorsCount[col][color] >= 2) {
+				} else if(col != 0 && mColColorsCount[col-1][color] > 0) {
+				} else if(col != W-1 && mColColorsCount[col+1][color] > 0) {
+				} else {
+					shouldprune = true;
+					break;
+				}				
+			}
+			
+			if(shouldprune)
+				mOp = mGroups.size();
 		}
 		
 		unsigned recVisit(unsigned p, unsigned g, Cell_t c) {
@@ -128,6 +141,7 @@ namespace mjon661 { namespace bubbles {
 				return 0;
 			
 			mVisited[p] = g;
+			mColColorsCount[p%W][c]++;
 			
 			unsigned s = 1;
 			
@@ -145,6 +159,7 @@ namespace mjon661 { namespace bubbles {
 			
 			mAdjState[p] = NullCell;
 			mPoppedCols[p%W] = true;
+			mDelGroupSz++;
 			
 			if(p >= W)			recDelete(p-W, c);
 			if(p < (H-1)*W)		recDelete(p+W, c);
@@ -177,42 +192,22 @@ namespace mjon661 { namespace bubbles {
 		void applyMove(unsigned p) {
 			mAdjState = mOrigState;
 			mPoppedCols.fill(false);
+			mDelGroupSz = 0;
 			recDelete(p, mAdjState[p]);
 			dropBubbles();
 		}
 		
-		//~ bool shouldPrune() {
-			//~ std::array<std::array<bool,Sz>, W> colorPresentMap;
-			
-			//~ for(auto& a : colorPresentMap) a.fill(false);
-			
-			//~ for(unsigned i=0; i<H*W; i++) {
-				//~ if(mAdjState[i] == NullCell)
-					//~ continue;
-				//~ unsigned w = i % W;
-				//~ colorPresentMap[w][mAdjState[i]] = true;
-			//~ }
-			
-			//~ for(auto s : mSingletons) {
-				//~ unsigned w = s % W;
-				//~ slow_assert(mAdjState[s] != NullCell);	
-				//~ if(colorPresentMap[w][mAdjState[s]]) return false;
-				//~ if(w != 0 && colorPresentMap[w-1][mAdjState[s]]) return false;
-				//~ if(w != W-1 && colorPresentMap[w+1][mAdjState[s]]) return false;
-			//~ }
-			
-			//~ return true;
-
-			
-		//~ }
+		
 		
 		
 		State_t<H,W,Sz> const& mOrigState;
 		State_t<H,W,Sz> mAdjState;
 		std::array<unsigned, H*W> mVisited;
 		std::vector<unsigned> mGroups, mSingletons;
+		std::array<std::array<unsigned, Sz>, W> mColColorsCount;
 		std::array<bool, W> mPoppedCols;
 		unsigned mOp;
+		unsigned mDelGroupSz;
 	};
 	
 	
@@ -224,6 +219,8 @@ namespace mjon661 { namespace bubbles {
 		using State = State_t<H,W,Sz>;
 		using PackedState = State_t<H,W,Sz>;
 		using AdjEdgeIterator = BaseEdgeIterator<H,W,Sz>;
+		
+		static const bool Is_Perfect_Hash = false;
 		
 		BaseDomain() = default;
 		
@@ -241,29 +238,36 @@ namespace mjon661 { namespace bubbles {
 		}
 		
 		size_t hash(PackedState pPacked) const {
-			return pPacked.fnv_hash;
+			return pPacked.fnv_hash();
 		}
 		
-		Cost costHeuristic(unsigned pState) const {
+		Cost costHeuristic(State const& pState) const {
+			unsigned c=0;
+			for(unsigned i=0; i<H*W; i++)
+				if(pState[i] != NullCell)
+					c++;
+			return c;
+		}
+		
+		Cost distanceHeuristic(State const& pState) const {
 			return 0;
 		}
 		
-		Cost distanceHeuristic(unsigned pState) const {
-			return 0;
-		}
-		
-		std::pair<Cost, Cost> pairHeuristics(unsigned pState) const {
-			return {0,0};
+		std::pair<Cost, Cost> pairHeuristics(State const& pState) const {
+			return {costHeuristic(pState),0};
 
 		}
 		
-		bool checkGoal(State pState) const {
+		bool checkGoal(State const& pState) const {
 			for(unsigned i=0; i<H*W; i++)
-				if(pState[i] != 0)
+				if(pState[i] != NullCell)
 					return false;
 			return true;
 		}
-
+		
+		bool compare(State const& a, State const& b) const {
+			return a == b;
+		}
 
 		void prettyPrintState(State const& s, std::ostream& out) const {
 			s.prettyPrint(out);

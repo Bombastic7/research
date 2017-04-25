@@ -4,7 +4,6 @@
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
 #include "search/nodepool.hpp"
-#include "search/solution.hpp"
 #include "util/debug.hpp"
 #include "util/json.hpp"
 #include "util/exception.hpp"

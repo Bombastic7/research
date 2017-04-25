@@ -4,7 +4,6 @@
 #include "search/closedlist.hpp"
 #include "search/openlist.hpp"
 #include "search/nodepool.hpp"
-#include "search/solution.hpp"
 #include "util/debug.hpp"
 #include "util/json.hpp"
 #include "util/exception.hpp"
@@ -233,6 +232,9 @@ namespace mjon661 { namespace algorithm {
 			
 
 			while(true) {
+				if(debugCheckMemLimit())
+					throw NoSolutionException("mem limit");
+				
 				Node* n = nullptr;
 				try {
 					n = mOpenList.pop();
